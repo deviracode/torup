@@ -1,0 +1,30 @@
+{
+  "name": "@queue/whatsapp-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "build:docker": "node -e \"require('esbuild').buildSync({entryPoints:['src/index.ts'],bundle:true,platform:'node',target:'node20',outdir:'dist',format:'esm',external:['express','@anthropic-ai/sdk','@supabase/supabase-js']})\"",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@queue/db": "workspace:*",
+    "@queue/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.27.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

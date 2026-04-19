@@ -1,0 +1,18 @@
+{
+  "name": "queue-management",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "test": "turbo test",
+    "clean": "turbo clean",
+    "serve": "ulimit -n 10240 && turbo dev --filter=@queue/api --filter=@queue/web --filter=@queue/whatsapp-agent"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  },
+  "packageManager": "pnpm@10.8.1"
+}
