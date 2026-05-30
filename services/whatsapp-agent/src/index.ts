@@ -71,7 +71,7 @@ app.post("/webhook", async (req, res) => {
  * Map business WhatsApp phone number IDs to business IDs.
  * In production, this would be a database lookup.
  */
-async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string } | null> {
+async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean } | null> {
   // Try to find from environment mapping
   const mapping = process.env.PHONE_BUSINESS_MAP;
   if (mapping) {
@@ -89,12 +89,12 @@ async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: s
 
   const { data } = await supabase
     .from("businesses")
-    .select("id, name")
+    .select("id, name, phone, allow_multiple_bookings")
     .eq("is_active", true)
     .limit(1)
     .single();
 
-  if (data) return { businessId: data.id, businessName: data.name };
+  if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, allowMultipleBookings: data.allow_multiple_bookings };
   return null;
 }
 
@@ -115,7 +115,7 @@ async function getBusinessServices(businessId: string) {
 }
 
 // Cache business info + services (5 min TTL)
-const bizCache = new Map<string, { biz: { businessId: string; businessName: string }; services: Record<string, any>[]; expiresAt: number }>();
+const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; expiresAt: number }>();
 
 async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const cached = bizCache.get(businessPhoneNumberId);
@@ -311,7 +311,8 @@ async function createBooking(
   businessId: string,
   serviceId: string,
   startTime: string,
-  customerId: string
+  customerId: string,
+  allowMultipleBookings: boolean
 ): Promise<"ok" | "already_booked" | string> {
   const supabase = getSupabase();
 
@@ -319,19 +320,21 @@ async function createBooking(
     .select("duration_minutes").eq("id", serviceId).single();
   if (!service) return "שגיאה: שירות לא נמצא";
 
-  // Single-active-appointment cap: reject if customer already has any active future
-  // appointment at this business. (Race: two simultaneous inserts could both pass —
-  // acceptable for now; stronger guard would be a Postgres advisory lock or unique
-  // partial index. See design.md decision 2.)
-  const { count: activeCount, error: countErr } = await supabase
-    .from("appointments")
-    .select("id", { count: "exact", head: true })
-    .eq("business_id", businessId)
-    .eq("customer_id", customerId)
-    .in("status", ["pending_approval", "pending", "confirmed"])
-    .gt("start_time", new Date().toISOString());
-  if (countErr) return `שגיאה: ${countErr.message}`;
-  if ((activeCount ?? 0) > 0) return "already_booked";
+  if (!allowMultipleBookings) {
+    // Single-active-appointment cap: reject if customer already has any active future
+    // appointment at this business. (Race: two simultaneous inserts could both pass —
+    // acceptable for now; stronger guard would be a Postgres advisory lock or unique
+    // partial index. See design.md decision 2.)
+    const { count: activeCount, error: countErr } = await supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .eq("customer_id", customerId)
+      .in("status", ["pending_approval", "pending", "confirmed"])
+      .gt("start_time", new Date().toISOString());
+    if (countErr) return `שגיאה: ${countErr.message}`;
+    if ((activeCount ?? 0) > 0) return "already_booked";
+  }
 
   const endTime = new Date(
     new Date(startTime).getTime() + service.duration_minutes * 60000
@@ -613,7 +616,8 @@ async function handleIncomingMessage(
         ctx.biz.businessId,
         session.booking.serviceId,
         session.booking.time,
-        session.customerId
+        session.customerId,
+        ctx.biz.allowMultipleBookings
       );
 
       if (result === "ok") {
