@@ -10,7 +10,7 @@ COPY packages/ui/ packages/ui/
 COPY packages/i18n/ packages/i18n/
 COPY apps/web/ apps/web/
 
-RUN pnpm install --frozen-lockfile --filter=@queue/web...
+RUN pnpm install --frozen-lockfile --filter=@torup/web...
 
 WORKDIR /app/packages/shared
 RUN pnpm run build
