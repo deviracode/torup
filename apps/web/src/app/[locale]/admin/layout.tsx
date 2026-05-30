@@ -22,7 +22,7 @@ function AdminSidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-e border-border bg-card">
       <div className="flex h-16 items-center justify-center border-b border-border">
-        <h1 className="text-xl font-bold text-primary">QueuePro Admin</h1>
+        <h1 className="text-xl font-bold text-primary">TorUp Admin</h1>
       </div>
 
       <nav className="flex-1 space-y-1 p-4">

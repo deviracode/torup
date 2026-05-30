@@ -73,7 +73,7 @@ export default function HomePage() {
           <Link href={`/${locale}/data-deletion`} className="hover:text-foreground">
             {isHe ? "מחיקת מידע" : "Data Deletion"}
           </Link>
-          <span>&copy; {new Date().getFullYear()} QueuePro</span>
+          <span>&copy; {new Date().getFullYear()} TorUp</span>
         </div>
       </footer>
     </main>

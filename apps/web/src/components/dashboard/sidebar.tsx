@@ -72,7 +72,7 @@ export function Sidebar() {
           <SheetContent side="right" className="w-64 p-0">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <div className="flex h-14 items-center justify-center border-b">
-              <span className="text-lg font-bold text-primary">QueuePro</span>
+              <span className="text-lg font-bold text-primary">TorUp</span>
             </div>
             <NavLinks locale={locale} pathname={pathname} t={t} onNavigate={() => setSheetOpen(false)} />
             <div className="border-t p-4 space-y-2">
@@ -84,13 +84,13 @@ export function Sidebar() {
             </div>
           </SheetContent>
         </Sheet>
-        <span className="text-lg font-bold text-primary">QueuePro</span>
+        <span className="text-lg font-bold text-primary">TorUp</span>
       </div>
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex h-screen w-64 flex-col border-e bg-background">
         <div className="flex h-14 items-center justify-center border-b">
-          <span className="text-lg font-bold text-primary">QueuePro</span>
+          <span className="text-lg font-bold text-primary">TorUp</span>
         </div>
 
         <NavLinks locale={locale} pathname={pathname} t={t} />

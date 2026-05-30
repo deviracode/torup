@@ -37,7 +37,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">QueuePro</CardTitle>
+          <CardTitle className="text-3xl font-bold tracking-tight">TorUp</CardTitle>
           <CardDescription>{t("login")}</CardDescription>
         </CardHeader>
         <CardContent>

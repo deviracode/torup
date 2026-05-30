@@ -6,7 +6,7 @@ import { routing } from "@/i18n/routing";
 import "../globals.css";
 
 export const metadata: Metadata = {
-  title: "QueuePro - Smart Appointment Management",
+  title: "TorUp - Smart Appointment Management",
   description: "AI-powered appointment and queue management for businesses",
 };
 
