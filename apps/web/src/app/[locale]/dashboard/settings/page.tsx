@@ -66,7 +66,7 @@ interface BusinessProfile {
   address: string | null;
 }
 
-type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile";
+type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking";
 
 export default function SettingsPage() {
   const t = useTranslations("dashboard");
@@ -97,6 +97,9 @@ export default function SettingsPage() {
 
   // Profile state
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
+
+  // Booking settings state
+  const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
 
   const token = session?.access_token || "";
 
@@ -129,6 +132,9 @@ export default function SettingsPage() {
       } else if (tab === "profile") {
         const r = await apiFetch<BusinessProfile>(`/api/businesses/${businessId}`, {}, token);
         if (r) setProfile(r);
+      } else if (tab === "booking") {
+        const r = await apiFetch<{ allow_multiple_bookings: boolean }>(`/api/businesses/${businessId}`, {}, token);
+        if (r) setAllowMultipleBookings(r.allow_multiple_bookings ?? false);
       }
     } catch {
       // ignore
@@ -239,6 +245,17 @@ export default function SettingsPage() {
     } catch {} finally { setSaving(false); }
   };
 
+  const saveBooking = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/businesses/${businessId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ allow_multiple_bookings: allowMultipleBookings }),
+      }, token);
+      showSaved();
+    } catch {} finally { setSaving(false); }
+  };
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "hours", label: t("workingHours") },
     { key: "breaks", label: t("breaks") },
@@ -246,6 +263,7 @@ export default function SettingsPage() {
     { key: "rules", label: t("bookingRules") },
     { key: "staff", label: t("staffManagement") },
     { key: "profile", label: t("businessProfile") },
+    { key: "booking", label: t("booking") },
   ];
 
   return (
@@ -505,6 +523,31 @@ export default function SettingsPage() {
                 {t("addStaff")}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Booking Settings */}
+        {tab === "booking" && (
+          <div className="space-y-4 max-w-md">
+            <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{t("allowMultipleBookings")}</p>
+                <p className="text-xs text-muted-foreground">{t("allowMultipleBookingsDesc")}</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowMultipleBookings}
+                  onChange={(e) => setAllowMultipleBookings(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+            <button onClick={saveBooking} disabled={saving}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
+              {tCommon("save")}
+            </button>
           </div>
         )}
 
