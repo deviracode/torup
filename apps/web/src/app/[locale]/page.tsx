@@ -1,6 +1,6 @@
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
-import { Button } from "@queue/ui";
+import { Button } from "@torup/ui";
 
 export default function HomePage() {
   const t = useTranslations("common");

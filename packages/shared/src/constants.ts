@@ -1,4 +1,5 @@
 export const APPOINTMENT_STATUSES = [
+  "pending_approval",
   "pending",
   "confirmed",
   "in_progress",
@@ -13,6 +14,7 @@ export const VALID_STATUS_TRANSITIONS: Record<
   AppointmentStatus,
   AppointmentStatus[]
 > = {
+  pending_approval: ["confirmed", "cancelled"],
   pending: ["confirmed", "cancelled"],
   confirmed: ["in_progress", "cancelled", "no_show"],
   in_progress: ["completed"],
@@ -20,6 +22,13 @@ export const VALID_STATUS_TRANSITIONS: Record<
   cancelled: [],
   no_show: [],
 };
+
+// Statuses representing an "active" future appointment (used by the per-customer cap).
+export const ACTIVE_APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  "pending_approval",
+  "pending",
+  "confirmed",
+];
 
 export const BOOKING_SOURCES = ["whatsapp", "web", "manual"] as const;
 export type BookingSource = (typeof BOOKING_SOURCES)[number];

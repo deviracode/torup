@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import { AppointmentModal } from "./appointment-modal";
-import { Button, Badge } from "@queue/ui";
+import { Button, Badge } from "@torup/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Appointment {
@@ -24,6 +24,7 @@ interface Appointment {
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  pending_approval: "bg-orange-100 border-orange-500 text-orange-900",
   pending: "bg-yellow-100 border-yellow-400 text-yellow-800",
   confirmed: "bg-blue-100 border-blue-400 text-blue-800",
   in_progress: "bg-purple-100 border-purple-400 text-purple-800",
@@ -212,7 +213,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                             <span className="text-xs shrink-0">{startTime}</span>
                           </div>
                           <div className="text-xs truncate opacity-75">
-                            {apt.services?.name_he || ""} • {tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status)}
+                            {apt.services?.name_he || ""} • {tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status === "pending_approval" ? "pendingApproval" : apt.status)}
                           </div>
                         </button>
                       );

@@ -195,6 +195,7 @@
     "slug": "כתובת URL"
   },
   "appointments": {
+    "pendingApproval": "ממתין לאישור",
     "pending": "ממתין",
     "confirmed": "מאושר",
     "inProgress": "בתהליך",

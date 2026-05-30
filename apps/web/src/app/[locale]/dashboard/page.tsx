@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { DailyCalendar } from "@/components/dashboard/daily-calendar";
 import { WeeklyCalendar } from "@/components/dashboard/weekly-calendar";
 import { NewAppointmentForm } from "@/components/dashboard/new-appointment-form";
-import { Card, CardContent, Button, Skeleton } from "@queue/ui";
+import { Card, CardContent, Button, Skeleton } from "@torup/ui";
 import { CalendarDays, Clock, CheckCircle2, Plus } from "lucide-react";
 
 interface DayStats {

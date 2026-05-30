@@ -1,4 +1,4 @@
-import { createClient } from "@queue/db";
+import { createClient } from "@torup/db";
 
 /**
  * Execute tool calls from the Claude agent.

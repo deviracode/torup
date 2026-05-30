@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Badge, Button, Separator, Card, CardContent } from "@queue/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Badge, Button, Separator, Card, CardContent } from "@torup/ui";
 import { User, Scissors, CalendarDays, FileText, Clock, Phone, Bell } from "lucide-react";
 
 interface Appointment {
@@ -21,6 +21,7 @@ interface Appointment {
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
+  pending_approval: [], // approve/reject use dedicated endpoints, not the generic PATCH /status
   pending: ["confirmed", "cancelled"],
   confirmed: ["in_progress", "cancelled", "no_show"],
   in_progress: ["completed"],
@@ -30,6 +31,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning"> = {
+  pending_approval: "warning",
   pending: "warning",
   confirmed: "default",
   in_progress: "secondary",
@@ -39,6 +41,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 };
 
 const STATUS_DOT: Record<string, string> = {
+  pending_approval: "bg-orange-500",
   pending: "bg-yellow-500",
   confirmed: "bg-blue-500",
   in_progress: "bg-purple-500",
@@ -115,7 +118,29 @@ export function AppointmentModal({
     day: "numeric",
   });
 
-  const statusKey = appointment.status === "in_progress" ? "inProgress" : appointment.status === "no_show" ? "noShow" : appointment.status;
+  const handleApprovalAction = async (action: "approve" | "reject") => {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await apiFetch<{ approved?: string; rejected: string | string[] }>(
+        `/api/businesses/${businessId}/appointments/${appointment.id}/${action}`,
+        { method: "POST" },
+        token
+      );
+      if (action === "approve" && Array.isArray(result.rejected) && result.rejected.length > 0) {
+        // Surface the side-effect to the manager.
+        setError(`Approved. ${result.rejected.length} other applicant(s) for the same slot were auto-rejected and notified.`);
+      }
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to ${action} appointment`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statusKey = appointment.status === "in_progress" ? "inProgress" : appointment.status === "no_show" ? "noShow" : appointment.status === "pending_approval" ? "pendingApproval" : appointment.status;
   const dotColor = STATUS_DOT[appointment.status] || STATUS_DOT.pending;
 
   const durationMin = appointment.services?.duration_minutes;
@@ -243,6 +268,36 @@ export function AppointmentModal({
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Approval actions (only for pending_approval) */}
+        {appointment.status === "pending_approval" && (
+          <>
+            <Separator />
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                {t("manageRequest") || "Manage request"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => handleApprovalAction("approve")}
+                  disabled={loading}
+                  variant="default"
+                  size="sm"
+                >
+                  ✅ {tCommon("approve") || "Approve"}
+                </Button>
+                <Button
+                  onClick={() => handleApprovalAction("reject")}
+                  disabled={loading}
+                  variant="destructive"
+                  size="sm"
+                >
+                  ❌ {tCommon("reject") || "Reject"}
+                </Button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Status transition actions */}

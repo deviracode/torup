@@ -8,7 +8,7 @@ import {
   Card, CardContent, Button, Badge, Input, Label, Skeleton,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from "@queue/ui";
+} from "@torup/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Service {

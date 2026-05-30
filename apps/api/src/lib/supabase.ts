@@ -1,4 +1,4 @@
-import { createClient as baseCreateClient } from "@queue/db";
+import { createClient as baseCreateClient } from "@torup/db";
 
 // Service role client for admin operations
 export function createServiceClient() {

@@ -195,6 +195,7 @@
     "slug": "رابط URL"
   },
   "appointments": {
+    "pendingApproval": "بانتظار الموافقة",
     "pending": "قيد الانتظار",
     "confirmed": "مؤكد",
     "inProgress": "قيد التنفيذ",

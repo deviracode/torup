@@ -39,6 +39,22 @@ describe("canTransition", () => {
     expect(canTransition("cancelled", "confirmed")).toBe(false);
   });
 
+  it("allows pending_approval → confirmed", () => {
+    expect(canTransition("pending_approval", "confirmed")).toBe(true);
+  });
+
+  it("allows pending_approval → cancelled", () => {
+    expect(canTransition("pending_approval", "cancelled")).toBe(true);
+  });
+
+  it("rejects pending_approval → in_progress", () => {
+    expect(canTransition("pending_approval", "in_progress")).toBe(false);
+  });
+
+  it("rejects confirmed → pending_approval", () => {
+    expect(canTransition("confirmed", "pending_approval")).toBe(false);
+  });
+
   it("rejects no_show → anything", () => {
     expect(canTransition("no_show", "confirmed")).toBe(false);
     expect(canTransition("no_show", "completed")).toBe(false);

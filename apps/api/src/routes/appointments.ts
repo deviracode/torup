@@ -7,8 +7,12 @@ import {
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { AppError } from "../middleware/error-handler.js";
-import { validateTransition, canCancel } from "@queue/shared";
-import { sendAppointmentNotification } from "../services/notifications.js";
+import { validateTransition, canCancel } from "@torup/shared";
+import {
+  sendAppointmentNotification,
+  sendApprovalNotification,
+  sendRejectionNotification,
+} from "../services/notifications.js";
 
 const router: RouterType = Router({ mergeParams: true });
 
@@ -178,6 +182,106 @@ router.patch(
       }
 
       res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /businesses/:businessId/appointments/:appointmentId/approve
+router.post(
+  "/:appointmentId/approve",
+  requireAuth,
+  requireBusinessAccess,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const supabase = createServiceClient();
+      const businessId = getBusinessId(req);
+      const appointmentId = getParam(req, "appointmentId");
+
+      const { data: target, error: fetchErr } = await supabase
+        .from("appointments")
+        .select("id, business_id, status, start_time, end_time")
+        .eq("id", appointmentId)
+        .eq("business_id", businessId)
+        .single();
+
+      if (fetchErr || !target) throw new AppError(404, "Appointment not found");
+      if (target.status !== "pending_approval") {
+        throw new AppError(409, `Cannot approve an appointment with status '${target.status}'`);
+      }
+
+      // Approve the target.
+      const { error: updErr } = await supabase
+        .from("appointments")
+        .update({ status: "confirmed" })
+        .eq("id", appointmentId);
+      if (updErr) throw new AppError(400, updErr.message);
+
+      // Reject overlapping pending_approval siblings (overlap = start < target.end AND end > target.start).
+      const { data: overlapping, error: ovErr } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("status", "pending_approval")
+        .neq("id", appointmentId)
+        .lt("start_time", target.end_time)
+        .gt("end_time", target.start_time);
+      if (ovErr) throw new AppError(400, ovErr.message);
+
+      const rejectedIds = (overlapping || []).map((r) => r.id);
+      if (rejectedIds.length > 0) {
+        const { error: rejErr } = await supabase
+          .from("appointments")
+          .update({ status: "cancelled" })
+          .in("id", rejectedIds);
+        if (rejErr) throw new AppError(400, rejErr.message);
+      }
+
+      // Fire-and-forget notifications.
+      sendApprovalNotification(appointmentId).catch(() => {});
+      for (const id of rejectedIds) {
+        sendRejectionNotification(id, "slot_taken").catch(() => {});
+      }
+
+      res.json({ approved: appointmentId, rejected: rejectedIds });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /businesses/:businessId/appointments/:appointmentId/reject
+router.post(
+  "/:appointmentId/reject",
+  requireAuth,
+  requireBusinessAccess,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const supabase = createServiceClient();
+      const businessId = getBusinessId(req);
+      const appointmentId = getParam(req, "appointmentId");
+
+      const { data: target, error: fetchErr } = await supabase
+        .from("appointments")
+        .select("id, status")
+        .eq("id", appointmentId)
+        .eq("business_id", businessId)
+        .single();
+      if (fetchErr || !target) throw new AppError(404, "Appointment not found");
+      if (target.status !== "pending_approval") {
+        throw new AppError(409, `Cannot reject an appointment with status '${target.status}'`);
+      }
+
+      const { error: updErr } = await supabase
+        .from("appointments")
+        .update({ status: "cancelled" })
+        .eq("id", appointmentId);
+      if (updErr) throw new AppError(400, updErr.message);
+
+      sendRejectionNotification(appointmentId, "manual").catch(() => {});
+
+      res.json({ rejected: appointmentId });
     } catch (err) {
       next(err);
     }

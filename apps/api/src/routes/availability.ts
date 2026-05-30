@@ -9,7 +9,7 @@ import {
   type ExistingAppointment,
   type ServiceConfig,
   type BookingRulesConfig,
-} from "@queue/shared";
+} from "@torup/shared";
 
 const router: RouterType = Router({ mergeParams: true });
 

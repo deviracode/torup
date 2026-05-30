@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Badge } from "@queue/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Badge } from "@torup/ui";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle } from "lucide-react";
 
 interface Service {

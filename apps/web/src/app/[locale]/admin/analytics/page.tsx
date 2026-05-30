@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
-import { Card, CardContent, Skeleton } from "@queue/ui";
+import { Card, CardContent, Skeleton } from "@torup/ui";
 import { Building2, CalendarDays, CreditCard } from "lucide-react";
 
 interface PlatformAnalytics {

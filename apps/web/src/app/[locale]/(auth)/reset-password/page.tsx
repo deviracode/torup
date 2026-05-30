@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Button, Input, Label } from "@queue/ui";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Button, Input, Label } from "@torup/ui";
 
 export default function ResetPasswordPage() {
   const t = useTranslations("common");

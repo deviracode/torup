@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { LanguagePicker } from "@/components/language-picker";
-import { Button, Sheet, SheetContent, SheetTrigger, SheetTitle, Separator } from "@queue/ui";
+import { Button, Sheet, SheetContent, SheetTrigger, SheetTitle, Separator } from "@torup/ui";
 import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut, Menu } from "lucide-react";
 
 const navItems = [

@@ -19,6 +19,7 @@ import adminRouter from "./routes/admin.js";
 import notificationsRouter from "./routes/notifications.js";
 import billingRouter from "./routes/billing.js";
 import webhooksRouter from "./routes/webhooks.js";
+import internalRouter from "./routes/internal.js";
 import { startReminderScheduler } from "./services/notifications.js";
 
 const app: Express = express();
@@ -42,7 +43,13 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use("/api/", limiter);
+app.use("/api/", (req, res, next) => {
+  if (req.path.startsWith("/internal/")) return next();
+  return limiter(req, res, next);
+});
+
+// Internal routes (scheduler-driven, secret-protected) — mounted before resource routers
+app.use("/api/internal", internalRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -77,8 +84,11 @@ app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`API server running on http://localhost:${port}`);
-  // Start the reminder scheduler
-  startReminderScheduler();
+  if (process.env.ENABLE_INPROCESS_REMINDER_SCHEDULER === "true") {
+    startReminderScheduler();
+  } else {
+    console.log("In-process reminder scheduler disabled (set ENABLE_INPROCESS_REMINDER_SCHEDULER=true to enable)");
+  }
 });
 
 export default app;

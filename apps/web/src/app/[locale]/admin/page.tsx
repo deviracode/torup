@@ -10,7 +10,7 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   Skeleton,
-} from "@queue/ui";
+} from "@torup/ui";
 import { Plus, MoreHorizontal, Pencil, Trash2, Eye, Search } from "lucide-react";
 
 interface Business {

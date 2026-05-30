@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: require("path").join(__dirname, "../../"),
-  transpilePackages: ["@queue/ui", "@queue/shared", "@queue/i18n"],
+  transpilePackages: ["@torup/ui", "@torup/shared", "@torup/i18n"],
 };
 
 export default withNextIntl(nextConfig);

@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import {
   Card, CardContent, Input, Button, Skeleton,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from "@queue/ui";
+} from "@torup/ui";
 import { Search } from "lucide-react";
 
 interface Customer {

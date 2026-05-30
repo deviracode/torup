@@ -13,6 +13,7 @@ interface TemplateVars {
   service_name: string;
   date: string;
   time: string;
+  rebook_url?: string;
 }
 
 const templates: Record<string, Record<string, string>> = {
@@ -20,16 +21,6 @@ const templates: Record<string, Record<string, string>> = {
     he: "שלום {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
     ar: "مرحبا {customer_name}، تم تأكيد موعدك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
     en: "Hi {customer_name}, your appointment at {business_name} is confirmed!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
-  },
-  reminder_24h: {
-    he: "תזכורת: יש לך תור מחר ב-{business_name} בשעה {time}.\n📋 {service_name}",
-    ar: "تذكير: لديك موعد غدا في {business_name} الساعة {time}.\n📋 {service_name}",
-    en: "Reminder: You have an appointment tomorrow at {business_name} at {time}.\n📋 {service_name}",
-  },
-  reminder_2h: {
-    he: "תזכורת: התור שלך ב-{business_name} בעוד שעתיים! ⏰ {time}",
-    ar: "تذكير: موعدك في {business_name} بعد ساعتين! ⏰ {time}",
-    en: "Reminder: Your appointment at {business_name} is in 2 hours! ⏰ {time}",
   },
   cancellation: {
     he: "התור שלך ב-{business_name} בתאריך {date} בשעה {time} בוטל.",
@@ -40,6 +31,21 @@ const templates: Record<string, Record<string, string>> = {
     he: "התור שלך ב-{business_name} שונה ל-{date} בשעה {time}.",
     ar: "تم تغيير موعدك في {business_name} إلى {date} الساعة {time}.",
     en: "Your appointment at {business_name} has been rescheduled to {date} at {time}.",
+  },
+  approval: {
+    he: "✅ {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nנתראה! 😊",
+    ar: "✅ {customer_name}، تمت الموافقة على موعدك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nنراك قريباً! 😊",
+    en: "✅ {customer_name}, your appointment at {business_name} has been approved!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nSee you soon! 😊",
+  },
+  rejection_slot_taken: {
+    he: "מצטערים {customer_name} 🙏\nהתור שביקשתם ב-{business_name} ב-{date} בשעה {time} ניתן ללקוח אחר.\nניתן לקבוע תור אחר כאן: {rebook_url}",
+    ar: "نأسف {customer_name} 🙏\nالموعد الذي طلبته في {business_name} يوم {date} الساعة {time} تم إعطاؤه لزبون آخر.\nيمكنك حجز موعد آخر هنا: {rebook_url}",
+    en: "Sorry {customer_name} 🙏\nThe slot you requested at {business_name} on {date} at {time} was given to another customer.\nYou can book a different time here: {rebook_url}",
+  },
+  rejection_manual: {
+    he: "{customer_name}, לצערנו לא נוכל לקבל אותך ב-{business_name} ב-{date} בשעה {time}.\nניתן לקבוע תור אחר כאן: {rebook_url}",
+    ar: "{customer_name}، للأسف لا يمكننا استقبالك في {business_name} يوم {date} الساعة {time}.\nيمكنك حجز موعد آخر هنا: {rebook_url}",
+    en: "{customer_name}, unfortunately we can't host you at {business_name} on {date} at {time}.\nYou can book a different time here: {rebook_url}",
   },
   waitlist_available: {
     he: "התפנה מקום ב-{business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nיש לך 15 דקות לאשר.",
@@ -54,7 +60,60 @@ function fillTemplate(template: string, vars: TemplateVars): string {
     .replace(/{business_name}/g, vars.business_name)
     .replace(/{service_name}/g, vars.service_name)
     .replace(/{date}/g, vars.date)
-    .replace(/{time}/g, vars.time);
+    .replace(/{time}/g, vars.time)
+    .replace(/{rebook_url}/g, vars.rebook_url || "");
+}
+
+function buildReminderBody(
+  minutesBefore: number,
+  language: string,
+  vars: TemplateVars
+): string {
+  const lang = ["he", "ar", "en"].includes(language) ? language : "he";
+  const m = Math.max(1, Math.floor(minutesBefore));
+  const detail = `\n📋 ${vars.service_name} • ${vars.business_name}`;
+
+  let lead: string;
+  if (m === 1440) {
+    lead =
+      lang === "he"
+        ? `תזכורת: יש לך תור מחר בשעה ${vars.time} ⏰`
+        : lang === "ar"
+        ? `تذكير: لديك موعد غدا الساعة ${vars.time} ⏰`
+        : `Reminder: appointment tomorrow at ${vars.time} ⏰`;
+  } else if (m >= 1441) {
+    const days = Math.round(m / 1440);
+    lead =
+      lang === "he"
+        ? `תזכורת: יש לך תור בעוד ${days} ימים ב-${vars.time} ⏰`
+        : lang === "ar"
+        ? `تذكير: لديك موعد بعد ${days} أيام الساعة ${vars.time} ⏰`
+        : `Reminder: appointment in ${days} days at ${vars.time} ⏰`;
+  } else if (m === 60) {
+    lead =
+      lang === "he"
+        ? `תזכורת: התור שלך בעוד שעה ⏰ ${vars.time}`
+        : lang === "ar"
+        ? `تذكير: موعدك بعد ساعة ⏰ ${vars.time}`
+        : `Reminder: appointment in 1 hour ⏰ ${vars.time}`;
+  } else if (m > 60) {
+    const hours = Math.round(m / 60);
+    lead =
+      lang === "he"
+        ? `תזכורת: התור שלך בעוד ${hours} שעות ⏰ ${vars.time}`
+        : lang === "ar"
+        ? `تذكير: موعدك بعد ${hours} ساعات ⏰ ${vars.time}`
+        : `Reminder: appointment in ${hours}h ⏰ ${vars.time}`;
+  } else {
+    lead =
+      lang === "he"
+        ? `תזכורת: התור שלך בעוד ${m} דקות ⏰ ${vars.time}`
+        : lang === "ar"
+        ? `تذكير: موعدك بعد ${m} دقيقة ⏰ ${vars.time}`
+        : `Reminder: appointment in ${m} min ⏰ ${vars.time}`;
+  }
+
+  return lead + detail;
 }
 
 export function renderTemplate(
@@ -62,6 +121,10 @@ export function renderTemplate(
   language: string,
   vars: TemplateVars
 ): string {
+  const reminderMatch = templateId.match(/^reminder_(\d+)m$/);
+  if (reminderMatch) {
+    return buildReminderBody(parseInt(reminderMatch[1], 10), language, vars);
+  }
   const tmpl = templates[templateId]?.[language] || templates[templateId]?.he || "";
   return fillTemplate(tmpl, vars);
 }
@@ -76,7 +139,7 @@ async function logNotification(params: {
   type: string;
   channel: string;
   template_id: string;
-  status: string;
+  status: "sent" | "failed";
   error?: string;
   whatsapp_message_id?: string | null;
 }) {
@@ -92,7 +155,8 @@ async function logNotification(params: {
  */
 export async function sendAppointmentNotification(
   appointmentId: string,
-  templateId: string
+  templateId: string,
+  extraVars: Partial<TemplateVars> = {}
 ) {
   const supabase = createServiceClient();
 
@@ -152,18 +216,29 @@ export async function sendAppointmentNotification(
       hour12: false,
       timeZone: "Asia/Jerusalem",
     }),
+    ...extraVars,
   };
 
   const message = renderTemplate(templateId, lang, vars);
 
   const isReminder = templateId.startsWith("reminder_");
   let whatsappMessageId: string | null = null;
+  let sendError: string | null = null;
 
-  if (isReminder) {
-    whatsappMessageId = await sendInteractiveReminder(customer.phone, message, lang);
-  } else {
-    whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
+  try {
+    if (isReminder) {
+      whatsappMessageId = await sendInteractiveReminder(customer.phone, message, lang);
+    } else {
+      whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
+    }
+    if (!whatsappMessageId) {
+      sendError = "WhatsApp API returned no message id";
+    }
+  } catch (err) {
+    sendError = err instanceof Error ? err.message : String(err);
   }
+
+  const succeeded = whatsappMessageId !== null && sendError === null;
 
   await logNotification({
     business_id: apt.business_id,
@@ -172,9 +247,37 @@ export async function sendAppointmentNotification(
     type: templateId,
     channel: "whatsapp",
     template_id: templateId,
-    status: "sent",
+    status: succeeded ? "sent" : "failed",
     whatsapp_message_id: whatsappMessageId,
+    error: sendError ?? undefined,
   });
+
+  return { sent: succeeded, failed: !succeeded };
+}
+
+export async function sendApprovalNotification(appointmentId: string) {
+  return sendAppointmentNotification(appointmentId, "approval");
+}
+
+export async function sendRejectionNotification(
+  appointmentId: string,
+  kind: "slot_taken" | "manual"
+) {
+  const templateId = kind === "slot_taken" ? "rejection_slot_taken" : "rejection_manual";
+  // Inject rebook_url into vars by piggy-backing on sendAppointmentNotification:
+  // it builds vars from the appointment row. We add rebook_url here through a
+  // small wrapper that loads the service id and constructs the link.
+  const supabase = createServiceClient();
+  const { data: apt } = await supabase
+    .from("appointments")
+    .select("business_id, service_id")
+    .eq("id", appointmentId)
+    .single();
+  const appUrl = process.env.APP_URL || "https://book.example";
+  const rebookUrl = apt
+    ? `${appUrl}/book/${apt.business_id}?service=${apt.service_id}`
+    : appUrl;
+  return sendAppointmentNotification(appointmentId, templateId, { rebook_url: rebookUrl });
 }
 
 /**
@@ -182,17 +285,20 @@ export async function sendAppointmentNotification(
  * Uses per-business configurable intervals from reminder_settings table.
  * Should be called periodically (e.g., every 5 minutes via cron).
  */
-export async function processReminders() {
+export async function processReminders(): Promise<{ processed: number; sent: number; failed: number }> {
   const supabase = createServiceClient();
   const now = new Date();
   const WINDOW_MINUTES = 5;
+  let processed = 0;
+  let sent = 0;
+  let failed = 0;
 
   const { data: settings } = await supabase
     .from("reminder_settings")
     .select("id, business_id, minutes_before")
     .eq("is_active", true);
 
-  if (!settings || settings.length === 0) return;
+  if (!settings || settings.length === 0) return { processed, sent, failed };
 
   for (const setting of settings) {
     const windowStart = new Date(now.getTime() + (setting.minutes_before - WINDOW_MINUTES) * 60 * 1000);
@@ -214,13 +320,19 @@ export async function processReminders() {
         .select("id")
         .eq("appointment_id", apt.id)
         .eq("template_id", templateId)
+        .eq("status", "sent")
         .limit(1);
 
       if (!existing || existing.length === 0) {
-        await sendAppointmentNotification(apt.id, templateId);
+        processed += 1;
+        const result = await sendAppointmentNotification(apt.id, templateId);
+        if (result?.sent) sent += 1;
+        if (result?.failed) failed += 1;
       }
     }
   }
+
+  return { processed, sent, failed };
 }
 
 /**

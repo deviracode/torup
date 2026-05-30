@@ -1,7 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateTransition } from "@queue/shared";
+import { validateTransition } from "@torup/shared";
+import { renderTemplate } from "../services/notifications.js";
 
 describe("Reminder System", () => {
+  describe("renderTemplate(reminder_*m)", () => {
+    const vars = {
+      customer_name: "Test",
+      business_name: "Studio",
+      service_name: "Haircut",
+      date: "20.04.2026",
+      time: "10:00",
+    };
+    const intervals = [1, 30, 45, 60, 90, 120, 1440, 2880];
+    const langs = ["he", "ar", "en"] as const;
+
+    for (const m of intervals) {
+      for (const lang of langs) {
+        it(`produces non-empty body for minutes_before=${m} lang=${lang}`, () => {
+          const body = renderTemplate(`reminder_${m}m`, lang, vars);
+          expect(body.length).toBeGreaterThan(0);
+          expect(body).toContain(vars.time);
+          expect(body).toMatch(/Reminder|תזכורת|تذكير/);
+        });
+      }
+    }
+
+    it("includes service and business name in detail line", () => {
+      const body = renderTemplate("reminder_60m", "en", vars);
+      expect(body).toContain(vars.service_name);
+      expect(body).toContain(vars.business_name);
+    });
+
+    it("uses 'tomorrow' phrasing at exactly 1440 minutes", () => {
+      const body = renderTemplate("reminder_1440m", "en", vars);
+      expect(body.toLowerCase()).toContain("tomorrow");
+    });
+
+    it("uses '1 hour' phrasing at exactly 60 minutes", () => {
+      const body = renderTemplate("reminder_60m", "en", vars);
+      expect(body.toLowerCase()).toContain("1 hour");
+    });
+
+    it("falls back to Hebrew for unknown language", () => {
+      const body = renderTemplate("reminder_60m", "fr", vars);
+      expect(body).toContain("תזכורת");
+    });
+  });
+
+
   describe("processReminders logic", () => {
     it("should only send reminders for pending and confirmed appointments", () => {
       const eligibleStatuses = ["pending", "confirmed"];

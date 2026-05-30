@@ -9,7 +9,7 @@ import {
 import { detectLanguage } from "./language.js";
 import { processMessage } from "./agent.js";
 import { sendTextMessage, sendButtonMessage, sendListMessage, markAsRead } from "./whatsapp-api.js";
-import { createClient } from "@queue/db";
+import { createClient } from "@torup/db";
 
 const app: Express = express();
 const port = process.env.PORT || 3002;
@@ -130,16 +130,52 @@ async function getCachedBusinessContext(businessPhoneNumberId: string) {
   return entry;
 }
 
-async function sendMainMenu(phoneNumberId: string, to: string, businessName: string) {
-  await sendButtonMessage(phoneNumberId, to,
-    `ברוכים הבאים ל${businessName}! 👋\nאיך אפשר לעזור?`,
-    [
-      { id: "menu_book", title: "קביעת תור" },
-      { id: "menu_my_appointments", title: "התורים שלי" },
-      { id: "menu_cancel", title: "ביטול תור" },
-    ]
-  );
+async function sendMainMenu(
+  phoneNumberId: string,
+  to: string,
+  businessName: string,
+  customerName?: string
+) {
+  const greeting = customerName
+    ? `שלום ${customerName}! 👋\nברוכים הבאים ל${businessName}.\nאיך אפשר לעזור?`
+    : `ברוכים הבאים ל${businessName}! 👋\nאיך אפשר לעזור?`;
+  await sendButtonMessage(phoneNumberId, to, greeting, [
+    { id: "menu_book", title: "קביעת תור" },
+    { id: "menu_my_appointments", title: "התורים שלי" },
+    { id: "menu_cancel", title: "ביטול תור" },
+  ]);
 }
+
+function normalizePhone(p: string): string {
+  return p.startsWith("972") ? "0" + p.slice(3) : p;
+}
+
+const ASK_NAME: Record<"he" | "ar" | "en", string> = {
+  he: "שמחים שפניתם! 🙂 איך קוראים לכם? (שם מלא יעזור לבעל העסק לזהות אתכם)",
+  ar: "أهلاً وسهلاً! 🙂 ما اسمك؟ (الاسم الكامل يساعد صاحب العمل بالتعرف عليك)",
+  en: "Welcome! 🙂 What's your name? (Full name helps the business owner identify you)",
+};
+
+const NAME_THANKS: Record<"he" | "ar" | "en", (n: string) => string> = {
+  he: (n) => `תודה ${n}! 🙏`,
+  ar: (n) => `شكراً ${n}! 🙏`,
+  en: (n) => `Thanks ${n}! 🙏`,
+};
+
+const PENDING_APPROVAL_MSG: Record<"he" | "ar" | "en", (svc: string, dateLabel: string, time: string) => string> = {
+  he: (svc, d, t) =>
+    `📩 בקשת התור התקבלה!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ ממתין לאישור בעל העסק. נשלח לך הודעה ברגע שזה יאושר.`,
+  ar: (svc, d, t) =>
+    `📩 تم استلام طلب الموعد!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ بانتظار موافقة صاحب العمل. سنرسل لك رسالة فور الموافقة.`,
+  en: (svc, d, t) =>
+    `📩 Your booking request was received!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ Awaiting the business owner's approval. We'll message you the moment it's approved.`,
+};
+
+const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
+  he: "יש לך כבר תור פעיל אצלנו 📌\nניתן לקבוע תור חדש רק לאחר שהתור הקיים יסתיים או יבוטל. אפשר לראות את התור ב\"התורים שלי\".",
+  ar: "لديك بالفعل موعد نشط 📌\nيمكنك حجز موعد جديد فقط بعد انتهاء أو إلغاء الموعد الحالي. يمكنك رؤية موعدك في \"مواعيدي\".",
+  en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
+};
 
 async function sendServiceList(phoneNumberId: string, to: string, services: Record<string, any>[]) {
   const rows = services.map((s: any) => ({
@@ -271,43 +307,82 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
   return slots;
 }
 
-async function createBooking(businessId: string, serviceId: string, startTime: string, customerPhone: string): Promise<string> {
+async function createBooking(
+  businessId: string,
+  serviceId: string,
+  startTime: string,
+  customerId: string
+): Promise<"ok" | "already_booked" | string> {
   const supabase = getSupabase();
 
   const { data: service } = await supabase.from("services")
     .select("duration_minutes").eq("id", serviceId).single();
   if (!service) return "שגיאה: שירות לא נמצא";
 
-  // Normalize phone: WhatsApp sends 972..., store as 0...
-  const normalizedPhone = customerPhone.startsWith("972")
-    ? "0" + customerPhone.slice(3)
-    : customerPhone;
+  // Single-active-appointment cap: reject if customer already has any active future
+  // appointment at this business. (Race: two simultaneous inserts could both pass —
+  // acceptable for now; stronger guard would be a Postgres advisory lock or unique
+  // partial index. See design.md decision 2.)
+  const { count: activeCount, error: countErr } = await supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("customer_id", customerId)
+    .in("status", ["pending_approval", "pending", "confirmed"])
+    .gt("start_time", new Date().toISOString());
+  if (countErr) return `שגיאה: ${countErr.message}`;
+  if ((activeCount ?? 0) > 0) return "already_booked";
 
-  let { data: customer } = await supabase.from("customers")
-    .select("id").eq("phone", normalizedPhone).single();
-
-  if (!customer) {
-    const { data: c } = await supabase.from("customers")
-      .insert({ phone: normalizedPhone, name: normalizedPhone, language_preference: "he" })
-      .select("id").single();
-    customer = c;
-  }
-  if (!customer) return "שגיאה: לא ניתן ליצור לקוח";
-
-  const endTime = new Date(new Date(startTime).getTime() + service.duration_minutes * 60000).toISOString();
+  const endTime = new Date(
+    new Date(startTime).getTime() + service.duration_minutes * 60000
+  ).toISOString();
 
   const { error } = await supabase.from("appointments").insert({
     business_id: businessId,
     service_id: serviceId,
-    customer_id: customer.id,
+    customer_id: customerId,
     start_time: startTime,
     end_time: endTime,
-    status: "confirmed",
+    status: "pending_approval",
     created_via: "whatsapp",
   });
 
   if (error) return `שגיאה: ${error.message}`;
   return "ok";
+}
+
+/**
+ * Look up or create a customer row by phone. Returns { id, name } where name
+ * may be empty for fresh-or-name-less rows. Caller is responsible for asking
+ * the customer for their name when name is empty.
+ */
+async function loadOrInitCustomer(
+  phone: string,
+  language: "he" | "ar" | "en"
+): Promise<{ id: string; name: string } | null> {
+  const supabase = getSupabase();
+  const normalized = normalizePhone(phone);
+
+  const { data: existing } = await supabase
+    .from("customers")
+    .select("id, name")
+    .eq("phone", normalized)
+    .maybeSingle();
+
+  if (existing) return { id: existing.id, name: existing.name || "" };
+
+  const { data: created, error } = await supabase
+    .from("customers")
+    .insert({ phone: normalized, name: "", language_preference: language })
+    .select("id, name")
+    .single();
+  if (error || !created) return null;
+  return { id: created.id, name: created.name || "" };
+}
+
+async function updateCustomerName(customerId: string, name: string): Promise<void> {
+  const supabase = getSupabase();
+  await supabase.from("customers").update({ name }).eq("id", customerId);
 }
 
 async function handleIncomingMessage(
@@ -330,6 +405,46 @@ async function handleIncomingMessage(
   if (!session) {
     const language = detectLanguage(text);
     session = createSession(from, businessPhoneNumberId, ctx.biz.businessId, language);
+  }
+
+  // --- Customer identification (run once per session) ---
+  if (!session.customerId) {
+    const customer = await loadOrInitCustomer(from, session.language);
+    if (customer) {
+      session.customerId = customer.id;
+      session.customerName = customer.name;
+      if (!customer.name) session.awaitingName = true;
+      updateSession(from, businessPhoneNumberId, {
+        customerId: customer.id,
+        customerName: customer.name,
+        awaitingName: !customer.name,
+      });
+    }
+  }
+
+  // --- Name capture: if we previously asked, treat this text as the name ---
+  if (session.awaitingName && !interactionId && session.customerId) {
+    const candidate = text.trim();
+    // Reject silly inputs (numbers/emoji-only); ask once more if invalid.
+    if (candidate.length >= 2 && /[\p{L}]/u.test(candidate)) {
+      await updateCustomerName(session.customerId, candidate);
+      session.customerName = candidate;
+      session.awaitingName = false;
+      updateSession(from, businessPhoneNumberId, {
+        customerName: candidate,
+        awaitingName: false,
+      });
+      await sendTextMessage(
+        businessPhoneNumberId,
+        from,
+        NAME_THANKS[session.language](candidate)
+      );
+      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, candidate);
+      return;
+    }
+    // Re-ask once and bail.
+    await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+    return;
   }
 
   // Handle interactive button/list replies without Claude
@@ -445,7 +560,7 @@ async function handleIncomingMessage(
 
       if (slots.length === 0) {
         await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר.");
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName);
+        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
         return;
       }
 
@@ -485,18 +600,41 @@ async function handleIncomingMessage(
 
     // Confirm booking
     if (interactionId === "confirm_yes" && session.booking?.step === "confirm" && session.booking.time) {
+      // If for some reason we still don't have a customer id, ask for the name
+      // first and abort this confirm — they can re-tap confirm.
+      if (!session.customerId) {
+        updateSession(from, businessPhoneNumberId, { awaitingName: true });
+        session.awaitingName = true;
+        await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+        return;
+      }
+
       const result = await createBooking(
         ctx.biz.businessId,
         session.booking.serviceId,
         session.booking.time,
-        from
+        session.customerId
       );
 
       if (result === "ok") {
-        const timeLabel = new Date(session.booking.time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" });
-        await sendTextMessage(businessPhoneNumberId, from,
-          `✅ התור נקבע בהצלחה!\n\n✂️ ${session.booking.serviceName}\n📅 ${session.booking.date?.slice(5).replace("-", "/")}\n🕐 ${timeLabel}\n\nנתראה! 😊`
+        const timeLabel = new Date(session.booking.time).toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "Asia/Jerusalem",
+        });
+        const dateLabel = session.booking.date?.slice(5).replace("-", "/") || "";
+        await sendTextMessage(
+          businessPhoneNumberId,
+          from,
+          PENDING_APPROVAL_MSG[session.language](
+            session.booking.serviceName,
+            dateLabel,
+            timeLabel
+          )
         );
+      } else if (result === "already_booked") {
+        await sendTextMessage(businessPhoneNumberId, from, ALREADY_BOOKED_MSG[session.language]);
       } else {
         await sendTextMessage(businessPhoneNumberId, from, result);
       }
@@ -508,7 +646,7 @@ async function handleIncomingMessage(
     if (interactionId === "confirm_no") {
       updateSession(from, businessPhoneNumberId, { booking: undefined });
       await sendTextMessage(businessPhoneNumberId, from, "ההזמנה בוטלה. 👋");
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName);
+      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
       return;
     }
   }
@@ -516,13 +654,25 @@ async function handleIncomingMessage(
   // Greetings → show main menu (no Claude needed)
   const greetingPatterns = /^(שלום|היי|הי|בוקר טוב|ערב טוב|מה נשמע|הגעתי|לאן הגעתי|hi|hello|hey|مرحبا|اهلا)[\s?!]*$/i;
   if (greetingPatterns.test(text.trim())) {
-    await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName);
+    if (!session.customerName) {
+      updateSession(from, businessPhoneNumberId, { awaitingName: true });
+      session.awaitingName = true;
+      await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+      return;
+    }
+    await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
     return;
   }
 
   // Booking intent → redirect to structured button flow
   const bookingPatterns = /תור|הזמנ|לקבוע|לזמן|book|appointment|schedule|reserve|حجز|موعد/i;
   if (bookingPatterns.test(text.trim())) {
+    if (!session.customerName) {
+      updateSession(from, businessPhoneNumberId, { awaitingName: true });
+      session.awaitingName = true;
+      await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+      return;
+    }
     await sendServiceList(businessPhoneNumberId, from, ctx.services);
     return;
   }

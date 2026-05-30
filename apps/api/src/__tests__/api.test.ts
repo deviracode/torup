@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateTransition, canCancel, canReschedule } from "@queue/shared";
+import { validateTransition, canCancel, canReschedule } from "@torup/shared";
 
 /**
  * API Integration Tests
@@ -109,12 +109,12 @@ describe("Reschedule Window", () => {
 
 describe("Availability Calculation", () => {
   it("should import getAvailableSlots from shared package", async () => {
-    const { getAvailableSlots } = await import("@queue/shared");
+    const { getAvailableSlots } = await import("@torup/shared");
     expect(typeof getAvailableSlots).toBe("function");
   });
 
   it("should return empty slots for a closed day", async () => {
-    const { getAvailableSlots } = await import("@queue/shared");
+    const { getAvailableSlots } = await import("@torup/shared");
 
     const workingHours = Array.from({ length: 7 }, (_, i) => ({
       dayOfWeek: i,
@@ -134,7 +134,7 @@ describe("Availability Calculation", () => {
   });
 
   it("should return slots for an open day", async () => {
-    const { getAvailableSlots } = await import("@queue/shared");
+    const { getAvailableSlots } = await import("@torup/shared");
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-01T06:00:00"));
@@ -160,7 +160,7 @@ describe("Availability Calculation", () => {
   });
 
   it("should exclude slots blocked by existing appointments", async () => {
-    const { getAvailableSlots } = await import("@queue/shared");
+    const { getAvailableSlots } = await import("@torup/shared");
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-01T06:00:00"));
@@ -192,7 +192,7 @@ describe("Availability Calculation", () => {
   });
 
   it("should respect buffer times between appointments", async () => {
-    const { getAvailableSlots } = await import("@queue/shared");
+    const { getAvailableSlots } = await import("@torup/shared");
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-01T06:00:00"));

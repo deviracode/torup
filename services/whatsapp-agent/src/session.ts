@@ -17,6 +17,9 @@ export interface ConversationSession {
   language: "he" | "ar" | "en";
   messages: { role: "user" | "assistant"; content: string }[];
   booking?: BookingState;
+  customerId?: string;
+  customerName?: string;
+  awaitingName?: boolean;
   createdAt: number;
   lastActiveAt: number;
 }

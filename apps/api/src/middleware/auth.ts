@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { createClient } from "@queue/db";
+import { createClient } from "@torup/db";
 import { createServiceClient } from "../lib/supabase.js";
 
 export interface AuthenticatedRequest extends Request {

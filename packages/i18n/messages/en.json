@@ -195,6 +195,7 @@
     "slug": "URL Slug"
   },
   "appointments": {
+    "pendingApproval": "Pending Approval",
     "pending": "Pending",
     "confirmed": "Confirmed",
     "inProgress": "In Progress",
