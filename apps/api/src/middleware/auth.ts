@@ -64,7 +64,8 @@ export async function requireAuth(
     }
 
     next();
-  } catch {
+  } catch (err) {
+    console.error("[auth middleware]", err);
     res.status(500).json({ error: "Authentication error" });
   }
 }
