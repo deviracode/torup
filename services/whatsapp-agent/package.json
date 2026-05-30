@@ -1,5 +1,5 @@
 {
-  "name": "@queue/whatsapp-agent",
+  "name": "@torup/whatsapp-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
-    "@queue/db": "workspace:*",
-    "@queue/shared": "workspace:*",
+    "@torup/db": "workspace:*",
+    "@torup/shared": "workspace:*",
     "@supabase/supabase-js": "^2.49.0",
     "express": "^5.1.0"
   },

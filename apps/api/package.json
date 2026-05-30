@@ -1,5 +1,5 @@
 {
-  "name": "@queue/api",
+  "name": "@torup/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@queue/db": "workspace:*",
-    "@queue/shared": "workspace:*",
+    "@torup/db": "workspace:*",
+    "@torup/shared": "workspace:*",
     "@supabase/supabase-js": "^2.49.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.0",

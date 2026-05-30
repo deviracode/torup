@@ -1,5 +1,5 @@
 {
-  "name": "@queue/web",
+  "name": "@torup/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,10 +10,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@queue/db": "workspace:*",
-    "@queue/i18n": "workspace:*",
-    "@queue/shared": "workspace:*",
-    "@queue/ui": "workspace:*",
+    "@torup/db": "workspace:*",
+    "@torup/i18n": "workspace:*",
+    "@torup/shared": "workspace:*",
+    "@torup/ui": "workspace:*",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.49.0",
     "lucide-react": "^1.8.0",
