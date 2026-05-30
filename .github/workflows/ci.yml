@@ -41,72 +41,26 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
+      - uses: railwayapp/railway-deploy@v1
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and push API image
-        run: |
-          gcloud builds submit \
-            --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/queue-api \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            -f apps/api/Dockerfile .
-
-      - name: Deploy API to Cloud Run
-        run: |
-          gcloud run deploy queue-api \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/queue-api \
-            --region ${{ secrets.GCP_REGION || 'me-west1' }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production" \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+          service: torup-api
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-whatsapp:
     needs: lint-typecheck-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
+      - uses: railwayapp/railway-deploy@v1
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Build and push WhatsApp Agent image
-        run: |
-          gcloud builds submit \
-            --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/queue-whatsapp \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            -f services/whatsapp-agent/Dockerfile .
-
-      - name: Deploy WhatsApp Agent to Cloud Run
-        run: |
-          gcloud run deploy queue-whatsapp \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/queue-whatsapp \
-            --region ${{ secrets.GCP_REGION || 'me-west1' }} \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production" \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+          service: torup-whatsapp
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-web:
     needs: lint-typecheck-test
@@ -126,7 +80,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@queue/web...
+      - run: pnpm turbo build --filter=@torup/web...
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
