@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 RUN npm install -g pnpm@10
 
 FROM base AS builder
@@ -26,7 +26,7 @@ RUN rm -rf node_modules/@torup 2>/dev/null; \
 
 RUN pnpm run build:docker
 
-FROM node:20-slim AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
