@@ -367,7 +367,12 @@ function SettingsPageInner() {
           push_enabled: gcalStatus.pushEnabled,
         }),
       }, token);
+      // Immediately sync so calendar events block slots without waiting for scheduler
+      if (gcalStatus.syncEnabled && gcalStatus.calendarId) {
+        await apiFetch(`/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token).catch(() => {});
+      }
       showSaved();
+      fetchTab();
     } catch {} finally { setSaving(false); }
   };
 

@@ -121,6 +121,23 @@ router.patch(
   }
 );
 
+// POST /businesses/:businessId/google-calendar/sync — trigger immediate sync
+router.post(
+  "/sync",
+  requireAuth,
+  requireBusinessAccess,
+  requireRole("business_owner", "super_admin"),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const businessId = getBusinessId(req);
+      const result = await syncGoogleCalendar(businessId);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // GET /businesses/:businessId/google-calendar/calendars
 router.get(
   "/calendars",
