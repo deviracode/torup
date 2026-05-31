@@ -4,7 +4,7 @@
  */
 
 export interface BookingState {
-  step: "select_date" | "select_time" | "confirm";
+  step: "select_date" | "select_time_period" | "select_time" | "confirm";
   serviceId: string;
   serviceName: string;
   date?: string;
