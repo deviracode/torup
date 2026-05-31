@@ -186,10 +186,13 @@ async function sendServiceList(phoneNumberId: string, to: string, services: Reco
       : `${s.duration_minutes} דק׳ • ₪${s.price}`,
   }));
 
+  // WhatsApp list messages max 10 rows per section
+  const displayRows = rows.slice(0, 10);
+
   await sendListMessage(phoneNumberId, to,
     "בחרו שירות:",
     "הצג שירותים",
-    [{ title: "שירותים", rows }]
+    [{ title: "שירותים", rows: displayRows }]
   );
 }
 
