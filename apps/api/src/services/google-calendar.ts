@@ -135,7 +135,7 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
         .from("google_calendar_events")
         .delete({ count: "exact" })
         .eq("business_id", businessId)
-        .not("google_event_id", "in", `(${googleEventIds.map((id) => `'${id}'`).join(",")})`);
+        .not("google_event_id", "in", `(${googleEventIds.join(",")})`);
       console.log(`[gcal/sync] delete result: count=${count} error=${delErr?.message}`);
       if (!delErr) deleted = count ?? 0;
     }
