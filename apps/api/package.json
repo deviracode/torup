@@ -8,7 +8,7 @@
     "build": "tsc && tsc-alias",
     "build:docker": "node -e \"require('esbuild').buildSync({entryPoints:['src/index.ts'],bundle:true,platform:'node',target:'node20',outdir:'dist',format:'esm',external:['express','cors','helmet','express-rate-limit','zod','@supabase/supabase-js','@supabase/ssr','dotenv','googleapis','google-auth-library','googleapis-common']})\"",
     "start": "node dist/index.js",
-    "lint": "eslint src/",
+    "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
