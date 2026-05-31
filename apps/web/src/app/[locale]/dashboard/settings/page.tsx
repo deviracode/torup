@@ -123,6 +123,7 @@ function SettingsPageInner() {
   const [gcalAuthUrl, setGcalAuthUrl] = useState("");
   const [gcalConnecting, setGcalConnecting] = useState(false);
   const [gcalCode, setGcalCode] = useState("");
+  const [gcalSyncResult, setGcalSyncResult] = useState<{ imported: number; deleted: number; error?: string } | null>(null);
   const fetchingRef = React.useRef(false);
 
   const searchParams = useSearchParams();
@@ -368,8 +369,11 @@ function SettingsPageInner() {
         }),
       }, token);
       // Immediately sync so calendar events block slots without waiting for scheduler
-      if (gcalStatus.syncEnabled && gcalStatus.calendarId) {
-        await apiFetch(`/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token).catch(() => {});
+      if (gcalStatus.calendarId) {
+        const syncRes = await apiFetch<{ imported: number; deleted: number; error?: string }>(
+          `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token
+        ).catch(() => null);
+        setGcalSyncResult(syncRes);
       }
       showSaved();
       fetchTab();
@@ -777,10 +781,34 @@ function SettingsPageInner() {
                   </div>
                 </div>
 
-                <button onClick={saveGCalSettings} disabled={saving}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
-                  {tCommon("save")}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button onClick={saveGCalSettings} disabled={saving}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
+                    {saving ? "מסנכרן..." : tCommon("save")}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setSaving(true);
+                      const res = await apiFetch<{ imported: number; deleted: number; error?: string }>(
+                        `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token
+                      ).catch(() => null);
+                      setGcalSyncResult(res);
+                      fetchTab();
+                      setSaving(false);
+                    }}
+                    disabled={saving}
+                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    🔄 סנכרן עכשיו
+                  </button>
+                </div>
+                {gcalSyncResult && (
+                  <div className={`rounded-md px-4 py-2 text-sm ${gcalSyncResult.error ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                    {gcalSyncResult.error
+                      ? `שגיאה: ${gcalSyncResult.error}`
+                      : `יובאו ${gcalSyncResult.imported} אירועים, נמחקו ${gcalSyncResult.deleted}`}
+                  </div>
+                )}
               </div>
             )}
           </div>

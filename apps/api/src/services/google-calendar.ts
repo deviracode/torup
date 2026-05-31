@@ -89,11 +89,15 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
     const calendar = google.calendar({ version: "v3", auth });
 
     const now = new Date();
+    // Start of today (Israel time = UTC-3h) so events earlier today are included
+    const startOfToday = new Date(now);
+    startOfToday.setUTCHours(startOfToday.getUTCHours() - 3);
+    startOfToday.setUTCHours(0, 0, 0, 0);
     const sixtyDaysLater = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
     const res = await calendar.events.list({
       calendarId: config.google_calendar_id,
-      timeMin: now.toISOString(),
+      timeMin: startOfToday.toISOString(),
       timeMax: sixtyDaysLater.toISOString(),
       singleEvents: true,
       orderBy: "startTime",
