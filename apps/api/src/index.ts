@@ -39,15 +39,31 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const limiter = rateLimit({
+// Unauthenticated (public) routes: strict IP-based limit
+const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === "production" ? 100 : 1000,
+  max: process.env.NODE_ENV === "production" ? 200 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+// Authenticated dashboard routes: generous per-token limit
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 2000 : 10000,
+  keyGenerator: (req) => {
+    const auth = req.headers.authorization;
+    // Key by Bearer token so each logged-in user gets their own bucket
+    if (auth?.startsWith("Bearer ")) return auth.slice(7, 50);
+    return req.ip ?? "unknown";
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use("/api/", (req, res, next) => {
   if (req.path.startsWith("/internal/")) return next();
-  return limiter(req, res, next);
+  // Authenticated requests get the generous bucket
+  if (req.headers.authorization?.startsWith("Bearer ")) return authLimiter(req, res, next);
+  return publicLimiter(req, res, next);
 });
 
 // Internal routes (scheduler-driven, secret-protected) — mounted before resource routers

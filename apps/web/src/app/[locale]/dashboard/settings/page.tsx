@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -123,6 +123,7 @@ function SettingsPageInner() {
   const [gcalAuthUrl, setGcalAuthUrl] = useState("");
   const [gcalConnecting, setGcalConnecting] = useState(false);
   const [gcalCode, setGcalCode] = useState("");
+  const fetchingRef = React.useRef(false);
 
   const searchParams = useSearchParams();
 
@@ -165,6 +166,8 @@ function SettingsPageInner() {
 
   const fetchTab = useCallback(async () => {
     if (!businessId || !token) return;
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setMessage("");
     try {
       if (tab === "hours") {
@@ -198,6 +201,8 @@ function SettingsPageInner() {
       }
     } catch {
       // ignore
+    } finally {
+      fetchingRef.current = false;
     }
   }, [businessId, tab, token]);
 
