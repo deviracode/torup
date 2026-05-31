@@ -42,10 +42,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: railwayapp/railway-deploy@v1
-        with:
-          service: torup-api
-          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy API to Railway
+        run: |
+          npm install -g @railway/cli
+          railway up --service torup-api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-whatsapp:
     needs: lint-typecheck-test
@@ -55,10 +57,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: railwayapp/railway-deploy@v1
-        with:
-          service: torup-whatsapp
-          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy WhatsApp to Railway
+        run: |
+          npm install -g @railway/cli
+          railway up --service torup-whatsapp --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-web:
     needs: lint-typecheck-test
@@ -68,19 +72,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@torup/web...
-
       - name: Deploy to Vercel
         run: npx vercel@latest --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        working-directory: apps/web
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
