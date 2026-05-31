@@ -9,6 +9,7 @@ import {
   updateSession,
 } from "../session.js";
 import { getTemplate } from "../templates.js";
+import { groupTimeSlots } from "../index.js";
 
 describe("Webhook Signature Verification", () => {
   const appSecret = "test-secret-key";
@@ -277,5 +278,60 @@ describe("Message Templates", () => {
 
     expect(result).toContain("صالون");
     expect(result).toContain("حلاقة");
+  });
+});
+
+describe("groupTimeSlots", () => {
+  it("puts slots before 12:00 into morning", () => {
+    const slots = [
+      { time: "2026-06-01T06:00:00+03:00", label: "06:00" },
+      { time: "2026-06-01T09:30:00+03:00", label: "09:30" },
+      { time: "2026-06-01T11:59:00+03:00", label: "11:59" },
+    ];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.morning).toHaveLength(3);
+    expect(grouped.noon).toHaveLength(0);
+    expect(grouped.evening).toHaveLength(0);
+  });
+
+  it("puts slots 12:00–15:59 into noon", () => {
+    const slots = [
+      { time: "2026-06-01T12:00:00+03:00", label: "12:00" },
+      { time: "2026-06-01T15:00:00+03:00", label: "15:00" },
+    ];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.morning).toHaveLength(0);
+    expect(grouped.noon).toHaveLength(2);
+    expect(grouped.evening).toHaveLength(0);
+  });
+
+  it("puts slots 16:00+ into evening", () => {
+    const slots = [
+      { time: "2026-06-01T16:00:00+03:00", label: "16:00" },
+      { time: "2026-06-01T20:00:00+03:00", label: "20:00" },
+    ];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.morning).toHaveLength(0);
+    expect(grouped.noon).toHaveLength(0);
+    expect(grouped.evening).toHaveLength(2);
+  });
+
+  it("distributes mixed slots correctly", () => {
+    const slots = [
+      { time: "2026-06-01T08:00:00+03:00", label: "08:00" },
+      { time: "2026-06-01T13:00:00+03:00", label: "13:00" },
+      { time: "2026-06-01T18:00:00+03:00", label: "18:00" },
+    ];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.morning).toHaveLength(1);
+    expect(grouped.noon).toHaveLength(1);
+    expect(grouped.evening).toHaveLength(1);
+  });
+
+  it("returns empty arrays for empty input", () => {
+    const grouped = groupTimeSlots([]);
+    expect(grouped.morning).toHaveLength(0);
+    expect(grouped.noon).toHaveLength(0);
+    expect(grouped.evening).toHaveLength(0);
   });
 });
