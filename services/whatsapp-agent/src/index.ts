@@ -261,7 +261,7 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
   const d = new Date(date + "T12:00:00Z");
   const { day: dayOfWeek } = getIsraelDate(d);
 
-  const [hoursRes, serviceRes, aptsRes, gcalRes] = await Promise.all([
+  const [hoursRes, serviceRes, aptsRes, gcalRes, breaksRes] = await Promise.all([
     supabase.from("working_hours").select("start_time, end_time, is_closed")
       .eq("business_id", businessId).eq("day_of_week", dayOfWeek).is("staff_id", null),
     supabase.from("services").select("duration_minutes, buffer_minutes, max_capacity")
@@ -273,6 +273,8 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
     supabase.from("google_calendar_events").select("start_time, end_time")
       .eq("business_id", businessId)
       .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`),
+    supabase.from("breaks").select("type, day_of_week, specific_date, start_time, end_time")
+      .eq("business_id", businessId).is("staff_id", null),
   ]);
 
   // Merge Google Calendar events into conflict detection
@@ -283,6 +285,21 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
   const wh = hoursRes.data?.[0];
   const service = serviceRes.data;
   if (!wh || wh.is_closed || !service) return [];
+
+  // Check applicable breaks for this date
+  const applicableBreaks = (breaksRes.data || []).filter((b: any) => {
+    if (b.type === "recurring" && b.day_of_week === dayOfWeek) return true;
+    if (b.type === "one_time" && b.specific_date === date) return true;
+    return false;
+  });
+
+  // Check full-day block
+  const isFullDayBlocked = applicableBreaks.some(
+    (b: any) => b.start_time <= "00:01" && b.end_time >= "23:58"
+  );
+  if (isFullDayBlocked) return [];
+
+  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
 
   const [startH, startM] = wh.start_time.split(":").map(Number);
   const [endH, endM] = wh.end_time.split(":").map(Number);
@@ -302,15 +319,25 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
 
   for (let m = startMin; m + duration <= endMin; m += step) {
     if (isToday && m <= nowMinutes) continue;
+
+    // Check if slot overlaps any break
+    const slotEnd = m + duration;
+    const blockedByBreak = applicableBreaks.some((b: any) => {
+      const bStart = toMin(b.start_time);
+      const bEnd = toMin(b.end_time);
+      return m < bEnd && slotEnd > bStart;
+    });
+    if (blockedByBreak) continue;
+
     const hh = String(Math.floor(m / 60)).padStart(2, "0");
     const mm = String(m % 60).padStart(2, "0");
-    const endHH = String(Math.floor((m + duration) / 60)).padStart(2, "0");
-    const endMM = String((m + duration) % 60).padStart(2, "0");
+    const endHH = String(Math.floor(slotEnd / 60)).padStart(2, "0");
+    const endMM = String(slotEnd % 60).padStart(2, "0");
     const slotStart = `${date}T${hh}:${mm}:00${tzOffset}`;
-    const slotEnd = `${date}T${endHH}:${endMM}:00${tzOffset}`;
+    const slotEndStr = `${date}T${endHH}:${endMM}:00${tzOffset}`;
 
     const slotStartUTC = new Date(slotStart).toISOString();
-    const slotEndUTC = new Date(slotEnd).toISOString();
+    const slotEndUTC = new Date(slotEndStr).toISOString();
 
     const conflicts = allConflicts.filter((a: any) => a.start_time < slotEndUTC && a.end_time > slotStartUTC);
     if (conflicts.length < (service.max_capacity || 1)) {
