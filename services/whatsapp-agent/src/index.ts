@@ -773,6 +773,44 @@ async function handleIncomingMessage(
       return;
     }
 
+    // Period selected → show time slots for that period only
+    if (
+      (interactionId === "period_morning" || interactionId === "period_noon" || interactionId === "period_evening") &&
+      session.booking?.step === "select_time_period"
+    ) {
+      const period = interactionId.replace("period_", "") as "morning" | "noon" | "evening";
+      const slots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, session.booking.date!);
+      const grouped = groupTimeSlots(slots);
+      const periodSlots = grouped[period] || [];
+
+      if (periodSlots.length === 0) {
+        // Race condition: that period filled up — re-show remaining periods
+        const remaining = slots;
+        if (remaining.length === 0) {
+          await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר.");
+          updateSession(from, businessPhoneNumberId, { booking: undefined });
+          await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+          return;
+        }
+        const updatedSession = { ...session };
+        await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, remaining);
+        return;
+      }
+
+      updateSession(from, businessPhoneNumberId, {
+        booking: { ...session.booking, step: "select_time" },
+      });
+
+      await sendTimeSlotsGrouped(
+        businessPhoneNumberId,
+        from,
+        session.booking.serviceName,
+        session.booking.date!,
+        periodSlots
+      );
+      return;
+    }
+
     // Time selected → confirm
     if (interactionId.startsWith("time_") && session.booking?.step === "select_time") {
       const startTime = interactionId.replace("time_", "");
