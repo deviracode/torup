@@ -581,10 +581,10 @@ async function handleIncomingMessage(
     }
 
     updateSession(from, businessPhoneNumberId, {
-      booking: { ...session.booking, step: "select_time", date: inputDateStr },
+      booking: { ...session.booking, date: inputDateStr },
     });
-
-    await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, inputDateStr, dateSlots);
+    const updatedSession = { ...session, booking: { ...session.booking, date: inputDateStr } };
+    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, dateSlots);
     return;
   }
 
@@ -765,10 +765,11 @@ async function handleIncomingMessage(
       }
 
       updateSession(from, businessPhoneNumberId, {
-        booking: { ...session.booking, step: "select_time", date },
+        booking: { ...session.booking, date },
       });
-
-      await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, date, slots);
+      // Re-read session after update so sendTimePeriodOrSlots sees the stored date
+      const updatedSession = { ...session, booking: { ...session.booking, date } };
+      await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
       return;
     }
 
