@@ -66,6 +66,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const { session } = useAuth();
   const [date, setDate] = useState(() => formatDate(new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [gcalEvents, setGcalEvents] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string }[]>([]);
   const [workingHours, setWorkingHours] = useState<{ day_of_week: number; start_time: string; end_time: string; is_closed: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -74,12 +75,20 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
     if (!session?.access_token) return;
     setLoading(true);
     try {
-      const result = await apiFetch<Appointment[]>(
-        `/api/businesses/${businessId}/appointments?date=${date}`,
-        {},
-        session.access_token
-      );
+      const [result, gcal] = await Promise.all([
+        apiFetch<Appointment[]>(
+          `/api/businesses/${businessId}/appointments?date=${date}`,
+          {},
+          session.access_token
+        ),
+        apiFetch<{ google_event_id: string; summary: string; start_time: string; end_time: string }[]>(
+          `/api/businesses/${businessId}/google-calendar/events?date=${date}`,
+          {},
+          session.access_token
+        ).catch(() => []),
+      ]);
       setAppointments(Array.isArray(result) ? result : []);
+      setGcalEvents(Array.isArray(gcal) ? gcal : []);
     } catch {
       setAppointments([]);
     } finally {
@@ -142,10 +151,11 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const hours = computeHours(appointments, workingHours, dayOfWeek);
 
   const getAppointmentsForHour = (hour: number) => {
-    return appointments.filter((apt) => {
-      const aptHour = new Date(apt.start_time).getHours();
-      return aptHour === hour;
-    });
+    return appointments.filter((apt) => new Date(apt.start_time).getHours() === hour);
+  };
+
+  const getGcalEventsForHour = (hour: number) => {
+    return gcalEvents.filter((e) => new Date(e.start_time).getHours() === hour);
   };
 
   return (
@@ -193,6 +203,21 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                   </div>
                   {/* Slot area */}
                   <div className="flex-1 min-h-[60px] py-1 px-2 space-y-1">
+                    {getGcalEventsForHour(hour).map((evt) => {
+                      const startTime = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+                      return (
+                        <div
+                          key={evt.google_event_id}
+                          className="w-full rounded-md border-s-4 px-3 py-1.5 text-start text-sm bg-gray-50 border-gray-400 text-gray-600 opacity-80"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium truncate">📅 {evt.summary || "Google Calendar"}</span>
+                            <span className="text-xs shrink-0">{startTime}</span>
+                          </div>
+                          <div className="text-xs opacity-75">Google Calendar</div>
+                        </div>
+                      );
+                    })}
                     {hourAppts.map((apt) => {
                       const statusClass = STATUS_COLORS[apt.status] || STATUS_COLORS.pending;
                       const startTime = new Date(apt.start_time).toLocaleTimeString("he-IL", {

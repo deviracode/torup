@@ -121,6 +121,31 @@ router.patch(
   }
 );
 
+// GET /businesses/:businessId/google-calendar/events?date=YYYY-MM-DD
+router.get(
+  "/events",
+  requireAuth,
+  requireBusinessAccess,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const businessId = getBusinessId(req);
+      const { date } = req.query;
+      if (!date) throw new AppError(400, "date is required");
+      const supabase = createServiceClient();
+      const { data } = await supabase
+        .from("google_calendar_events")
+        .select("google_event_id, summary, start_time, end_time")
+        .eq("business_id", businessId)
+        .gte("start_time", `${date}T00:00:00+03:00`)
+        .lte("start_time", `${date}T23:59:59+03:00`)
+        .order("start_time");
+      res.json(data || []);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // POST /businesses/:businessId/google-calendar/sync — trigger immediate sync
 router.post(
   "/sync",
