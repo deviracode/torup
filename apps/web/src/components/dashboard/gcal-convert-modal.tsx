@@ -54,12 +54,12 @@ export function GCalConvertModal({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiFetch<{ services: Service[] }>(
+    apiFetch<Service[]>(
       `/api/businesses/${businessId}/services`,
       {},
       token
     )
-      .then((r) => setServices(r.services || []))
+      .then((r) => setServices(Array.isArray(r) ? r : []))
       .catch(() => {});
   }, [businessId, token]);
 
