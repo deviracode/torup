@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { AppointmentModal } from "./appointment-modal";
+import { GCalConvertModal } from "./gcal-convert-modal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Appointment {
@@ -53,6 +54,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
   const [gcalEvents, setGcalEvents] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string; date: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedGcalEvent, setSelectedGcalEvent] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string } | null>(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -185,12 +187,13 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                         {getGcalEventsForDayHour(day, hour).map((evt) => {
                             const time = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                             return (
-                              <div
+                              <button
                                 key={evt.google_event_id}
-                                className="w-full rounded border-s-2 px-1 py-0.5 text-xs truncate mb-0.5 bg-gray-50 border-gray-400 text-gray-600"
+                                onClick={() => setSelectedGcalEvent(evt)}
+                                className="w-full rounded border-s-2 px-1 py-0.5 text-xs truncate mb-0.5 bg-gray-50 border-gray-400 text-gray-600 hover:opacity-80 cursor-pointer text-start"
                               >
                                 📅 {time} {evt.summary || "Google Calendar"}
-                              </div>
+                              </button>
                             );
                           })}
                         {appts.map((apt) => {
@@ -219,6 +222,16 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
           </table>
         )}
       </div>
+
+      {selectedGcalEvent && (
+        <GCalConvertModal
+          event={selectedGcalEvent}
+          businessId={businessId}
+          token={session?.access_token || ""}
+          onClose={() => setSelectedGcalEvent(null)}
+          onCreated={fetchWeekAppointments}
+        />
+      )}
 
       {selectedAppointment && (
         <AppointmentModal

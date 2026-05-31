@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import { AppointmentModal } from "./appointment-modal";
+import { GCalConvertModal } from "./gcal-convert-modal";
 import { Button, Badge } from "@torup/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -82,6 +83,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const [workingHours, setWorkingHours] = useState<{ day_of_week: number; start_time: string; end_time: string; is_closed: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedGcalEvent, setSelectedGcalEvent] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string } | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!session?.access_token) return;
@@ -218,16 +220,17 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                     {getGcalEventsForHour(hour).map((evt) => {
                       const startTime = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                       return (
-                        <div
+                        <button
                           key={evt.google_event_id}
-                          className="w-full rounded-md border-s-4 px-3 py-1.5 text-start text-sm bg-gray-50 border-gray-400 text-gray-600 opacity-80"
+                          onClick={() => setSelectedGcalEvent(evt)}
+                          className="w-full rounded-md border-s-4 px-3 py-1.5 text-start text-sm bg-gray-50 border-gray-400 text-gray-600 opacity-80 hover:opacity-100 hover:shadow-sm transition-opacity cursor-pointer"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium truncate">📅 {evt.summary || "Google Calendar"}</span>
                             <span className="text-xs shrink-0">{startTime}</span>
                           </div>
-                          <div className="text-xs opacity-75">Google Calendar</div>
-                        </div>
+                          <div className="text-xs opacity-75">לחץ להמיר לתור</div>
+                        </button>
                       );
                     })}
                     {hourAppts.map((apt) => {
@@ -269,6 +272,16 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
       </div>
 
       {/* Appointment Detail Modal */}
+      {selectedGcalEvent && (
+        <GCalConvertModal
+          event={selectedGcalEvent}
+          businessId={businessId}
+          token={session?.access_token || ""}
+          onClose={() => setSelectedGcalEvent(null)}
+          onCreated={fetchAppointments}
+        />
+      )}
+
       {selectedAppointment && (
         <AppointmentModal
           appointment={selectedAppointment}
