@@ -10,6 +10,7 @@ interface Service {
   name_he: string;
   duration_minutes: number;
   price: number;
+  price_type: string;
 }
 
 interface Customer {
@@ -23,6 +24,23 @@ interface TimeSlot {
   end: string;
   available_capacity: number;
 }
+
+function groupSlots(slots: TimeSlot[]): Record<string, TimeSlot[]> {
+  const grouped: Record<string, TimeSlot[]> = { morning: [], noon: [], evening: [] };
+  for (const slot of slots) {
+    const h = new Date(slot.start).getHours();
+    if (h >= 6 && h < 12) grouped.morning.push(slot);
+    else if (h >= 12 && h < 16) grouped.noon.push(slot);
+    else grouped.evening.push(slot);
+  }
+  return grouped;
+}
+
+const TIME_GROUP_LABELS: Record<string, string> = {
+  morning: "☀️ בוקר",
+  noon: "🌤️ צהריים",
+  evening: "🌙 אחה\"צ/ערב",
+};
 
 export function NewAppointmentForm({
   businessId,
@@ -49,8 +67,10 @@ export function NewAppointmentForm({
   const [newPhone, setNewPhone] = useState("");
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<"confirmed" | "pending_approval">("confirmed");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [maxFutureDays, setMaxFutureDays] = useState(14);
 
   const token = session?.access_token || "";
 
@@ -61,6 +81,14 @@ export function NewAppointmentForm({
       token
     )
       .then((r) => setServices(r.services || []))
+      .catch(() => {});
+  }, [businessId, token]);
+
+  useEffect(() => {
+    apiFetch<{ max_future_days?: number }>(
+      `/api/businesses/${businessId}/booking-rules`, {}, token
+    )
+      .then((r) => { if (r.max_future_days) setMaxFutureDays(r.max_future_days); })
       .catch(() => {});
   }, [businessId, token]);
 
@@ -76,10 +104,7 @@ export function NewAppointmentForm({
   }, [selectedServiceId, date, businessId, token]);
 
   useEffect(() => {
-    if (customerSearch.length < 2) {
-      setCustomers([]);
-      return;
-    }
+    if (customerSearch.length < 2) { setCustomers([]); return; }
     const timeout = setTimeout(() => {
       apiFetch<{ customers: Customer[] }>(
         `/api/businesses/${businessId}/customers?search=${encodeURIComponent(customerSearch)}`,
@@ -122,6 +147,7 @@ export function NewAppointmentForm({
             start_time: selectedSlot,
             notes: notes || null,
             created_via: "manual",
+            status,
           }),
         },
         token
@@ -136,6 +162,16 @@ export function NewAppointmentForm({
     }
   };
 
+  const today = new Date().toISOString().split("T")[0];
+  const maxDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + maxFutureDays);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const grouped = groupSlots(slots);
+  const groupOrder = ["morning", "noon", "evening"] as const;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
@@ -144,7 +180,7 @@ export function NewAppointmentForm({
       >
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h3 className="text-lg font-semibold">{t("newAppointment")}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
@@ -164,7 +200,8 @@ export function NewAppointmentForm({
               <option value="">—</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name_he} ({s.duration_minutes} {t("min")} • ₪{s.price})
+                  {s.name_he} ({s.duration_minutes} {t("min")}
+                  {s.price_type === "discuss" ? ` • לשיחה עם בעל העסק` : ` • ₪${s.price}`})
                 </option>
               ))}
             </select>
@@ -176,48 +213,71 @@ export function NewAppointmentForm({
             <input
               type="date"
               required
+              min={today}
+              max={maxDate}
               value={date}
               onChange={(e) => { setDate(e.target.value); setSelectedSlot(""); }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
 
-          {/* Time Slot */}
+          {/* Time Slots — grouped by time of day */}
           {selectedServiceId && date && (
             <div>
               <label className="block text-sm font-medium mb-1">{t("selectTime")}</label>
               {slots.length === 0 ? (
                 <p className="text-sm text-gray-400">{t("noResults")}</p>
               ) : (
-                <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
-                  {slots.map((slot) => {
-                    const time = new Date(slot.start).toLocaleTimeString("he-IL", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    });
-                    const isSelected = selectedSlot === slot.start;
-                    return (
-                      <button
-                        key={slot.start}
-                        type="button"
-                        onClick={() => setSelectedSlot(slot.start)}
-                        className={`rounded border px-2 py-1.5 text-sm ${
-                          isSelected
-                            ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
-                            : "border-gray-200 hover:border-blue-300"
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-3">
+                  {groupOrder.map((key) =>
+                    grouped[key].length > 0 ? (
+                      <div key={key}>
+                        <p className="text-xs font-medium text-gray-500 mb-1">
+                          {TIME_GROUP_LABELS[key]}
+                        </p>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {grouped[key].map((slot) => {
+                            const time = new Date(slot.start).toLocaleTimeString("he-IL", {
+                              hour: "2-digit", minute: "2-digit", hour12: false,
+                            });
+                            return (
+                              <button
+                                key={slot.start}
+                                type="button"
+                                onClick={() => setSelectedSlot(slot.start)}
+                                className={`rounded border px-2 py-1.5 text-sm ${
+                                  selectedSlot === slot.start
+                                    ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                                    : "border-gray-200 hover:border-blue-300"
+                                }`}
+                              >
+                                {time}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* Customer Search */}
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium mb-1">{t("status")}</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as "confirmed" | "pending_approval")}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="confirmed">{t("confirmed")}</option>
+              <option value="pending_approval">{t("pendingApproval")}</option>
+            </select>
+          </div>
+
+          {/* Customer */}
           <div>
             <label className="block text-sm font-medium mb-1">{t("selectCustomer")}</label>
             {selectedCustomer ? (
@@ -230,21 +290,14 @@ export function NewAppointmentForm({
             ) : showNewCustomer ? (
               <div className="space-y-2">
                 <input
-                  type="text"
-                  required
-                  placeholder={t("customerName")}
-                  value={newName}
+                  type="text" required placeholder={t("customerName")} value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
                 <input
-                  type="tel"
-                  required
-                  placeholder={t("customerPhone")}
-                  value={newPhone}
+                  type="tel" required placeholder={t("customerPhone")} value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                  dir="ltr"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" dir="ltr"
                 />
                 <button type="button" onClick={() => setShowNewCustomer(false)} className="text-xs text-blue-600 hover:underline">
                   {tCommon("back")}
@@ -253,9 +306,7 @@ export function NewAppointmentForm({
             ) : (
               <div className="space-y-2">
                 <input
-                  type="text"
-                  placeholder={t("searchCustomer")}
-                  value={customerSearch}
+                  type="text" placeholder={t("searchCustomer")} value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
@@ -263,8 +314,7 @@ export function NewAppointmentForm({
                   <div className="max-h-32 overflow-y-auto rounded-md border border-gray-200">
                     {customers.map((c) => (
                       <button
-                        key={c.id}
-                        type="button"
+                        key={c.id} type="button"
                         onClick={() => { setSelectedCustomer(c); setCustomerSearch(""); }}
                         className="w-full px-3 py-2 text-start text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
                       >
@@ -283,10 +333,7 @@ export function NewAppointmentForm({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium mb-1">{t("notes")}</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>

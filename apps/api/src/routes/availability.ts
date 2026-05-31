@@ -34,7 +34,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 
     if (!service) throw new AppError(404, "Service not found");
 
-    const [whResult, brResult, aptResult, rulesResult] = await Promise.all([
+    const [whResult, brResult, aptResult, gcalResult, rulesResult] = await Promise.all([
       supabase.from("working_hours").select("*").eq("business_id", businessId).is("staff_id", null),
       supabase.from("breaks").select("*").eq("business_id", businessId).is("staff_id", null),
       supabase
@@ -45,6 +45,12 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
         .gte("start_time", `${dateStr}T00:00:00+03:00`)
         .lte("start_time", `${dateStr}T23:59:59+03:00`)
         .not("status", "in", '("cancelled","no_show")'),
+      supabase
+        .from("google_calendar_events")
+        .select("start_time, end_time")
+        .eq("business_id", businessId)
+        .gte("start_time", `${dateStr}T00:00:00+03:00`)
+        .lte("start_time", `${dateStr}T23:59:59+03:00`),
       supabase.from("booking_rules").select("*").eq("business_id", businessId).single(),
     ]);
 
@@ -78,6 +84,15 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
         staffId: a.staff_id as string | null,
       })
     );
+
+    // Include Google Calendar events as blocking entries
+    for (const e of gcalResult.data || []) {
+      existingAppointments.push({
+        startTime: new Date(e.start_time as string),
+        endTime: new Date(e.end_time as string),
+        staffId: null,
+      });
+    }
 
     const serviceConfig: ServiceConfig = {
       durationMinutes: service.duration_minutes,

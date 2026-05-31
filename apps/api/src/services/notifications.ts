@@ -281,6 +281,73 @@ export async function sendRejectionNotification(
 }
 
 /**
+ * Send a WhatsApp notification to the business owner about a new appointment.
+ */
+export async function sendManagerNotification(appointmentId: string) {
+  const supabase = createServiceClient();
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select(
+      "id, business_id, start_time, status, " +
+      "customers(id, name, phone), " +
+      "services(name_he), " +
+      "businesses(name, phone)"
+    )
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appointment) return;
+
+  const apt = appointment as unknown as {
+    id: string; business_id: string; start_time: string; status: string;
+    customers: { id: string; name: string; phone: string };
+    services: { name_he: string };
+    businesses: { name: string; phone: string };
+  };
+
+  const ownerPhone = apt.businesses.phone;
+  if (!ownerPhone) return;
+
+  const startDate = new Date(apt.start_time);
+  const dateStr = startDate.toLocaleDateString("he-IL", {
+    weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+  });
+  const timeStr = startDate.toLocaleTimeString("he-IL", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+  });
+
+  const statusLabel = apt.status === "pending_approval" ? "ממתין לאישור" : "אושר";
+
+  const message =
+    `🔔 תור חדש!\n` +
+    `👤 ${apt.customers.name}\n` +
+    `✂️ ${apt.services.name_he}\n` +
+    `📅 ${dateStr} ⏰ ${timeStr}\n` +
+    `📱 ${apt.customers.phone}\n\n` +
+    `סטטוס: ${statusLabel}`;
+
+  let whatsappMessageId: string | null = null;
+  try {
+    whatsappMessageId = await sendWhatsAppMessage(ownerPhone, message);
+  } catch (err) {
+    console.error("Failed to send manager notification:", err);
+  }
+
+  await logNotification({
+    business_id: apt.business_id,
+    customer_id: apt.customers.id,
+    appointment_id: appointmentId,
+    type: "manager_new_booking",
+    channel: "whatsapp",
+    template_id: "manager_new_booking",
+    status: whatsappMessageId ? "sent" : "failed",
+    whatsapp_message_id: whatsappMessageId,
+    error: whatsappMessageId ? undefined : "WhatsApp send failed",
+  });
+}
+
+/**
  * Check for appointments needing reminders and send them.
  * Uses per-business configurable intervals from reminder_settings table.
  * Should be called periodically (e.g., every 5 minutes via cron).

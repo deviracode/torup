@@ -20,7 +20,9 @@ import notificationsRouter from "./routes/notifications.js";
 import billingRouter from "./routes/billing.js";
 import webhooksRouter from "./routes/webhooks.js";
 import internalRouter from "./routes/internal.js";
+import googleCalendarRouter from "./routes/google-calendar.js";
 import { startReminderScheduler } from "./services/notifications.js";
+import { startGCalSyncScheduler } from "./services/google-calendar.js";
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
@@ -69,6 +71,7 @@ app.use("/api/businesses/:businessId/staff", staffRouter);
 app.use("/api/businesses/:businessId/waitlist", waitlistRouter);
 app.use("/api/businesses/:businessId/analytics", analyticsRouter);
 app.use("/api/businesses/:businessId/notifications", notificationsRouter);
+app.use("/api/businesses/:businessId/google-calendar", googleCalendarRouter);
 
 // Admin routes
 app.use("/api/admin", adminRouter);
@@ -86,8 +89,9 @@ app.listen(port, () => {
   console.log(`API server running on http://localhost:${port}`);
   if (process.env.ENABLE_INPROCESS_REMINDER_SCHEDULER === "true") {
     startReminderScheduler();
+    startGCalSyncScheduler();
   } else {
-    console.log("In-process reminder scheduler disabled (set ENABLE_INPROCESS_REMINDER_SCHEDULER=true to enable)");
+    console.log("In-process schedulers disabled (set ENABLE_INPROCESS_REMINDER_SCHEDULER=true to enable)");
   }
 });
 

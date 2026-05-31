@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { Card, CardContent, Button, Input, Label } from "@torup/ui";
@@ -66,9 +67,24 @@ interface BusinessProfile {
   address: string | null;
 }
 
-type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking";
+type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking" | "gcal";
 
-export default function SettingsPage() {
+interface GCalStatus {
+  connected: boolean;
+  calendarId: string | null;
+  syncEnabled: boolean;
+  pushEnabled: boolean;
+  tokenExpiresAt: string | null;
+  lastSyncAt: string | null;
+}
+
+interface GCalCalendar {
+  id: string;
+  summary: string;
+  primary: boolean;
+}
+
+function SettingsPageInner() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
@@ -101,7 +117,44 @@ export default function SettingsPage() {
   // Booking settings state
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
 
+  // Google Calendar state
+  const [gcalStatus, setGcalStatus] = useState<GCalStatus | null>(null);
+  const [gcalCalendars, setGcalCalendars] = useState<GCalCalendar[]>([]);
+  const [gcalAuthUrl, setGcalAuthUrl] = useState("");
+  const [gcalConnecting, setGcalConnecting] = useState(false);
+  const [gcalCode, setGcalCode] = useState("");
+
+  const searchParams = useSearchParams();
+
   const token = session?.access_token || "";
+
+  // Auto-handle OAuth redirect: if ?code= is in the URL, connect and clean
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code && businessId && tab !== "gcal") {
+      setTab("gcal");
+    }
+    if (code && businessId) {
+      setGcalConnecting(true);
+      apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }, token)
+        .then(() => {
+          setGcalCode("");
+          // Remove code from URL without full reload
+          const url = new URL(window.location.href);
+          url.searchParams.delete("code");
+          url.searchParams.delete("state");
+          url.searchParams.delete("scope");
+          window.history.replaceState({}, "", url.toString());
+          // Refresh gcal tab
+          if (tab === "gcal") fetchTab();
+        })
+        .catch(() => {})
+        .finally(() => setGcalConnecting(false));
+    }
+  }, [searchParams, businessId, token]);
 
   useEffect(() => {
     if (!token) return;
@@ -135,6 +188,13 @@ export default function SettingsPage() {
       } else if (tab === "booking") {
         const r = await apiFetch<{ allow_multiple_bookings: boolean }>(`/api/businesses/${businessId}`, {}, token);
         if (r) setAllowMultipleBookings(r.allow_multiple_bookings ?? false);
+      } else if (tab === "gcal") {
+        const status = await apiFetch<GCalStatus>(`/api/businesses/${businessId}/google-calendar/status`, {}, token);
+        if (status) setGcalStatus(status);
+        if (status?.connected) {
+          const calRes = await apiFetch<{ calendars: GCalCalendar[] }>(`/api/businesses/${businessId}/google-calendar/calendars`, {}, token);
+          if (calRes?.calendars) setGcalCalendars(calRes.calendars);
+        }
       }
     } catch {
       // ignore
@@ -256,6 +316,56 @@ export default function SettingsPage() {
     } catch {} finally { setSaving(false); }
   };
 
+  // Google Calendar handlers
+  const connectGCal = async () => {
+    setGcalConnecting(true);
+    try {
+      const res = await apiFetch<{ url: string }>(`/api/businesses/${businessId}/google-calendar/auth-url`, {}, token);
+      if (res?.url) {
+        setGcalAuthUrl(res.url);
+        window.open(res.url, "_blank");
+      }
+    } catch {} finally { setGcalConnecting(false); }
+  };
+
+  const handleGCalCode = async (code: string) => {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }, token);
+      fetchTab();
+      showSaved();
+    } catch {} finally { setSaving(false); }
+  };
+
+  const disconnectGCal = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, { method: "DELETE" }, token);
+      setGcalStatus({ connected: false, calendarId: null, syncEnabled: false, pushEnabled: false, tokenExpiresAt: null, lastSyncAt: null });
+      setGcalCalendars([]);
+      showSaved();
+    } catch {} finally { setSaving(false); }
+  };
+
+  const saveGCalSettings = async () => {
+    if (!gcalStatus) return;
+    setSaving(true);
+    try {
+      await apiFetch(`/api/businesses/${businessId}/google-calendar/settings`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          google_calendar_id: gcalStatus.calendarId,
+          sync_enabled: gcalStatus.syncEnabled,
+          push_enabled: gcalStatus.pushEnabled,
+        }),
+      }, token);
+      showSaved();
+    } catch {} finally { setSaving(false); }
+  };
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "hours", label: t("workingHours") },
     { key: "breaks", label: t("breaks") },
@@ -264,6 +374,7 @@ export default function SettingsPage() {
     { key: "staff", label: t("staffManagement") },
     { key: "profile", label: t("businessProfile") },
     { key: "booking", label: t("booking") },
+    { key: "gcal", label: "Google Calendar" },
   ];
 
   return (
@@ -551,6 +662,120 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Google Calendar */}
+        {tab === "gcal" && (
+          <div className="space-y-4 max-w-md">
+            {!gcalStatus?.connected ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  חבר את יומן Google שלך לסנכרון דו-כיווני — אירועים מהיומן יחסמו משבצות זמן, ותורים חדשים יופיעו ביומן.
+                </p>
+                <button onClick={connectGCal} disabled={gcalConnecting}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
+                  {gcalConnecting ? "מתחבר..." : "🔗 חיבור Google Calendar"}
+                </button>
+                <div className="border-t border-gray-200 pt-4 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    לאחר אישור Google, העתק את הקוד שהתקבל בחזרה לכאן:
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Authorization code"
+                      value={gcalCode}
+                      onChange={(e) => setGcalCode(e.target.value)}
+                      className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+                    />
+                    <button
+                      onClick={() => { handleGCalCode(gcalCode); setGcalCode(""); }}
+                      disabled={saving || !gcalCode}
+                      className="rounded-md bg-green-600 px-4 py-2 text-sm text-white font-medium hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {tCommon("save")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-md border border-green-300 bg-green-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-green-800">מחובר</p>
+                    <p className="text-xs text-green-600">
+                      {gcalStatus.lastSyncAt
+                        ? `סנכרון אחרון: ${new Date(gcalStatus.lastSyncAt).toLocaleString("he-IL")}`
+                        : "טרם סונכרן"}
+                    </p>
+                  </div>
+                  <button onClick={disconnectGCal} disabled={saving}
+                    className="text-red-600 text-xs hover:underline">
+                    ניתוק
+                  </button>
+                </div>
+
+                {/* Calendar selector */}
+                {gcalCalendars.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">בחר יומן</label>
+                    <select
+                      value={gcalStatus.calendarId || ""}
+                      onChange={(e) => setGcalStatus({ ...gcalStatus, calendarId: e.target.value || null })}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">—</option>
+                      {gcalCalendars.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.summary}{c.primary ? " (ראשי)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Toggles */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">סנכרון מיומן Google</p>
+                      <p className="text-xs text-muted-foreground">אירועים מהיומן יחסמו משבצות זמן</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={gcalStatus.syncEnabled}
+                        onChange={(e) => setGcalStatus({ ...gcalStatus, syncEnabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">דחיפת תורים ליומן</p>
+                      <p className="text-xs text-muted-foreground">תורים חדשים יופיעו אוטומטית ביומן Google</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={gcalStatus.pushEnabled}
+                        onChange={(e) => setGcalStatus({ ...gcalStatus, pushEnabled: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                </div>
+
+                <button onClick={saveGCalSettings} disabled={saving}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
+                  {tCommon("save")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Business Profile */}
         {tab === "profile" && profile && (
           <div className="space-y-4 max-w-md">
@@ -588,5 +813,13 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">טוען...</div>}>
+      <SettingsPageInner />
+    </Suspense>
   );
 }

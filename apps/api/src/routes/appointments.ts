@@ -8,8 +8,10 @@ import {
 } from "../middleware/auth.js";
 import { AppError } from "../middleware/error-handler.js";
 import { validateTransition, canCancel } from "@torup/shared";
+import { pushAppointmentToGoogle } from "../services/google-calendar.js";
 import {
   sendAppointmentNotification,
+  sendManagerNotification,
   sendApprovalNotification,
   sendRejectionNotification,
 } from "../services/notifications.js";
@@ -67,7 +69,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
   try {
     const supabase = createServiceClient();
     const businessId = getBusinessId(req);
-    const { service_id, customer_id, staff_id, start_time, notes, created_via } = req.body;
+    const { service_id, customer_id, staff_id, start_time, notes, created_via, status } = req.body;
 
     const { data: service, error: serviceErr } = await supabase
       .from("services")
@@ -106,7 +108,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
         end_time: endDate.toISOString(),
         notes: notes || null,
         created_via: created_via || "web",
-        status: "pending",
+        status: (created_via === "manual" && status) ? status : "pending",
       })
       .select("*, services(name_he, name_ar, name_en), customers(name, phone)")
       .single();
@@ -116,6 +118,8 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
     // Send booking confirmation notification (fire and forget)
     if (data?.id) {
       sendAppointmentNotification(data.id, "booking_confirmation").catch(() => {});
+      sendManagerNotification(data.id).catch(() => {});
+      pushAppointmentToGoogle(data.id).catch(() => {});
     }
 
     res.status(201).json(data);
@@ -179,6 +183,7 @@ router.patch(
         if (templateId) {
           sendAppointmentNotification(data.id, templateId).catch(() => {});
         }
+        pushAppointmentToGoogle(data.id).catch(() => {});
       }
 
       res.json(data);
@@ -238,10 +243,12 @@ router.post(
         if (rejErr) throw new AppError(400, rejErr.message);
       }
 
-      // Fire-and-forget notifications.
+      // Fire-and-forget notifications + Google Calendar sync.
       sendApprovalNotification(appointmentId).catch(() => {});
+      pushAppointmentToGoogle(appointmentId).catch(() => {});
       for (const id of rejectedIds) {
         sendRejectionNotification(id, "slot_taken").catch(() => {});
+        pushAppointmentToGoogle(id).catch(() => {});
       }
 
       res.json({ approved: appointmentId, rejected: rejectedIds });
@@ -280,6 +287,7 @@ router.post(
       if (updErr) throw new AppError(400, updErr.message);
 
       sendRejectionNotification(appointmentId, "manual").catch(() => {});
+      pushAppointmentToGoogle(appointmentId).catch(() => {});
 
       res.json({ rejected: appointmentId });
     } catch (err) {

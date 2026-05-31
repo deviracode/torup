@@ -14,6 +14,7 @@ interface DayStats {
   total: number;
   pending: number;
   completed: number;
+  pendingApproval: number;
 }
 
 export default function DashboardPage() {
@@ -24,7 +25,7 @@ export default function DashboardPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [stats, setStats] = useState<DayStats>({ total: 0, pending: 0, completed: 0 });
+  const [stats, setStats] = useState<DayStats>({ total: 0, pending: 0, completed: 0, pendingApproval: 0 });
 
   useEffect(() => {
     if (!session?.access_token) return;
@@ -49,11 +50,25 @@ export default function DashboardPage() {
     )
       .then((apts) => {
         if (Array.isArray(apts)) {
-          setStats({
+          setStats((prev) => ({
+            ...prev,
             total: apts.length,
             pending: apts.filter((a) => a.status === "pending" || a.status === "confirmed").length,
             completed: apts.filter((a) => a.status === "completed").length,
-          });
+          }));
+        }
+      })
+      .catch(() => {});
+
+    // Fetch pending_approval count (all, not just today)
+    apiFetch<Array<{ id: string }>>(
+      `/api/businesses/${businessId}/appointments?status=pending_approval`,
+      {},
+      session.access_token
+    )
+      .then((apts) => {
+        if (Array.isArray(apts)) {
+          setStats((prev) => ({ ...prev, pendingApproval: apts.length }));
         }
       })
       .catch(() => {});
@@ -61,7 +76,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: t("todayAppointments"), value: stats.total, icon: CalendarDays, color: "text-blue-600" },
-    { label: t("pending"), value: stats.pending, icon: Clock, color: "text-yellow-600" },
+    { label: t("pending"), value: stats.pending, icon: Clock, color: "text-yellow-600", badge: stats.pendingApproval },
     { label: t("completed"), value: stats.completed, icon: CheckCircle2, color: "text-green-600" },
   ];
 
@@ -75,7 +90,14 @@ export default function DashboardPage() {
               <CardContent className="flex items-center gap-4 p-4">
                 <s.icon className={`h-8 w-8 ${s.color}`} />
                 <div>
-                  <p className="text-2xl font-bold">{s.value}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-bold">{s.value}</p>
+                    {"badge" in s && s.badge! > 0 && (
+                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                        {s.badge}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">{s.label}</p>
                 </div>
               </CardContent>

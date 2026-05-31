@@ -14,6 +14,7 @@ interface Service {
   description_he: string | null;
   duration_minutes: number;
   price: number;
+  price_type: string;
 }
 
 interface Business {
@@ -120,6 +121,10 @@ export function BookingFlow({
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
 
   const handleServiceSelect = (service: Service) => {
+    if (service.price_type === "discuss") {
+      window.open(`https://wa.me/${business.phone.replace(/[^0-9]/g, "")}`, "_blank");
+      return;
+    }
     setSelectedService(service);
     setStep("date");
   };
@@ -219,8 +224,17 @@ export function BookingFlow({
                       {service.duration_minutes} {t("minutes")}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Banknote className="h-3.5 w-3.5" />
-                      ₪{service.price}
+                      {service.price_type === "discuss" ? (
+                        <>
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          לשיחה עם בעל העסק
+                        </>
+                      ) : (
+                        <>
+                          <Banknote className="h-3.5 w-3.5" />
+                          ₪{service.price}
+                        </>
+                      )}
                     </span>
                   </div>
                 </CardContent>
@@ -351,7 +365,11 @@ export function BookingFlow({
                     })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedService?.duration_minutes} {t("minutes")} • ₪{selectedService?.price}
+                  {selectedService?.duration_minutes} {t("minutes")}
+                  {selectedService?.price_type === "discuss"
+                    ? ` • לשיחה עם בעל העסק`
+                    : ` • ₪${selectedService?.price}`
+                  }
                 </p>
               </CardContent>
             </Card>

@@ -106,7 +106,7 @@ async function getBusinessServices(businessId: string) {
 
   const { data } = await supabase
     .from("services")
-    .select("id, name_he, name_ar, name_en, duration_minutes, price")
+    .select("id, name_he, name_ar, name_en, duration_minutes, price, price_type")
     .eq("business_id", businessId)
     .eq("is_active", true)
     .order("sort_order");
@@ -181,7 +181,9 @@ async function sendServiceList(phoneNumberId: string, to: string, services: Reco
   const rows = services.map((s: any) => ({
     id: `service_${s.id || s.name_he}`,
     title: (s.name_he || "").slice(0, 24),
-    description: `${s.duration_minutes} דק׳ • ₪${s.price}`,
+    description: s.price_type === "discuss"
+      ? `${s.duration_minutes} דק׳ • לשיחה עם בעל העסק`
+      : `${s.duration_minutes} דק׳ • ₪${s.price}`,
   }));
 
   await sendListMessage(phoneNumberId, to,
@@ -233,7 +235,7 @@ function getIsraelOffset(date: string): string {
 async function findNextAvailableDates(businessId: string, serviceId: string, maxDays = 14): Promise<{ date: string; label: string }[]> {
   const results: { date: string; label: string }[] = [];
 
-  for (let i = 0; i < maxDays && results.length < 3; i++) {
+  for (let i = 0; i < maxDays && results.length < 5; i++) {
     const { dateStr, day: dow } = addDaysIsrael(i);
 
     const slots = await getAvailableTimeSlots(businessId, serviceId, dateStr);
@@ -255,7 +257,7 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
   const d = new Date(date + "T12:00:00Z");
   const { day: dayOfWeek } = getIsraelDate(d);
 
-  const [hoursRes, serviceRes, aptsRes] = await Promise.all([
+  const [hoursRes, serviceRes, aptsRes, gcalRes] = await Promise.all([
     supabase.from("working_hours").select("start_time, end_time, is_closed")
       .eq("business_id", businessId).eq("day_of_week", dayOfWeek).is("staff_id", null),
     supabase.from("services").select("duration_minutes, buffer_minutes, max_capacity")
@@ -264,7 +266,15 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
       .eq("business_id", businessId).eq("service_id", serviceId)
       .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`)
       .in("status", ["pending", "confirmed", "in_progress"]),
+    supabase.from("google_calendar_events").select("start_time, end_time")
+      .eq("business_id", businessId)
+      .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`),
   ]);
+
+  // Merge Google Calendar events into conflict detection
+  const allConflicts = (aptsRes.data || []).concat(
+    (gcalRes.data || []).map((e: any) => ({ start_time: e.start_time, end_time: e.end_time }))
+  );
 
   const wh = hoursRes.data?.[0];
   const service = serviceRes.data;
@@ -286,7 +296,7 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
 
   const tzOffset = getIsraelOffset(date);
 
-  for (let m = startMin; m + duration <= endMin && slots.length < 10; m += step) {
+  for (let m = startMin; m + duration <= endMin; m += step) {
     if (isToday && m <= nowMinutes) continue;
     const hh = String(Math.floor(m / 60)).padStart(2, "0");
     const mm = String(m % 60).padStart(2, "0");
@@ -298,7 +308,7 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
     const slotStartUTC = new Date(slotStart).toISOString();
     const slotEndUTC = new Date(slotEnd).toISOString();
 
-    const conflicts = (aptsRes.data || []).filter((a: any) => a.start_time < slotEndUTC && a.end_time > slotStartUTC);
+    const conflicts = allConflicts.filter((a: any) => a.start_time < slotEndUTC && a.end_time > slotStartUTC);
     if (conflicts.length < (service.max_capacity || 1)) {
       slots.push({ time: slotStartUTC, label: `${hh}:${mm}` });
     }
@@ -322,9 +332,10 @@ async function createBooking(
 
   if (!allowMultipleBookings) {
     // Single-active-appointment cap: reject if customer already has any active future
-    // appointment at this business. (Race: two simultaneous inserts could both pass —
-    // acceptable for now; stronger guard would be a Postgres advisory lock or unique
-    // partial index. See design.md decision 2.)
+    // appointment at this business.
+    // Advisory lock prevents the race where two simultaneous inserts from the same
+    // customer both pass the count check before either writes.
+    await supabase.rpc("acquire_booking_lock", { biz_id: businessId, cust_id: customerId });
     const { count: activeCount, error: countErr } = await supabase
       .from("appointments")
       .select("id", { count: "exact", head: true })
@@ -340,7 +351,7 @@ async function createBooking(
     new Date(startTime).getTime() + service.duration_minutes * 60000
   ).toISOString();
 
-  const { error } = await supabase.from("appointments").insert({
+  const { data: inserted, error } = await supabase.from("appointments").insert({
     business_id: businessId,
     service_id: serviceId,
     customer_id: customerId,
@@ -348,9 +359,21 @@ async function createBooking(
     end_time: endTime,
     status: "pending_approval",
     created_via: "whatsapp",
-  });
+  }).select("id").single();
 
   if (error) return `שגיאה: ${error.message}`;
+
+  // Fire-and-forget manager notification
+  if (inserted?.id) {
+    const apiUrl = process.env.API_INTERNAL_URL || "http://localhost:3001";
+    const secret = process.env.INTERNAL_SECRET || "";
+    fetch(`${apiUrl}/api/internal/notify-manager`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-secret": secret },
+      body: JSON.stringify({ appointmentId: inserted.id }),
+    }).catch(() => {});
+  }
+
   return "ok";
 }
 
@@ -388,6 +411,54 @@ async function updateCustomerName(customerId: string, name: string): Promise<voi
   await supabase.from("customers").update({ name }).eq("id", customerId);
 }
 
+const TIME_GROUP_LABELS: Record<string, string> = {
+  morning: "☀️ בוקר",
+  noon: "🌤️ צהריים",
+  evening: "🌙 אחה\"צ/ערב",
+};
+
+function groupTimeSlots(slots: { time: string; label: string }[]): Record<string, { time: string; label: string }[]> {
+  const groups: Record<string, { time: string; label: string }[]> = { morning: [], noon: [], evening: [] };
+  for (const slot of slots) {
+    const h = parseInt(slot.label.split(":")[0], 10);
+    if (h >= 6 && h < 12) groups.morning.push(slot);
+    else if (h >= 12 && h < 16) groups.noon.push(slot);
+    else groups.evening.push(slot);
+  }
+  return groups;
+}
+
+async function sendTimeSlotsGrouped(
+  phoneNumberId: string,
+  to: string,
+  serviceName: string,
+  date: string,
+  slots: { time: string; label: string }[]
+) {
+  const grouped = groupTimeSlots(slots);
+  const sections: { title: string; rows: { id: string; title: string }[] }[] = [];
+
+  for (const [key, label] of Object.entries(TIME_GROUP_LABELS)) {
+    const groupSlots = grouped[key] || [];
+    if (groupSlots.length === 0) continue;
+    sections.push({
+      title: label,
+      rows: groupSlots.slice(0, 10).map((s) => ({
+        id: `time_${s.time}`,
+        title: s.label,
+      })),
+    });
+  }
+
+  if (sections.length === 0) return;
+
+  await sendListMessage(phoneNumberId, to,
+    `${serviceName} • ${date.slice(5).replace("-", "/")}\nבחרו שעה:`,
+    "הצג שעות",
+    sections
+  );
+}
+
 async function handleIncomingMessage(
   from: string,
   text: string,
@@ -423,6 +494,53 @@ async function handleIncomingMessage(
         awaitingName: !customer.name,
       });
     }
+  }
+
+  // --- Free-text date input for specific booking flow ---
+  if (session.booking?.step === "select_date" && session.bookingFlow === "specific" && !interactionId) {
+    const dateMatch = text.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!dateMatch) {
+      await sendTextMessage(businessPhoneNumberId, from, "פורמט לא תקין. הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)");
+      return;
+    }
+
+    const day = parseInt(dateMatch[1], 10);
+    const month = parseInt(dateMatch[2], 10);
+    const year = parseInt(dateMatch[3], 10);
+    const inputDate = new Date(year, month - 1, day);
+
+    if (isNaN(inputDate.getTime())) {
+      await sendTextMessage(businessPhoneNumberId, from, "תאריך לא תקין. נסו שוב.");
+      return;
+    }
+
+    const today = getIsraelDate();
+    const inputDateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    if (inputDateStr < today.dateStr) {
+      await sendTextMessage(businessPhoneNumberId, from, "לא ניתן לקבוע תור בתאריך שעבר. נסו תאריך עתידי.");
+      return;
+    }
+
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 30);
+    if (inputDate > maxDate) {
+      await sendTextMessage(businessPhoneNumberId, from, "ניתן לקבוע תור עד 30 ימים מראש. נסו תאריך קרוב יותר.");
+      return;
+    }
+
+    const dateSlots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, inputDateStr);
+    if (dateSlots.length === 0) {
+      await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך זה. נסו תאריך אחר.");
+      return;
+    }
+
+    updateSession(from, businessPhoneNumberId, {
+      booking: { ...session.booking, step: "select_time", date: inputDateStr },
+    });
+
+    await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, inputDateStr, dateSlots);
+    return;
   }
 
   // --- Name capture: if we previously asked, treat this text as the name ---
@@ -534,14 +652,21 @@ async function handleIncomingMessage(
       return;
     }
 
-    // Service selected → show available dates
+    // Service selected → show available dates (or WhatsApp link for discuss-type)
     if (interactionId.startsWith("service_")) {
       const serviceId = interactionId.replace("service_", "");
       const serviceName = text;
-      const dates = await findNextAvailableDates(ctx.biz.businessId, serviceId);
 
-      if (dates.length === 0) {
-        await sendTextMessage(businessPhoneNumberId, from, "אין תאריכים פנויים בשבועיים הקרובים 😔\nנסו שוב מאוחר יותר.");
+      // Discuss-type services: redirect to business WhatsApp, no appointment created
+      const service = ctx.services.find((s: any) => s.id === serviceId);
+      if (service?.price_type === "discuss") {
+        const bizWhatsApp = ctx.biz.phone.replace(/[^0-9]/g, "");
+        await sendTextMessage(
+          businessPhoneNumberId,
+          from,
+          `שירות זה דורש תיאום עם בעל העסק.\n📞 צרו קשר בוואטסאפ: https://wa.me/${bizWhatsApp}`
+        );
+        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
         return;
       }
 
@@ -550,13 +675,40 @@ async function handleIncomingMessage(
       });
 
       await sendButtonMessage(businessPhoneNumberId, from,
-        `${serviceName} ✂️\nבחרו תאריך:`,
+        `${serviceName} ✂️\nאיך תרצו לבחור תאריך?`,
+        [
+          { id: "flow_quick", title: "📅 התאריכים הקרובים" },
+          { id: "flow_specific", title: "📆 תאריך אחר" },
+        ]
+      );
+      return;
+    }
+
+    // Quick date flow — show 5 next available dates
+    if (interactionId === "flow_quick" && session.booking?.step === "select_date") {
+      updateSession(from, businessPhoneNumberId, { bookingFlow: "quick" });
+      const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId);
+
+      if (dates.length === 0) {
+        await sendTextMessage(businessPhoneNumberId, from, "אין תאריכים פנויים בשבועיים הקרובים 😔");
+        return;
+      }
+
+      await sendButtonMessage(businessPhoneNumberId, from,
+        `${session.booking.serviceName} ✂️\nבחרו תאריך:`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
       return;
     }
 
-    // Date selected → show available time slots
+    // Specific date flow — prompt for DD/MM/YYYY input
+    if (interactionId === "flow_specific" && session.booking?.step === "select_date") {
+      updateSession(from, businessPhoneNumberId, { bookingFlow: "specific" });
+      await sendTextMessage(businessPhoneNumberId, from, "הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)");
+      return;
+    }
+
+    // Date selected → show available time slots (grouped by time of day)
     if (interactionId.startsWith("date_") && session.booking?.step === "select_date") {
       const date = interactionId.replace("date_", "");
       const slots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, date);
@@ -571,14 +723,7 @@ async function handleIncomingMessage(
         booking: { ...session.booking, step: "select_time", date },
       });
 
-      await sendListMessage(businessPhoneNumberId, from,
-        `${session.booking.serviceName} • ${date.slice(5).replace("-", "/")}\nבחרו שעה:`,
-        "הצג שעות",
-        [{ title: "שעות פנויות", rows: slots.map((s) => ({
-          id: `time_${s.time}`,
-          title: s.label,
-        }))}]
-      );
+      await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, date, slots);
       return;
     }
 
