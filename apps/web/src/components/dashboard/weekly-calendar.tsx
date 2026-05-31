@@ -50,6 +50,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
   const { session } = useAuth();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [gcalEvents, setGcalEvents] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string; date: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
@@ -65,16 +66,25 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
 
     try {
       const allAppts: Appointment[] = [];
-      const fetches = weekDays.map((day) =>
-        apiFetch<Appointment[]>(
-          `/api/businesses/${businessId}/appointments?date=${formatDate(day)}`,
-          {},
-          session.access_token
-        ).then((r) => { if (Array.isArray(r)) allAppts.push(...r); })
-          .catch(() => { })
-      );
+      const allGcal: typeof gcalEvents = [];
+      const fetches = weekDays.map((day) => {
+        const dateStr = formatDate(day);
+        return Promise.all([
+          apiFetch<Appointment[]>(
+            `/api/businesses/${businessId}/appointments?date=${dateStr}`,
+            {},
+            session.access_token
+          ).then((r) => { if (Array.isArray(r)) allAppts.push(...r); }).catch(() => {}),
+          apiFetch<{ google_event_id: string; summary: string; start_time: string; end_time: string }[]>(
+            `/api/businesses/${businessId}/google-calendar/events?date=${dateStr}`,
+            {},
+            session.access_token
+          ).then((r) => { if (Array.isArray(r)) allGcal.push(...r.map((e) => ({ ...e, date: dateStr }))); }).catch(() => {}),
+        ]);
+      });
       await Promise.all(fetches);
       setAppointments(allAppts);
+      setGcalEvents(allGcal);
     } finally {
       setLoading(false);
     }
@@ -97,6 +107,11 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
       const aptHour = new Date(apt.start_time).getHours();
       return aptDate === dayStr && aptHour === hour;
     });
+  };
+
+  const getGcalEventsForDayHour = (day: Date, hour: number) => {
+    const dayStr = formatDate(day);
+    return gcalEvents.filter((e) => e.date === dayStr && new Date(e.start_time).getHours() === hour);
   };
 
   const weekLabel = `${weekDays[0].toLocaleDateString("he-IL", { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString("he-IL", { day: "numeric", month: "short", year: "numeric" })}`;
@@ -167,6 +182,17 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                         key={day.toISOString()}
                         className="border-b border-e border-gray-100 p-0.5 align-top last:border-e-0 min-h-[40px] h-[40px]"
                       >
+                        {getGcalEventsForDayHour(day, hour).map((evt) => {
+                            const time = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+                            return (
+                              <div
+                                key={evt.google_event_id}
+                                className="w-full rounded border-s-2 px-1 py-0.5 text-xs truncate mb-0.5 bg-gray-50 border-gray-400 text-gray-600"
+                              >
+                                📅 {time} {evt.summary || "Google Calendar"}
+                              </div>
+                            );
+                          })}
                         {appts.map((apt) => {
                           const statusClass = STATUS_COLORS[apt.status] || "";
                           const time = new Date(apt.start_time).toLocaleTimeString("he-IL", {
