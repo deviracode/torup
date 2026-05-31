@@ -128,6 +128,7 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
 
     // Delete events no longer in Google (cancelled externally)
     const googleEventIds = events.map((e) => e.id!).filter(Boolean);
+    console.log(`[gcal/sync] keeping ${googleEventIds.length} event IDs:`, googleEventIds);
     let deleted = 0;
     if (googleEventIds.length > 0) {
       const { error: delErr, count } = await supabase
@@ -135,6 +136,7 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
         .delete({ count: "exact" })
         .eq("business_id", businessId)
         .not("google_event_id", "in", `(${googleEventIds.map((id) => `'${id}'`).join(",")})`);
+      console.log(`[gcal/sync] delete result: count=${count} error=${delErr?.message}`);
       if (!delErr) deleted = count ?? 0;
     }
 
