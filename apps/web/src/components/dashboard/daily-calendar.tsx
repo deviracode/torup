@@ -33,7 +33,12 @@ const STATUS_COLORS: Record<string, string> = {
   no_show: "bg-red-100 border-red-400 text-red-800",
 };
 
-function computeHours(appointments: Appointment[], workingHours: { start_time: string; end_time: string; is_closed: boolean }[], dayOfWeek: number): number[] {
+function computeHours(
+  appointments: Appointment[],
+  gcalEvents: { start_time: string; end_time: string }[],
+  workingHours: { start_time: string; end_time: string; is_closed: boolean }[],
+  dayOfWeek: number
+): number[] {
   const dayWh = workingHours.find((wh) => (wh as unknown as { day_of_week: number }).day_of_week === dayOfWeek);
   let startHour = 7;
   let endHour = 20;
@@ -48,6 +53,13 @@ function computeHours(appointments: Appointment[], workingHours: { start_time: s
     const aptEnd = new Date(apt.end_time).getHours();
     startHour = Math.min(startHour, aptStart);
     endHour = Math.max(endHour, aptEnd + 1);
+  }
+
+  for (const evt of gcalEvents) {
+    const evtStart = new Date(evt.start_time).getHours();
+    const evtEnd = new Date(evt.end_time).getHours();
+    startHour = Math.min(startHour, evtStart);
+    endHour = Math.max(endHour, evtEnd + 1);
   }
 
   endHour = Math.min(endHour, 24);
@@ -148,7 +160,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
     month: "long",
     day: "numeric",
   });
-  const hours = computeHours(appointments, workingHours, dayOfWeek);
+  const hours = computeHours(appointments, gcalEvents, workingHours, dayOfWeek);
 
   const getAppointmentsForHour = (hour: number) => {
     return appointments.filter((apt) => new Date(apt.start_time).getHours() === hour);
