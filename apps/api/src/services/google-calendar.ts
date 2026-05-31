@@ -107,16 +107,24 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
     let imported = 0;
 
     for (const event of events) {
-      if (!event.id || !event.start?.dateTime || !event.end?.dateTime) continue;
-      await supabase.from("google_calendar_events").upsert({
+      if (!event.id || !event.start?.dateTime || !event.end?.dateTime) {
+        console.log(`[gcal/sync] skipping event id=${event.id} summary="${event.summary}" (all-day or missing times)`);
+        continue;
+      }
+      const { error: upsertErr } = await supabase.from("google_calendar_events").upsert({
         business_id: businessId,
         google_event_id: event.id,
         summary: event.summary || "",
         start_time: event.start.dateTime,
         end_time: event.end.dateTime,
       }, { onConflict: "business_id,google_event_id" });
-      imported++;
+      if (upsertErr) {
+        console.error(`[gcal/sync] upsert failed for event ${event.id}:`, upsertErr.message);
+      } else {
+        imported++;
+      }
     }
+    console.log(`[gcal/sync] businessId=${businessId} fetched=${events.length} imported=${imported}`);
 
     // Delete events no longer in Google (cancelled externally)
     const googleEventIds = events.map((e) => e.id!).filter(Boolean);
