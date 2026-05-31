@@ -5,6 +5,7 @@ import {
   createSession,
   updateSession,
   addMessage,
+  type ConversationSession,
 } from "./session.js";
 import { detectLanguage } from "./language.js";
 import { processMessage } from "./agent.js";
@@ -420,7 +421,7 @@ const TIME_GROUP_LABELS: Record<string, string> = {
   evening: "🌙 אחה\"צ/ערב",
 };
 
-function groupTimeSlots(slots: { time: string; label: string }[]): Record<string, { time: string; label: string }[]> {
+export function groupTimeSlots(slots: { time: string; label: string }[]): Record<string, { time: string; label: string }[]> {
   const groups: Record<string, { time: string; label: string }[]> = { morning: [], noon: [], evening: [] };
   for (const slot of slots) {
     const h = parseInt(slot.label.split(":")[0], 10);
@@ -459,6 +460,47 @@ async function sendTimeSlotsGrouped(
     `${serviceName} • ${date.slice(5).replace("-", "/")}\nבחרו שעה:`,
     "הצג שעות",
     sections
+  );
+}
+
+async function sendTimePeriodOrSlots(
+  phoneNumberId: string,
+  to: string,
+  businessPhoneNumberId: string,
+  session: ConversationSession,
+  slots: { time: string; label: string }[]
+): Promise<void> {
+  const grouped = groupTimeSlots(slots);
+
+  const periodOrder: Array<keyof typeof TIME_GROUP_LABELS> = ["morning", "noon", "evening"];
+  const nonEmpty = periodOrder.filter((k) => (grouped[k] || []).length > 0);
+
+  if (nonEmpty.length === 0) return;
+
+  if (nonEmpty.length === 1) {
+    // Skip picker — go straight to the only available period's slots
+    updateSession(to, businessPhoneNumberId, {
+      booking: { ...session.booking!, step: "select_time" },
+    });
+    await sendTimeSlotsGrouped(phoneNumberId, to, session.booking!.serviceName, session.booking!.date!, grouped[nonEmpty[0]]);
+    return;
+  }
+
+  // 2–3 periods available — show period picker
+  updateSession(to, businessPhoneNumberId, {
+    booking: { ...session.booking!, step: "select_time_period" },
+  });
+
+  const buttons = nonEmpty.map((k) => ({
+    id: `period_${k}`,
+    title: TIME_GROUP_LABELS[k],
+  }));
+
+  await sendButtonMessage(
+    phoneNumberId,
+    to,
+    `${session.booking!.serviceName} ✂️\n${session.booking!.date!.slice(5).replace("-", "/")}\nבחרו חלק ביום:`,
+    buttons
   );
 }
 
