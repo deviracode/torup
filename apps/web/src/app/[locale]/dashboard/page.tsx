@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { DailyCalendar } from "@/components/dashboard/daily-calendar";
@@ -63,7 +63,6 @@ const STAT_CONFIG = [
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
-  const _locale = useLocale();
   const { session } = useAuth();
   const [view, setView] = useState<"day" | "week">("day");
   const [businessId, setBusinessId] = useState<string | null>(null);

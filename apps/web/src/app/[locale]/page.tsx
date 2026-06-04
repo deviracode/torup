@@ -192,7 +192,7 @@ export default function HomePage() {
             const Icon = f.icon;
             return (
               <motion.div
-                key={i}
+                key={f.titleEn}
                 variants={fadeUpItem}
                 whileHover={{ y: -4, scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}

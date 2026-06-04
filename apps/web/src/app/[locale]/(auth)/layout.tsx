@@ -15,10 +15,7 @@ function BrandPanel() {
   const isRtl = locale === "he" || locale === "ar";
 
   return (
-    <motion.div
-      initial={{ x: isRtl ? 40 : -40, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <div
       className="hidden md:flex w-[45%] flex-col justify-center px-10 relative overflow-hidden"
       style={{
         background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
@@ -66,7 +63,7 @@ function BrandPanel() {
           ))}
         </ul>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
