@@ -26,9 +26,10 @@ function TopBar() {
   const isRtl = locale === "he" || locale === "ar";
   const { session } = useAuth();
 
-  const rawPath = Object.keys(PAGE_TITLES).find((p) =>
-    pathname.endsWith(p) || pathname.includes(p.replace("/dashboard", ""))
-  ) ?? "/dashboard";
+  const rawPath =
+    Object.keys(PAGE_TITLES)
+      .sort((a, b) => b.length - a.length)
+      .find((p) => pathname.includes(p)) ?? "/dashboard";
   const title = isRtl
     ? PAGE_TITLES[rawPath]?.he ?? "Dashboard"
     : PAGE_TITLES[rawPath]?.en ?? "Dashboard";
