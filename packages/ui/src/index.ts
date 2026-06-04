@@ -16,3 +16,4 @@ export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs.js";
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./table.js";
 export { Avatar, AvatarImage, AvatarFallback } from "./avatar.js";
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip.js";
