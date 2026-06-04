@@ -261,6 +261,7 @@ export default function DashboardPage() {
     if (!businessId || !session?.access_token) return;
     const today = new Date().toISOString().split("T")[0];
 
+    // Today's total + completed (date-scoped)
     apiFetch<Array<{ status: string }>>(
       `/api/businesses/${businessId}/appointments?date=${today}`,
       {},
@@ -270,12 +271,20 @@ export default function DashboardPage() {
         setStats((prev) => ({
           ...prev,
           total: apts.length,
-          pending: apts.filter((a) => a.status === "pending" || a.status === "confirmed").length,
           completed: apts.filter((a) => a.status === "completed").length,
         }));
       }
     }).catch(() => {});
 
+    // Pending = all future pending+confirmed (not just today)
+    Promise.all([
+      apiFetch<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=pending`, {}, session.access_token).catch(() => [] as Array<{ id: string }>),
+      apiFetch<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=confirmed`, {}, session.access_token).catch(() => [] as Array<{ id: string }>),
+    ]).then(([pending, confirmed]) => {
+      setStats((prev) => ({ ...prev, pending: pending.length + confirmed.length }));
+    });
+
+    // Needs approval (all, not date-scoped)
     apiFetch<Array<{ id: string }>>(
       `/api/businesses/${businessId}/appointments?status=pending_approval`,
       {},
