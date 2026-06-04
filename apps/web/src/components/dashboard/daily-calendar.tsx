@@ -9,6 +9,8 @@ import { AppointmentModal } from "./appointment-modal";
 import { GCalConvertModal } from "./gcal-convert-modal";
 import { Button, Badge } from "@torup/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { calendarRowContainer, calendarRowItem } from "@/components/motion";
 
 interface Appointment {
   id: string;
@@ -25,13 +27,13 @@ interface Appointment {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending_approval: "bg-orange-100 border-orange-500 text-orange-900",
-  pending: "bg-yellow-100 border-yellow-400 text-yellow-800",
-  confirmed: "bg-blue-100 border-blue-400 text-blue-800",
-  in_progress: "bg-purple-100 border-purple-400 text-purple-800",
-  completed: "bg-green-100 border-green-400 text-green-800",
-  cancelled: "bg-gray-100 border-gray-300 text-gray-500",
-  no_show: "bg-red-100 border-red-400 text-red-800",
+  pending_approval: "bg-orange-500/15 border-orange-400/60 text-orange-300",
+  pending:          "bg-yellow-500/15 border-yellow-400/60 text-yellow-300",
+  confirmed:        "bg-indigo-500/15 border-indigo-400/60 text-indigo-300",
+  in_progress:      "bg-violet-500/15 border-violet-400/60 text-violet-300",
+  completed:        "bg-emerald-500/15 border-emerald-400/60 text-emerald-300",
+  cancelled:        "bg-white/5 border-white/15 text-white/30",
+  no_show:          "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
 function computeHours(
@@ -206,11 +208,11 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
             {t("loadingAppointments")}
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <motion.div className="divide-y divide-gray-100" variants={calendarRowContainer} initial="hidden" animate="show">
             {hours.map((hour) => {
               const hourAppts = getAppointmentsForHour(hour);
               return (
-                <div key={hour} className="flex">
+                <motion.div key={hour} variants={calendarRowItem} className="flex">
                   {/* Time label */}
                   <div className="w-16 shrink-0 border-e border-gray-100 py-3 pe-2 text-end text-xs text-gray-400">
                     {String(hour).padStart(2, "0")}:00
@@ -259,10 +261,10 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                       );
                     })}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </div>
 
