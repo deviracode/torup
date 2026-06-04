@@ -116,24 +116,29 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-white/6 bg-[hsl(242_44%_10%)] px-4 md:hidden">
-        <button
-          onClick={() => router.push(`/${locale}/dashboard`)}
-          className="w-8 h-8 rounded-lg flex-shrink-0"
-          style={{ background: "var(--grad-primary)" }}
-          aria-label="TorUp"
-        />
-        <span
-          className="text-lg font-black tracking-tight"
-          style={{
-            background: "var(--grad-brand)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          TorUp
-        </span>
-        <nav className="flex items-center gap-1 ms-auto">
+      <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/6 bg-[hsl(242_44%_10%)] px-3 md:hidden">
+        {/* Logo */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => router.push(`/${locale}/dashboard`)}
+            className="w-8 h-8 rounded-lg"
+            style={{ background: "var(--grad-primary)" }}
+            aria-label="TorUp"
+          />
+          <span
+            className="text-base font-black tracking-tight"
+            style={{
+              background: "var(--grad-brand)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            TorUp
+          </span>
+        </div>
+
+        {/* Nav icons — max 4 to avoid overflow */}
+        <nav className="flex items-center gap-0.5">
           {navItems.slice(0, 4).map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -142,20 +147,20 @@ export function Sidebar() {
                 key={item.key}
                 onClick={() => router.push(`/${locale}${item.href}`)}
                 aria-label={label(item.key)}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
                   active ? "bg-primary/20 text-[#a78bfa]" : "text-white/40 hover:text-white/70"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-[18px] w-[18px]" />
               </button>
             );
           })}
           <button
             onClick={() => signOut()}
             aria-label={isRtl ? "יציאה" : "Sign out"}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 transition-colors"
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 transition-colors"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-[18px] w-[18px]" />
           </button>
         </nav>
       </div>

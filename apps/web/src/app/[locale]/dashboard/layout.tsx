@@ -37,7 +37,7 @@ function TopBar() {
   const initials = session?.user?.email?.[0]?.toUpperCase() ?? "U";
 
   return (
-    <header className="h-11 flex items-center gap-3 px-5 border-b border-white/6 flex-shrink-0" style={{ background: "hsl(242 44% 10% / 50%)" }}>
+    <header className="h-11 hidden md:flex items-center gap-3 px-5 border-b border-white/6 flex-shrink-0" style={{ background: "hsl(242 44% 10% / 50%)" }}>
       <span className="text-sm font-semibold text-white/90">{title}</span>
       <div className="flex-1" />
       {actions}
@@ -55,9 +55,9 @@ function TopBar() {
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 md:overflow-hidden">
         <TopBar />
         <AnimatePresence mode="wait">
           <motion.main
@@ -66,7 +66,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className="flex-1 overflow-auto p-6"
+            className="flex-1 md:overflow-auto p-4 md:p-6"
           >
             {children}
           </motion.main>
