@@ -115,8 +115,8 @@ async function getBusinessServices(businessId: string) {
   return data || [];
 }
 
-// Cache business info + services (5 min TTL)
-const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; expiresAt: number }>();
+// Cache business info + services + booking rules (5 min TTL)
+const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; maxFutureDays: number; expiresAt: number }>();
 
 async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const cached = bizCache.get(businessPhoneNumberId);
@@ -125,8 +125,22 @@ async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const biz = await resolveBusinessId(businessPhoneNumberId);
   if (!biz) return null;
 
-  const services = await getBusinessServices(biz.businessId);
-  const entry = { biz, services, expiresAt: Date.now() + 5 * 60 * 1000 };
+  const supabase = createClient(
+    process.env.SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+
+  const [services, rulesResult] = await Promise.all([
+    getBusinessServices(biz.businessId),
+    supabase
+      .from("booking_rules")
+      .select("max_future_days")
+      .eq("business_id", biz.businessId)
+      .single(),
+  ]);
+
+  const maxFutureDays = rulesResult.data?.max_future_days ?? 30;
+  const entry = { biz, services, maxFutureDays, expiresAt: Date.now() + 5 * 60 * 1000 };
   bizCache.set(businessPhoneNumberId, entry);
   return entry;
 }
@@ -594,10 +608,11 @@ async function handleIncomingMessage(
       return;
     }
 
+    const maxFutureDays = ctx.maxFutureDays ?? 30;
     const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 30);
+    maxDate.setDate(maxDate.getDate() + maxFutureDays);
     if (inputDate > maxDate) {
-      await sendTextMessage(businessPhoneNumberId, from, "ניתן לקבוע תור עד 30 ימים מראש. נסו תאריך קרוב יותר.");
+      await sendTextMessage(businessPhoneNumberId, from, `ניתן לקבוע תור עד ${maxFutureDays} ימים מראש. נסו תאריך קרוב יותר.`);
       return;
     }
 
@@ -759,7 +774,7 @@ async function handleIncomingMessage(
     // Quick date flow — show 5 next available dates
     if (interactionId === "flow_quick" && session.booking?.step === "select_date") {
       updateSession(from, businessPhoneNumberId, { bookingFlow: "quick" });
-      const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId);
+      const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId, ctx.maxFutureDays);
 
       if (dates.length === 0) {
         await sendTextMessage(businessPhoneNumberId, from, "אין תאריכים פנויים בשבועיים הקרובים 😔");
