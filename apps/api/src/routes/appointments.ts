@@ -15,6 +15,7 @@ import {
   sendApprovalNotification,
   sendRejectionNotification,
 } from "../services/notifications.js";
+import { cacheGet, cacheSet, cacheClear } from "../lib/redis.js";
 
 const router: RouterType = Router({ mergeParams: true });
 
@@ -28,6 +29,14 @@ router.get(
       const supabase = createServiceClient();
       const { date, status, staffId } = req.query;
       const businessId = getBusinessId(req);
+
+      // Build a deterministic cache key from all query params
+      const cacheKey = `appts:${businessId}:${date ?? "all"}:${status ?? "all"}:${staffId ?? "all"}`;
+      const cached = await cacheGet(cacheKey);
+      if (cached) {
+        res.setHeader("X-Cache", "HIT");
+        return res.json(JSON.parse(cached));
+      }
 
       let query = supabase
         .from("appointments")
@@ -48,15 +57,17 @@ router.get(
         const tz = getILOffset(date as string);
         const dayStart = new Date(`${date}T00:00:00${tz}`).toISOString();
         const dayEnd = new Date(`${date}T23:59:59${tz}`).toISOString();
-        query = query
-          .gte("start_time", dayStart)
-          .lte("start_time", dayEnd);
+        query = query.gte("start_time", dayStart).lte("start_time", dayEnd);
       }
       if (status) query = query.eq("status", status as string);
       if (staffId) query = query.eq("staff_id", staffId as string);
 
       const { data, error } = await query;
       if (error) throw new AppError(500, error.message);
+
+      // Cache for 30s — short enough to feel real-time, long enough to matter for day-switching
+      await cacheSet(cacheKey, JSON.stringify(data), 30);
+      res.setHeader("X-Cache", "MISS");
       res.json(data);
     } catch (err) {
       next(err);
@@ -115,10 +126,12 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
 
     if (error) throw new AppError(400, error.message);
 
-    // Send booking confirmation notification (fire and forget)
     if (data?.id) {
-      sendAppointmentNotification(data.id, "booking_confirmation").catch(() => {});
-      sendManagerNotification(data.id).catch(() => {});
+      await cacheClear(`appts:${businessId}:*`);
+      sendAppointmentNotification(data.id, "booking_confirmation")
+        .catch((err) => console.error("[Notification] booking_confirmation failed:", err));
+      sendManagerNotification(data.id)
+        .catch((err) => console.error("[Notification] manager failed:", err));
       pushAppointmentToGoogle(data.id).catch(() => {});
     }
 
@@ -177,11 +190,12 @@ router.patch(
 
       if (error) throw new AppError(400, error.message);
 
-      // Send notification for status change (fire and forget)
       if (data?.id) {
+        await cacheClear(`appts:${businessId}:*`);
         const templateId = newStatus === "cancelled" ? "cancellation" : null;
         if (templateId) {
-          sendAppointmentNotification(data.id, templateId).catch(() => {});
+          sendAppointmentNotification(data.id, templateId)
+            .catch((err) => console.error("[Notification] status change failed:", err));
         }
         pushAppointmentToGoogle(data.id).catch(() => {});
       }
@@ -243,11 +257,13 @@ router.post(
         if (rejErr) throw new AppError(400, rejErr.message);
       }
 
-      // Fire-and-forget notifications + Google Calendar sync.
-      sendApprovalNotification(appointmentId).catch(() => {});
+      await cacheClear(`appts:${businessId}:*`);
+      sendApprovalNotification(appointmentId)
+        .catch((err) => console.error("[Notification] approval failed:", err));
       pushAppointmentToGoogle(appointmentId).catch(() => {});
       for (const id of rejectedIds) {
-        sendRejectionNotification(id, "slot_taken").catch(() => {});
+        sendRejectionNotification(id, "slot_taken")
+          .catch((err) => console.error("[Notification] slot_taken rejection failed:", err));
         pushAppointmentToGoogle(id).catch(() => {});
       }
 
@@ -286,7 +302,9 @@ router.post(
         .eq("id", appointmentId);
       if (updErr) throw new AppError(400, updErr.message);
 
-      sendRejectionNotification(appointmentId, "manual").catch(() => {});
+      await cacheClear(`appts:${businessId}:*`);
+      sendRejectionNotification(appointmentId, "manual")
+        .catch((err) => console.error("[Notification] manual rejection failed:", err));
       pushAppointmentToGoogle(appointmentId).catch(() => {});
 
       res.json({ rejected: appointmentId });

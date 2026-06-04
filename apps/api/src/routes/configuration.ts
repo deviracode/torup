@@ -8,20 +8,27 @@ import {
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { AppError } from "../middleware/error-handler.js";
+import { cacheGet, cacheSet, cacheClear } from "../lib/redis.js";
 
 const router: RouterType = Router({ mergeParams: true });
 
 // GET /businesses/:businessId/working-hours
 router.get("/working-hours", async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const businessId = getBusinessId(req);
+    const key = `wh:${businessId}`;
+    const cached = await cacheGet(key);
+    if (cached) return res.json(JSON.parse(cached));
+
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("working_hours")
       .select("*")
-      .eq("business_id", getBusinessId(req))
+      .eq("business_id", businessId)
       .order("day_of_week");
 
     if (error) throw new AppError(500, error.message);
+    await cacheSet(key, JSON.stringify(data), 300); // 5 min — changes rarely
     res.json(data);
   } catch (err) {
     next(err);
@@ -56,6 +63,7 @@ router.put(
         .select();
 
       if (error) throw new AppError(400, error.message);
+      await cacheClear(`wh:${businessId}`);
       res.json(data);
     } catch (err) {
       next(err);

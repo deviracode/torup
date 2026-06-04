@@ -232,13 +232,18 @@ export async function sendAppointmentNotification(
       whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
     }
     if (!whatsappMessageId) {
-      sendError = "WhatsApp API returned no message id";
+      // The error detail was already logged inside sendWhatsAppMessage
+      sendError = "WhatsApp send returned null (see [WhatsApp] log above for API error)";
     }
   } catch (err) {
     sendError = err instanceof Error ? err.message : String(err);
+    console.error(`[Notification] ${templateId} to ${customer.phone} threw:`, sendError);
   }
 
   const succeeded = whatsappMessageId !== null && sendError === null;
+  if (!succeeded) {
+    console.error(`[Notification] FAILED ${templateId} → ${customer.phone} | ${sendError}`);
+  }
 
   await logNotification({
     business_id: apt.business_id,

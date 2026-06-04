@@ -4,6 +4,7 @@ const WHATSAPP_API_URL = "https://graph.facebook.com/v21.0";
 
 interface WhatsAppResponse {
   messages?: { id: string }[];
+  error?: { message: string; type: string; code: number; fbtrace_id?: string };
 }
 
 export async function sendWhatsAppMessage(
@@ -33,7 +34,20 @@ export async function sendWhatsAppMessage(
   );
 
   const data = (await res.json()) as WhatsAppResponse;
-  return data.messages?.[0]?.id ?? null;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error sending to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  const msgId = data.messages?.[0]?.id ?? null;
+  if (!msgId) {
+    console.error(`[WhatsApp] No message ID in response to ${to}:`, JSON.stringify(data));
+  }
+  return msgId;
 }
 
 export async function sendInteractiveReminder(
@@ -76,5 +90,14 @@ export async function sendInteractiveReminder(
   );
 
   const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (interactive) to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
   return data.messages?.[0]?.id ?? null;
 }
