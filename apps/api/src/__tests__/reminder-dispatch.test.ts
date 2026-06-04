@@ -48,7 +48,7 @@ describe("sendAppointmentNotification — failure path", () => {
     expect(result?.failed).toBe(true);
     expect(insertedRows).toHaveLength(1);
     expect(insertedRows[0].status).toBe("failed");
-    expect(insertedRows[0].error).toBe("WhatsApp API returned no message id");
+    expect(insertedRows[0].error).toBe("WhatsApp send returned null (see [WhatsApp] log above for API error)");
     expect(insertedRows[0].whatsapp_message_id).toBeNull();
   });
 });
