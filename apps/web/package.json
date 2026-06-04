@@ -10,12 +10,13 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.49.0",
     "@torup/db": "workspace:*",
     "@torup/i18n": "workspace:*",
     "@torup/shared": "workspace:*",
     "@torup/ui": "workspace:*",
-    "@supabase/ssr": "^0.10.0",
-    "@supabase/supabase-js": "^2.49.0",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^1.8.0",
     "next": "^15.3.0",
     "next-intl": "^4.1.0",
