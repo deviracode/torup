@@ -155,11 +155,15 @@ function AppointmentDrawer({
           ) : (
             appointments.map((apt) => {
               const statusInfo = STATUS_LABELS[apt.status] ?? STATUS_LABELS.pending;
-              const time = new Date(apt.start_time).toLocaleTimeString(isRtl ? "he-IL" : "en-US", {
+              const startDate = new Date(apt.start_time);
+              const time = startDate.toLocaleTimeString(isRtl ? "he-IL" : "en-US", {
                 hour: "2-digit", minute: "2-digit", hour12: false,
               });
               const endTime = new Date(apt.end_time).toLocaleTimeString(isRtl ? "he-IL" : "en-US", {
                 hour: "2-digit", minute: "2-digit", hour12: false,
+              });
+              const dateLabel = startDate.toLocaleDateString(isRtl ? "he-IL" : "en-US", {
+                weekday: "short", day: "numeric", month: "short",
               });
               const isPendingApproval = apt.status === "pending_approval";
 
@@ -189,7 +193,7 @@ function AppointmentDrawer({
                   <div className="flex items-center gap-4 text-xs text-white/50 mb-2">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {time} – {endTime}
+                      {dateLabel} · {time} – {endTime}
                     </span>
                     {apt.services && (
                       <span className="flex items-center gap-1">
