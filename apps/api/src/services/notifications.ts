@@ -503,17 +503,54 @@ export async function updateDeliveryStatus(
 }
 
 // Start reminder processing interval (every 5 minutes)
+/**
+ * Auto-complete past appointments that were confirmed/in_progress/pending.
+ * Also cancels unresolved pending_approval appointments whose slot has passed.
+ * Safe to call repeatedly — only touches rows where end_time < NOW().
+ */
+export async function autoCompletePastAppointments(): Promise<void> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+
+  const [completedResult, cancelledResult] = await Promise.all([
+    supabase
+      .from("appointments")
+      .update({ status: "completed" })
+      .in("status", ["confirmed", "in_progress", "pending"])
+      .lt("end_time", now)
+      .select("id"),
+    supabase
+      .from("appointments")
+      .update({ status: "cancelled" })
+      .eq("status", "pending_approval")
+      .lt("end_time", now)
+      .select("id"),
+  ]);
+
+  const completed = completedResult.data?.length ?? 0;
+  const cancelled = cancelledResult.data?.length ?? 0;
+  if (completed > 0 || cancelled > 0) {
+    console.log(`[AutoComplete] Marked ${completed} appointments completed, ${cancelled} cancelled`);
+  }
+}
+
 let reminderInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startReminderScheduler() {
   if (reminderInterval) return;
   reminderInterval = setInterval(() => {
+    autoCompletePastAppointments().catch((err) =>
+      console.error("Auto-complete failed:", err)
+    );
     processReminders().catch((err) =>
       console.error("Reminder processing failed:", err)
     );
   }, 5 * 60 * 1000);
 
-  // Also run immediately
+  // Also run immediately on startup
+  autoCompletePastAppointments().catch((err) =>
+    console.error("Initial auto-complete failed:", err)
+  );
   processReminders().catch((err) =>
     console.error("Initial reminder processing failed:", err)
   );
