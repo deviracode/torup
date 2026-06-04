@@ -57,6 +57,6 @@ export const calendarRowItem = {
 /** Page transition (used in AnimatePresence) */
 export const pageVariants = {
   initial: { opacity: 0, x: 10 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.25, ease: "easeOut" } },
-  exit: { opacity: 0, x: -10, transition: { duration: 0.2, ease: "easeIn" } },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] as const } },
+  exit: { opacity: 0, x: -10, transition: { duration: 0.2, ease: [0.42, 0, 1, 1] as const } },
 };
