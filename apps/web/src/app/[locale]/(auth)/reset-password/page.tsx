@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
+import { motion } from "framer-motion";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Button, Input, Label } from "@torup/ui";
+
+const inputClass =
+  "w-full rounded-[10px] bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white/90 placeholder:text-white/30 outline-none transition-all duration-200 focus:border-[#6366f1] focus:bg-[#6366f1]/8 focus:ring-2 focus:ring-[#6366f1]/20";
 
 export default function ResetPasswordPage() {
   const t = useTranslations("common");
   const locale = useLocale();
+  const isRtl = locale === "he" || locale === "ar";
   const supabase = createClient();
   const [password, setPassword] = useState("");
   const [updated, setUpdated] = useState(false);
@@ -40,7 +44,6 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
@@ -52,52 +55,75 @@ export default function ResetPasswordPage() {
     }
   };
 
+  if (updated) {
+    return (
+      <div className="w-full max-w-sm text-center">
+        <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: "var(--grad-success)" }}>
+          <span className="text-2xl">✓</span>
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">
+          {isRtl ? "הסיסמה עודכנה" : "Password updated"}
+        </h2>
+        <p className="text-sm text-white/40 mb-6">{t("passwordUpdated" as any)}</p>
+        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+          {t("backToLogin" as any)}
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">TorUp</CardTitle>
-          <CardDescription>{t("resetPassword")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {updated ? (
-            <div className="space-y-4">
-              <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">
-                {t("passwordUpdated")}
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
+    <div className="w-full max-w-sm">
+      <h2 className="text-2xl font-bold text-white mb-1">
+        {isRtl ? "סיסמה חדשה" : "New password"}
+      </h2>
+      <p className="text-sm text-white/40 mb-6">
+        {isRtl ? "בחר סיסמה חדשה לחשבונך" : "Choose a new password for your account"}
+      </p>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">{t("newPassword")}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+        {!ready && (
+          <div className="text-sm text-white/40 text-center py-2">
+            {isRtl ? "מאמת קישור..." : "Verifying link..."}
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-white/60" htmlFor="password">
+            {t("newPassword" as any)}
+          </label>
+          <input
+            id="password"
+            type="password"
+            required
+            minLength={6}
+            disabled={!ready}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <motion.button
+          type="submit"
+          disabled={loading || !ready}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
+          className="w-full rounded-[10px] py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          style={{ background: "var(--grad-primary)" }}
+        >
+          {loading ? t("loading") : t("resetPassword")}
+        </motion.button>
+      </form>
 
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? t("loading") : t("resetPassword")}
-              </Button>
-            </form>
-          )}
-        </CardContent>
-        <CardFooter className="justify-center">
-          <Link href={`/${locale}/login`} className="text-sm text-primary hover:underline">
-            {t("backToLogin")}
-          </Link>
-        </CardFooter>
-      </Card>
-    </main>
+      <p className="mt-5 text-center">
+        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+          {t("backToLogin" as any)}
+        </Link>
+      </p>
+    </div>
   );
 }
