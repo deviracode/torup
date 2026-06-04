@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { AppointmentModal } from "./appointment-modal";
 import { GCalConvertModal } from "./gcal-convert-modal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { calendarRowContainer, calendarRowItem } from "@/components/motion";
 
 interface Appointment {
   id: string;
@@ -23,12 +25,12 @@ interface Appointment {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-100 border-yellow-400 text-yellow-800",
-  confirmed: "bg-blue-100 border-blue-400 text-blue-800",
-  in_progress: "bg-purple-100 border-purple-400 text-purple-800",
-  completed: "bg-green-100 border-green-400 text-green-800",
-  cancelled: "bg-gray-100 border-gray-300 text-gray-500",
-  no_show: "bg-red-100 border-red-400 text-red-800",
+  pending:     "bg-yellow-500/15 border-yellow-400/60 text-yellow-300",
+  confirmed:   "bg-indigo-500/15 border-indigo-400/60 text-indigo-300",
+  in_progress: "bg-violet-500/15 border-violet-400/60 text-violet-300",
+  completed:   "bg-emerald-500/15 border-emerald-400/60 text-emerald-300",
+  cancelled:   "bg-white/5 border-white/15 text-white/30",
+  no_show:     "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
@@ -172,8 +174,9 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
               </tr>
             </thead>
             <tbody>
+              <motion.div variants={calendarRowContainer} initial="hidden" animate="show">
               {HOURS.map((hour) => (
-                <tr key={hour}>
+                <motion.tr key={hour} variants={calendarRowItem}>
                   <td className="border-b border-e border-gray-100 p-1 text-end text-xs text-gray-400 align-top pe-2">
                     {String(hour).padStart(2, "0")}:00
                   </td>
@@ -216,8 +219,9 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                       </td>
                     );
                   })}
-                </tr>
+                </motion.tr>
               ))}
+              </motion.div>
             </tbody>
           </table>
         )}
