@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TorUp — Design Section 3: Animation Choreography</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #060612; color: #e2e8f0; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #a78bfa; margin: 28px 0 14px; }
+
+  /* timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-page { margin-bottom: 28px; }
+  .tl-page-label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .tl-page-badge { padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+  .tl-page-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+  .tl-events { display: flex; flex-direction: column; gap: 6px; padding-left: 16px; border-left: 2px solid rgba(255,255,255,0.06); }
+  .tl-event { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-radius: 10px; position: relative; }
+  .tl-event::before { content: ''; position: absolute; left: -17px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tl-time { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); width: 44px; flex-shrink: 0; padding-top: 2px; font-family: monospace; }
+  .tl-body { flex: 1; }
+  .tl-trigger { font-size: 12px; font-weight: 600; color: white; margin-bottom: 2px; }
+  .tl-detail { font-size: 11px; color: rgba(255,255,255,0.45); line-height: 1.4; }
+  .tl-code { font-size: 10px; font-family: monospace; margin-top: 4px; padding: 3px 8px; border-radius: 5px; display: inline-block; }
+
+  /* smooth style */
+  .ev-smooth { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.15); }
+  .ev-smooth::before { background: #6366f1; }
+  .ev-smooth .tl-code { background: rgba(99,102,241,0.15); color: #a78bfa; }
+  /* spring style */
+  .ev-spring { background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.15); }
+  .ev-spring::before { background: #a78bfa; }
+  .ev-spring .tl-code { background: rgba(168,85,247,0.15); color: #c4b5fd; }
+  /* micro style */
+  .ev-micro { background: rgba(244,114,182,0.08); border: 1px solid rgba(244,114,182,0.15); }
+  .ev-micro::before { background: #f472b6; }
+  .ev-micro .tl-code { background: rgba(244,114,182,0.15); color: #f9a8d4; }
+  /* ambient */
+  .ev-ambient { background: rgba(6,182,212,0.06); border: 1px solid rgba(6,182,212,0.12); }
+  .ev-ambient::before { background: #06b6d4; }
+  .ev-ambient .tl-code { background: rgba(6,182,212,0.12); color: #67e8f9; }
+
+  /* live demos */
+  .demo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 8px; }
+  .demo-cell { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 16px; overflow: hidden; position: relative; }
+  .demo-cell-title { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+
+  /* demo 1: stagger list */
+  .stagger-list { display: flex; flex-direction: column; gap: 6px; }
+  .stagger-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 10px; animation: staggerSlide 3s ease-in-out infinite; }
+  .stagger-item:nth-child(1) { animation-delay: 0s; }
+  .stagger-item:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-item:nth-child(3) { animation-delay: 0.2s; }
+  .stagger-item:nth-child(4) { animation-delay: 0.3s; }
+  @keyframes staggerSlide {
+    0%, 60%, 100% { transform: translateX(0); opacity: 1; }
+    75% { transform: translateX(-6px); opacity: 0.3; }
+    90% { transform: translateX(0); opacity: 1; }
+  }
+  .si-avatar { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; }
+  .si-lines { flex: 1; }
+  .si-line { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-bottom: 3px; }
+
+  /* demo 2: spring cards */
+  .spring-stat-row { display: flex; gap: 8px; }
+  .spring-stat { flex: 1; border-radius: 10px; padding: 10px; text-align: center; animation: springBounce 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate; }
+  .spring-stat:nth-child(1) { background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2)); border: 1px solid rgba(99,102,241,0.3); animation-delay: 0s; }
+  .spring-stat:nth-child(2) { background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(249,115,22,0.15)); border: 1px solid rgba(245,158,11,0.25); animation-delay: 0.15s; }
+  .spring-stat:nth-child(3) { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.15)); border: 1px solid rgba(16,185,129,0.25); animation-delay: 0.3s; }
+  @keyframes springBounce {
+    0% { transform: scale(1) translateY(0); }
+    100% { transform: scale(1.04) translateY(-4px); }
+  }
+  .ss-num { font-size: 20px; font-weight: 900; color: white; }
+  .ss-lbl { font-size: 9px; color: rgba(255,255,255,0.4); }
+
+  /* demo 3: micro buttons */
+  .micro-demos { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .micro-btn-live {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none; border-radius: 10px; padding: 9px 18px;
+    font-size: 12px; font-weight: 700; color: white; cursor: pointer;
+    animation: microPulse 2s ease infinite alternate;
+    box-shadow: 0 0 0 0 rgba(99,102,241,0.5);
+  }
+  @keyframes microPulse {
+    0% { box-shadow: 0 4px 12px rgba(99,102,241,0.3); transform: scale(1); }
+    100% { box-shadow: 0 8px 24px rgba(99,102,241,0.5); transform: scale(1.03); }
+  }
+  .micro-input-live {
+    background: rgba(255,255,255,0.06); border-radius: 8px; padding: 8px 12px;
+    font-size: 11px; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.1);
+    animation: inputGlow 2.5s ease infinite alternate; width: 160px;
+  }
+  @keyframes inputGlow {
+    0% { border-color: rgba(255,255,255,0.1); box-shadow: none; }
+    100% { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.25); }
+  }
+  .micro-progress { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  .micro-fill-live { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #6366f1, #f472b6); animation: progressFill 3s ease infinite alternate; }
+  @keyframes progressFill { 0% { width: 30%; } 100% { width: 80%; } }
+
+  /* demo 4: page transition */
+  .page-trans { display: flex; gap: 8px; align-items: center; justify-content: center; height: 90px; }
+  .pt-page { width: 70px; height: 70px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .pt-arrow { color: rgba(255,255,255,0.3); font-size: 16px; animation: arrowPulse 1.5s ease infinite alternate; }
+  @keyframes arrowPulse { 0% { opacity: 0.3; transform: translateX(0); } 100% { opacity: 1; transform: translateX(3px); } }
+  .pt-a { background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3); color: #a78bfa; animation: ptFadeOut 3s ease infinite; }
+  .pt-b { background: rgba(168,85,247,0.2); border: 1px solid rgba(168,85,247,0.3); color: #c4b5fd; animation: ptFadeIn 3s ease infinite; }
+  @keyframes ptFadeOut { 0%,40% { opacity:1;transform:translateX(0); } 50%,100% { opacity:0.3;transform:translateX(-6px); } }
+  @keyframes ptFadeIn { 0%,40% { opacity:0.3;transform:translateX(6px); } 50%,100% { opacity:1;transform:translateX(0); } }
+
+  /* demo 5: orb */
+  .orb-demo { position: relative; height: 90px; overflow: hidden; border-radius: 10px; background: #060612; }
+  .orb-live { position: absolute; border-radius: 50%; filter: blur(20px); }
+  .orb-live-1 { width: 100px; height: 100px; background: rgba(99,102,241,0.6); top: -20px; left: -10px; animation: orbFloat1 4s ease-in-out infinite alternate; }
+  .orb-live-2 { width: 80px; height: 80px; background: rgba(244,114,182,0.5); top: -10px; right: -10px; animation: orbFloat2 5s ease-in-out infinite alternate; }
+  .orb-live-3 { width: 60px; height: 60px; background: rgba(6,182,212,0.4); bottom: -20px; left: 50%; animation: orbFloat3 3.5s ease-in-out infinite alternate; }
+  @keyframes orbFloat1 { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(10px,15px) scale(1.1); } }
+  @keyframes orbFloat2 { 0% { transform: translate(0,0) scale(1.1); } 100% { transform: translate(-8px,10px) scale(1); } }
+  @keyframes orbFloat3 { 0% { transform: translateX(-50%) scale(1); } 100% { transform: translateX(-40%) scale(1.2); } }
+
+  /* demo 6: nav spring */
+  .nav-demo { display: flex; flex-direction: column; gap: 4px; }
+  .nav-item-demo { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 11px; cursor: pointer; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .nav-item-demo:hover { transform: translateX(4px) scale(1.02); }
+  .nav-item-demo.active-demo { background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.15)); border: 1px solid rgba(99,102,241,0.35); color: #a78bfa; font-weight: 600; }
+  .nav-item-demo:not(.active-demo) { color: rgba(255,255,255,0.4); }
+  .nav-icon-demo { width: 22px; height: 22px; border-radius: 6px; background: currentColor; opacity: 0.3; flex-shrink: 0; }
+  .nav-item-demo.active-demo .nav-icon-demo { opacity: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+
+  /* legend bar */
+  .legend-bar { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.6); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>Design Section 3 — Animation Choreography</h1>
+<p class="sub">Exactly what animates, when it fires, and which Framer Motion API to use</p>
+
+<!-- LEGEND -->
+<div class="legend-bar">
+  <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div> Smooth (ease-in-out)</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#a78bfa"></div> Spring physics</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f472b6"></div> Micro-interaction</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#06b6d4"></div> Ambient / continuous</div>
+</div>
+
+<!-- LIVE DEMOS -->
+<div class="section-title">Live Animation Previews</div>
+<div class="demo-grid">
+  <div class="demo-cell">
+    <div class="demo-cell-title">① Stagger list entries</div>
+    <div class="stagger-list">
+      <div class="stagger-item"><div class="si-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></div><div class="si-lines"><div class="si-line" style="width:80%"></div><div class="si-line" style="width:50%"></div></div></div>
+      <div class="stagger-item"><div class="si-avatar" style="background:linear-gradient(135deg,#f472b6,#fb923c)"></div><div class="si-lines"><div class="si-line" style="width:70%"></div><div class="si-line" style="width:40%"></div></div></div>
+      <div class="stagger-item"><div class="si-avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4)"></div><div class="si-lines"><div class="si-line" style="width:90%"></div><div class="si-line" style="width:60%"></div></div></div>
+      <div class="stagger-item"><div class="si-avatar" style="background:linear-gradient(135deg,#a78bfa,#f472b6)"></div><div class="si-lines"><div class="si-line" style="width:65%"></div><div class="si-line" style="width:45%"></div></div></div>
+    </div>
+  </div>
+  <div class="demo-cell">
+    <div class="demo-cell-title">② Stat cards spring mount</div>
+    <div class="spring-stat-row">
+      <div class="spring-stat"><div class="ss-num">24</div><div class="ss-lbl">Today</div></div>
+      <div class="spring-stat"><div class="ss-num">8</div><div class="ss-lbl">Pending</div></div>
+      <div class="spring-stat"><div class="ss-num">16</div><div class="ss-lbl">Done</div></div>
+    </div>
+  </div>
+  <div class="demo-cell">
+    <div class="demo-cell-title">③ Micro-interactions</div>
+    <div class="micro-demos">
+      <button class="micro-btn-live">New Appointment</button>
+      <div class="micro-input-live">Search appointments...</div>
+      <div class="micro-progress"><div class="micro-fill-live"></div></div>
+    </div>
+  </div>
+  <div class="demo-cell">
+    <div class="demo-cell-title">④ Page transitions</div>
+    <div class="page-trans">
+      <div class="pt-page pt-a">Dashboard</div>
+      <div class="pt-arrow">→</div>
+      <div class="pt-page pt-b">Customers</div>
+    </div>
+  </div>
+  <div class="demo-cell">
+    <div class="demo-cell-title">⑤ Background orbs (landing)</div>
+    <div class="orb-demo">
+      <div class="orb-live orb-live-1"></div>
+      <div class="orb-live orb-live-2"></div>
+      <div class="orb-live orb-live-3"></div>
+    </div>
+  </div>
+  <div class="demo-cell">
+    <div class="demo-cell-title">⑥ Nav item spring (hover me)</div>
+    <div class="nav-demo">
+      <div class="nav-item-demo active-demo"><div class="nav-icon-demo"></div>Calendar</div>
+      <div class="nav-item-demo"><div class="nav-icon-demo"></div>Customers</div>
+      <div class="nav-item-demo"><div class="nav-icon-demo"></div>Services</div>
+    </div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="section-title">Choreography Timeline by Page</div>
+<div class="timeline">
+
+  <!-- Landing -->
+  <div class="tl-page">
+    <div class="tl-page-label">
+      <div class="tl-page-badge" style="background:rgba(99,102,241,0.15);color:#a78bfa">🏠 Landing Page</div>
+      <div class="tl-page-line"></div>
+    </div>
+    <div class="tl-events">
+      <div class="tl-event ev-ambient">
+        <div class="tl-time">always</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Background orbs float continuously</div>
+          <div class="tl-detail">3 blurred gradient orbs animate independently with different speeds and directions</div>
+          <div class="tl-code">CSS keyframes · no JS needed · GPU composited</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">0ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Navbar fades down from top</div>
+          <div class="tl-detail">y: -20 → 0, opacity: 0 → 1, duration 0.4s</div>
+          <div class="tl-code">motion.nav · initial/animate</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">100ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Badge pill pops in</div>
+          <div class="tl-detail">scale: 0.8 → 1, opacity: 0 → 1</div>
+          <div class="tl-code">spring · stiffness 400 · damping 20</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">200ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Hero headline reveals word by word</div>
+          <div class="tl-detail">Each word slides up 20px with 0.05s stagger between words</div>
+          <div class="tl-code">variants · staggerChildren: 0.05</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">400ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Subtitle + CTA buttons fade up</div>
+          <div class="tl-detail">y: 16 → 0, opacity: 0 → 1 with 0.1s stagger</div>
+          <div class="tl-code">motion.div · delay 0.4</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">scroll</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Feature cards slide up on scroll into view</div>
+          <div class="tl-detail">whileInView · y: 40 → 0 · stagger 0.1s between cards</div>
+          <div class="tl-code">whileInView · viewport once: true</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">hover</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Feature cards lift on hover</div>
+          <div class="tl-detail">whileHover: y -4, scale 1.02, border glow</div>
+          <div class="tl-code">whileHover · spring</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">tap</div>
+        <div class="tl-body">
+          <div class="tl-trigger">CTA buttons press down on tap</div>
+          <div class="tl-detail">whileTap: scale 0.97</div>
+          <div class="tl-code">whileTap · spring</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth -->
+  <div class="tl-page">
+    <div class="tl-page-label">
+      <div class="tl-page-badge" style="background:rgba(244,114,182,0.12);color:#f472b6">🔐 Auth Pages</div>
+      <div class="tl-page-line"></div>
+    </div>
+    <div class="tl-events">
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">0ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Brand panel slides in from left</div>
+          <div class="tl-detail">x: -40 → 0, opacity: 0 → 1, duration 0.5s ease-out</div>
+          <div class="tl-code">motion.div · initial/animate</div>
+        </div>
+      </div>
+      <div class="tl-event ev-spring">
+        <div class="tl-time">150ms</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Form panel springs up</div>
+          <div class="tl-detail">y: 30 → 0, opacity: 0 → 1 with spring physics</div>
+          <div class="tl-code">spring · stiffness 300 · damping 25</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">focus</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Input focus glow expands</div>
+          <div class="tl-detail">Border transitions to indigo, ring shadow animates from 0 to 3px</div>
+          <div class="tl-code">CSS transition · 200ms</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">error</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Error shake on invalid submit</div>
+          <div class="tl-detail">x: 0 → 8 → -8 → 4 → -4 → 0 over 400ms</div>
+          <div class="tl-code">useAnimate · keyframes</div>
+        </div>
+      </div>
+      <div class="tl-event ev-spring">
+        <div class="tl-time">tap</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Submit button spring press + loading spin</div>
+          <div class="tl-detail">whileTap scale 0.96, then spinner fades in on loading state</div>
+          <div class="tl-code">whileTap · AnimatePresence</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="tl-page">
+    <div class="tl-page-label">
+      <div class="tl-page-badge" style="background:rgba(16,185,129,0.12);color:#34d399">📊 Dashboard</div>
+      <div class="tl-page-line"></div>
+    </div>
+    <div class="tl-events">
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">route</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Page content fades + slides on route change</div>
+          <div class="tl-detail">Outgoing: opacity → 0, x → -10. Incoming: opacity 0 → 1, x 10 → 0</div>
+          <div class="tl-code">AnimatePresence · layout transitions</div>
+        </div>
+      </div>
+      <div class="tl-event ev-spring">
+        <div class="tl-time">mount</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Stat cards spring in with stagger</div>
+          <div class="tl-detail">Each card: y 20 → 0, scale 0.95 → 1, 0.08s stagger between cards</div>
+          <div class="tl-code">variants · staggerChildren 0.08 · spring</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">mount</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Stat numbers count up</div>
+          <div class="tl-detail">useMotionValue + useTransform to animate 0 → actual value over 1s</div>
+          <div class="tl-code">useMotionValue · useSpring</div>
+        </div>
+      </div>
+      <div class="tl-event ev-smooth">
+        <div class="tl-time">mount</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Calendar slots stagger in row by row</div>
+          <div class="tl-detail">Each time slot: opacity 0 → 1 with 0.03s stagger</div>
+          <div class="tl-code">variants · staggerChildren 0.03</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">hover</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Appointment rows slide right on hover</div>
+          <div class="tl-detail">x: 0 → 4, background brightens, border lightens</div>
+          <div class="tl-code">whileHover · CSS transition blend</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">active</div>
+        <div class="tl-body">
+          <div class="tl-trigger">Sidebar nav icon spring on active change</div>
+          <div class="tl-detail">Active indicator slides between icons using layoutId</div>
+          <div class="tl-code">layoutId="active-indicator" · shared layout</div>
+        </div>
+      </div>
+      <div class="tl-event ev-micro">
+        <div class="tl-time">tap</div>
+        <div class="tl-body">
+          <div class="tl-trigger">All buttons press down on tap</div>
+          <div class="tl-detail">whileTap: scale 0.96, glow dims</div>
+          <div class="tl-code">whileTap global via motion config</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;padding:16px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;font-size:12px;color:rgba(255,255,255,0.6);">
+  <strong style="color:white">Does this animation plan look complete?</strong> This is the full choreography — every animation, its trigger, timing, and the exact Framer Motion API. Let me know in the terminal if anything feels excessive or missing.
+</div>
+
+</body>
+</html>

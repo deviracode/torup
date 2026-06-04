@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TorUp — Design Section 1: Layout Structure</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #060612; color: #e2e8f0; padding: 32px; min-height: 100vh; }
+  h1 { font-size: 22px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #a78bfa; margin-bottom: 16px; }
+
+  /* ─── SCREENS GRID ─── */
+  .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+  .screen { border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+  .screen-label { padding: 10px 14px; font-size: 12px; font-weight: 600; color: #a78bfa; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); }
+
+  /* ─── LANDING PAGE MOCKUP ─── */
+  .landing { height: 320px; background: #060612; position: relative; overflow: hidden; }
+  .orb1 { position: absolute; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 70%); top: -100px; left: -80px; }
+  .orb2 { position: absolute; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(168,85,247,0.3) 0%, transparent 70%); top: -60px; right: -60px; }
+  .orb3 { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(244,114,182,0.2) 0%, transparent 70%); bottom: -80px; left: 50%; transform: translateX(-50%); }
+  .landing-nav { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .landing-logo { font-size: 18px; font-weight: 900; background: linear-gradient(135deg, #a78bfa, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .landing-nav-links { display: flex; gap: 16px; }
+  .landing-nav-link { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .landing-cta-nav { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 8px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: white; }
+  .landing-hero { position: relative; z-index: 2; text-align: center; padding: 40px 24px 24px; }
+  .landing-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 99px; padding: 4px 12px; font-size: 10px; color: #a78bfa; margin-bottom: 14px; }
+  .landing-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; }
+  .landing-h1 { font-size: 32px; font-weight: 900; line-height: 1.1; margin-bottom: 10px; }
+  .grad-text { background: linear-gradient(135deg, #e0e7ff 0%, #a78bfa 40%, #f472b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .landing-p { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 18px; }
+  .landing-btns { display: flex; justify-content: center; gap: 10px; }
+  .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; padding: 8px 20px; font-size: 12px; font-weight: 700; color: white; }
+  .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 20px; font-size: 12px; color: rgba(255,255,255,0.7); }
+  .feature-chips { display: flex; justify-content: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px 10px; font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  /* ─── AUTH PAGE MOCKUP ─── */
+  .auth { height: 320px; display: flex; background: #060612; }
+  .auth-left { width: 45%; background: linear-gradient(160deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%); padding: 24px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+  .auth-orb { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.3) 0%, transparent 70%); bottom: -60px; right: -60px; }
+  .auth-brand { font-size: 24px; font-weight: 900; background: linear-gradient(135deg, #a78bfa, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .auth-tagline { font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+  .auth-feature-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .auth-feature { display: flex; align-items: center; gap: 8px; font-size: 10px; color: rgba(255,255,255,0.6); }
+  .auth-feature-icon { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+  .auth-right { flex: 1; padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+  .auth-form-title { font-size: 16px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .auth-form-sub { font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 18px; }
+  .auth-input { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; font-size: 11px; color: white; width: 100%; margin-bottom: 8px; }
+  .auth-input.focused { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .auth-submit { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 8px; padding: 10px; font-size: 12px; font-weight: 700; color: white; width: 100%; margin-top: 4px; }
+
+  /* ─── DASHBOARD SHELL MOCKUP ─── */
+  .dashboard { height: 320px; display: flex; background: #060612; }
+  .dash-sidebar { width: 52px; background: rgba(255,255,255,0.02); border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; }
+  .dash-logo-icon { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); margin-bottom: 12px; }
+  .dash-nav-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .dash-nav-icon.active { background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2)); box-shadow: 0 0 0 1px rgba(99,102,241,0.4); }
+  .dash-nav-icon:not(.active) { background: rgba(255,255,255,0.04); }
+  .dash-dot { width: 16px; height: 16px; border-radius: 5px; background: rgba(255,255,255,0.3); }
+  .dash-dot.active { background: linear-gradient(135deg, #a78bfa, #f472b6); }
+  .dash-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .dash-topbar { height: 44px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; padding: 0 16px; gap: 8px; background: rgba(255,255,255,0.01); }
+  .dash-breadcrumb { font-size: 11px; color: rgba(255,255,255,0.4); }
+  .dash-breadcrumb span { color: white; font-weight: 600; }
+  .dash-spacer { flex: 1; }
+  .dash-new-btn { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 8px; padding: 5px 12px; font-size: 10px; font-weight: 700; color: white; }
+  .dash-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #f472b6, #fb923c); }
+  .dash-content { flex: 1; padding: 14px; overflow: hidden; }
+  .stat-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .stat-card { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 12px; }
+  .stat-card .num { font-size: 22px; font-weight: 800; color: white; }
+  .stat-card .lbl { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+  .stat-card .accent { height: 3px; border-radius: 2px; margin-bottom: 6px; }
+  .cal-area { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px; }
+  .cal-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .cal-time { font-size: 9px; color: rgba(255,255,255,0.3); width: 28px; }
+  .cal-slot { flex: 1; height: 22px; border-radius: 6px; }
+  .cal-slot.filled { background: linear-gradient(135deg, rgba(99,102,241,0.6), rgba(139,92,246,0.4)); border: 1px solid rgba(99,102,241,0.4); }
+  .cal-slot.empty { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
+  .cal-slot.filled2 { background: linear-gradient(135deg, rgba(244,114,182,0.5), rgba(251,146,60,0.3)); border: 1px solid rgba(244,114,182,0.3); }
+
+  /* ─── ANIMATION LEGEND ─── */
+  .legend { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 16px 20px; }
+  .legend-title { font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  .legend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .legend-item { display: flex; flex-direction: column; gap: 4px; }
+  .legend-zone { font-size: 11px; font-weight: 700; color: white; }
+  .legend-anim { font-size: 11px; color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+
+<h1>Design Section 1 — Layout Structure</h1>
+<p class="sub">Three screens · All pages redesigned · Bold & Vibrant + Smooth/Spring/Micro animations</p>
+
+<div class="section-title">Screen Layouts</div>
+<div class="screens">
+
+  <!-- Landing -->
+  <div class="screen">
+    <div class="screen-label">① Landing Page — Full-screen hero with floating orbs</div>
+    <div class="landing">
+      <div class="orb1"></div>
+      <div class="orb2"></div>
+      <div class="orb3"></div>
+      <div class="landing-nav">
+        <div class="landing-logo">TorUp</div>
+        <div class="landing-nav-links">
+          <div class="landing-nav-link">Features</div>
+          <div class="landing-nav-link">Pricing</div>
+        </div>
+        <button class="landing-cta-nav">Get Started</button>
+      </div>
+      <div class="landing-hero">
+        <div class="landing-badge"><div class="landing-badge-dot"></div> AI-Powered Scheduling</div>
+        <div class="landing-h1"><span class="grad-text">Smart Booking,<br/>Zero Friction</span></div>
+        <div class="landing-p">WhatsApp bot + beautiful dashboard for modern businesses</div>
+        <div class="landing-btns">
+          <button class="btn-primary">Start Free →</button>
+          <button class="btn-secondary">See Demo</button>
+        </div>
+        <div class="feature-chips">
+          <div class="chip">📅 Smart Calendar</div>
+          <div class="chip">💬 WhatsApp Bot</div>
+          <div class="chip">📊 Analytics</div>
+          <div class="chip">🌍 Multilingual</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth -->
+  <div class="screen">
+    <div class="screen-label">② Auth Pages — Split panel: brand left, form right</div>
+    <div class="auth">
+      <div class="auth-left">
+        <div class="auth-orb"></div>
+        <div class="auth-brand">TorUp</div>
+        <div class="auth-tagline">The smartest scheduling platform for service businesses.</div>
+        <div class="auth-feature-list">
+          <div class="auth-feature"><div class="auth-feature-icon">📅</div> Smart appointment scheduling</div>
+          <div class="auth-feature"><div class="auth-feature-icon">💬</div> WhatsApp AI bot included</div>
+          <div class="auth-feature"><div class="auth-feature-icon">📊</div> Real-time analytics</div>
+        </div>
+      </div>
+      <div class="auth-right">
+        <div class="auth-form-title">Welcome back</div>
+        <div class="auth-form-sub">Sign in to your TorUp account</div>
+        <input class="auth-input focused" placeholder="Email address" />
+        <input class="auth-input" placeholder="Password" type="password" />
+        <button class="auth-submit">Sign In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="screen" style="grid-column: span 2;">
+    <div class="screen-label">③ Dashboard Shell — Icon sidebar + top header + content area</div>
+    <div class="dashboard">
+      <div class="dash-sidebar">
+        <div class="dash-logo-icon"></div>
+        <div class="dash-nav-icon active"><div class="dash-dot active"></div></div>
+        <div class="dash-nav-icon"><div class="dash-dot"></div></div>
+        <div class="dash-nav-icon"><div class="dash-dot"></div></div>
+        <div class="dash-nav-icon"><div class="dash-dot"></div></div>
+        <div class="dash-nav-icon"><div class="dash-dot"></div></div>
+        <div class="dash-nav-icon"><div class="dash-dot"></div></div>
+      </div>
+      <div class="dash-main">
+        <div class="dash-topbar">
+          <div class="dash-breadcrumb">Dashboard / <span>Calendar</span></div>
+          <div class="dash-spacer"></div>
+          <button class="dash-new-btn">+ New Appointment</button>
+          <div class="dash-avatar"></div>
+        </div>
+        <div class="dash-content">
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="accent" style="width:50%;background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div>
+              <div class="num">24</div><div class="lbl">Today's Appointments</div>
+            </div>
+            <div class="stat-card">
+              <div class="accent" style="width:33%;background:linear-gradient(90deg,#f59e0b,#f97316)"></div>
+              <div class="num">8</div><div class="lbl">Pending</div>
+            </div>
+            <div class="stat-card">
+              <div class="accent" style="width:66%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div>
+              <div class="num">16</div><div class="lbl">Completed</div>
+            </div>
+            <div class="stat-card">
+              <div class="accent" style="width:20%;background:linear-gradient(90deg,#ef4444,#f472b6)"></div>
+              <div class="num">3</div><div class="lbl">Needs Approval</div>
+            </div>
+          </div>
+          <div class="cal-area">
+            <div class="cal-row"><div class="cal-time">09:00</div><div class="cal-slot filled"></div></div>
+            <div class="cal-row"><div class="cal-time">10:00</div><div class="cal-slot empty"></div></div>
+            <div class="cal-row"><div class="cal-time">11:00</div><div class="cal-slot filled2"></div></div>
+            <div class="cal-row"><div class="cal-time">12:00</div><div class="cal-slot filled"></div></div>
+            <div class="cal-row"><div class="cal-time">13:00</div><div class="cal-slot empty"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="section-title">Animation Plan</div>
+<div class="legend">
+  <div class="legend-title">Where each animation style fires</div>
+  <div class="legend-grid">
+    <div class="legend-item">
+      <div class="legend-zone">🏠 Landing Page</div>
+      <div class="legend-anim">Orbs float in on load · Hero text stagger reveal · Feature cards slide up on scroll · Buttons spring on hover</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-zone">🔐 Auth Pages</div>
+      <div class="legend-anim">Brand panel slides in from left · Form fades up · Input focus glows · Submit button spring press · Error shake</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-zone">📊 Dashboard</div>
+      <div class="legend-anim">Stat cards spring mount with stagger · Numbers count up · Page transitions fade+slide · Nav icons spring on active · Calendar slots animate in</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;font-size:12px;color:rgba(255,255,255,0.5);">
+  <strong style="color:white">Does this layout structure look right?</strong> Let me know in the terminal if you'd like to adjust anything — sidebar width, auth layout, hero style — before I continue to the next section.
+</div>
+
+</body>
+</html>

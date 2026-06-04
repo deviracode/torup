@@ -4,21 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@torup/ui";
-import {
-  Calendar,
-  Users,
-  Scissors,
-  Settings,
-  BarChart3,
-  CreditCard,
-  LogOut,
-} from "lucide-react";
+import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut } from "lucide-react";
 
 const navItems = [
   { key: "calendar",   href: "/dashboard",            icon: Calendar   },
@@ -30,12 +16,12 @@ const navItems = [
 ];
 
 const NAV_LABELS: Record<string, { he: string; en: string }> = {
-  calendar:  { he: "לוח",     en: "Calendar"  },
-  customers: { he: "לקוחות",  en: "Customers" },
-  services:  { he: "שירותים", en: "Services"  },
-  analytics: { he: "אנליטיקס",en: "Analytics" },
-  billing:   { he: "חיוב",    en: "Billing"   },
-  settings:  { he: "הגדרות",  en: "Settings"  },
+  calendar:  { he: "לוח שנה",  en: "Calendar"  },
+  customers: { he: "לקוחות",   en: "Customers" },
+  services:  { he: "שירותים",  en: "Services"  },
+  analytics: { he: "אנליטיקס", en: "Analytics" },
+  billing:   { he: "חיוב",     en: "Billing"   },
+  settings:  { he: "הגדרות",   en: "Settings"  },
 };
 
 export function Sidebar() {
@@ -55,85 +41,81 @@ export function Sidebar() {
     isRtl ? NAV_LABELS[key].he : NAV_LABELS[key].en;
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <>
       {/* Desktop sidebar */}
       <aside
-        className={`hidden md:flex h-screen w-[52px] flex-col items-center py-4 gap-1 bg-[hsl(242_44%_10%)] ${isRtl ? "border-l" : "border-r"} border-white/6 flex-shrink-0`}
+        className={`hidden md:flex h-screen w-[220px] flex-col py-4 bg-[hsl(242_44%_10%)] ${isRtl ? "border-l" : "border-r"} border-white/6 flex-shrink-0`}
       >
-        {/* Logo mark */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              className="mb-4 w-[34px] h-[34px] rounded-[10px] cursor-pointer flex-shrink-0"
-              style={{ background: "var(--grad-primary)" }}
-              onClick={() => router.push(`/${locale}/dashboard`)}
-              role="link"
-              aria-label="TorUp home"
-            />
-          </TooltipTrigger>
-          <TooltipContent side={isRtl ? "left" : "right"}>TorUp</TooltipContent>
-        </Tooltip>
+        {/* Logo */}
+        <div
+          className="flex items-center gap-2.5 px-4 mb-6 cursor-pointer"
+          onClick={() => router.push(`/${locale}/dashboard`)}
+        >
+          <div
+            className="w-8 h-8 rounded-[8px] flex-shrink-0"
+            style={{ background: "var(--grad-primary)" }}
+          />
+          <span
+            className="text-base font-black tracking-tight"
+            style={{
+              background: "var(--grad-brand)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            TorUp
+          </span>
+        </div>
 
-        {/* Nav icons */}
-        <nav className="flex flex-col items-center gap-1 flex-1">
+        {/* Nav items */}
+        <nav className="flex flex-col gap-0.5 px-3 flex-1">
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
-              <Tooltip key={item.key}>
-                <TooltipTrigger asChild>
-                  <div className="relative">
-                    {active && (
-                      <motion.div
-                        layoutId="sidebar-active-indicator"
-                        className="absolute inset-0 rounded-[10px]"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2))",
-                          boxShadow: "0 0 0 1px rgba(99,102,241,0.4)",
-                        }}
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    <button
-                      onClick={() => router.push(`/${locale}${item.href}`)}
-                      aria-label={label(item.key)}
-                      className="relative z-10 w-[36px] h-[36px] rounded-[10px] flex items-center justify-center transition-colors hover:bg-white/8"
-                    >
-                      <Icon
-                        className={`h-[18px] w-[18px] transition-colors ${
-                          active ? "text-[#a78bfa]" : "text-white/40 hover:text-white/70"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side={isRtl ? "left" : "right"}>
-                  {label(item.key)}
-                </TooltipContent>
-              </Tooltip>
+              <div key={item.key} className="relative">
+                {active && (
+                  <motion.div
+                    layoutId="sidebar-active-indicator"
+                    className="absolute inset-0 rounded-[10px]"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.15))",
+                      boxShadow: "0 0 0 1px rgba(99,102,241,0.3)",
+                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <button
+                  onClick={() => router.push(`/${locale}${item.href}`)}
+                  aria-label={label(item.key)}
+                  className={`relative z-10 w-full flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors ${isRtl ? "text-right" : "text-left"} ${
+                    active
+                      ? "text-[#a78bfa]"
+                      : "text-white/45 hover:text-white/80 hover:bg-white/5"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span>{label(item.key)}</span>
+                </button>
+              </div>
             );
           })}
         </nav>
 
-        {/* Bottom: logout */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => signOut()}
-              aria-label={isRtl ? "יציאה" : "Sign out"}
-              className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
-            >
-              <LogOut className="h-[18px] w-[18px]" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side={isRtl ? "left" : "right"}>
-            {isRtl ? "יציאה" : "Sign out"}
-          </TooltipContent>
-        </Tooltip>
+        {/* Logout */}
+        <div className="px-3 pt-2 border-t border-white/6">
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-white/35 hover:text-white/70 hover:bg-white/5 transition-colors"
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            <span>{isRtl ? "יציאה" : "Sign out"}</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Mobile: top bar */}
+      {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-white/6 bg-[hsl(242_44%_10%)] px-4 md:hidden">
         <button
           onClick={() => router.push(`/${locale}/dashboard`)}
@@ -161,9 +143,7 @@ export function Sidebar() {
                 onClick={() => router.push(`/${locale}${item.href}`)}
                 aria-label={label(item.key)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  active
-                    ? "bg-primary/20 text-[#a78bfa]"
-                    : "text-white/40 hover:text-white/70"
+                  active ? "bg-primary/20 text-[#a78bfa]" : "text-white/40 hover:text-white/70"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -179,6 +159,6 @@ export function Sidebar() {
           </button>
         </nav>
       </div>
-    </TooltipProvider>
+    </>
   );
 }

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TorUp — Design Section 2: Tokens, Typography & Components</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #060612; color: #e2e8f0; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 800; color: white; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #a78bfa; margin: 28px 0 14px; }
+
+  /* ── COLOR TOKENS ── */
+  .color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 8px; }
+  .color-swatch { border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
+  .swatch-color { height: 64px; }
+  .swatch-info { padding: 8px 10px; background: rgba(255,255,255,0.03); }
+  .swatch-name { font-size: 10px; font-weight: 700; color: white; }
+  .swatch-value { font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 2px; font-family: monospace; }
+
+  /* ── GRADIENTS ── */
+  .gradient-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 8px; }
+  .grad-swatch { height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.06); }
+
+  /* ── TYPOGRAPHY ── */
+  .type-samples { display: flex; flex-direction: column; gap: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px 24px; }
+  .type-row { display: flex; align-items: baseline; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 12px; }
+  .type-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .type-meta { width: 120px; flex-shrink: 0; }
+  .type-meta .role { font-size: 10px; font-weight: 700; color: #a78bfa; }
+  .type-meta .spec { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 2px; font-family: monospace; }
+  .type-sample { flex: 1; }
+
+  /* ── COMPONENT SAMPLES ── */
+  .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .comp-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px 20px; }
+  .comp-block-title { font-size: 10px; font-weight: 700; color: #a78bfa; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+
+  /* buttons */
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { border: none; border-radius: 10px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-grad { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; box-shadow: 0 4px 15px rgba(99,102,241,0.4); }
+  .btn-grad:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 8px 25px rgba(99,102,241,0.5); }
+  .btn-outline { background: transparent; border: 1px solid rgba(99,102,241,0.5); color: #a78bfa; }
+  .btn-ghost { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); }
+  .btn-danger { background: linear-gradient(135deg, #ef4444, #f472b6); color: white; }
+  .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
+  .btn-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.08); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .btn-icon-inner { width: 14px; height: 14px; border-radius: 4px; background: rgba(255,255,255,0.5); }
+
+  /* badges */
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-purple { background: rgba(99,102,241,0.2); color: #a78bfa; border: 1px solid rgba(99,102,241,0.3); }
+  .badge-green { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .badge-pink { background: rgba(244,114,182,0.15); color: #f472b6; border: 1px solid rgba(244,114,182,0.3); }
+
+  /* inputs */
+  .input-col { display: flex; flex-direction: column; gap: 8px; }
+  .mock-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 9px 13px; font-size: 12px; color: rgba(255,255,255,0.8); width: 100%; outline: none; transition: all 0.2s; }
+  .mock-input.focused-in { border-color: #6366f1; background: rgba(99,102,241,0.08); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .mock-input.error-in { border-color: #ef4444; background: rgba(239,68,68,0.06); box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+  .input-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); margin-bottom: 2px; }
+
+  /* stat card variants */
+  .stat-variants { display: flex; gap: 8px; }
+  .sv { flex: 1; border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+  .sv::before { content: ''; position: absolute; inset: 0; opacity: 0.06; }
+  .sv-indigo { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.25); }
+  .sv-indigo::before { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .sv-amber { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); }
+  .sv-amber::before { background: linear-gradient(135deg, #f59e0b, #f97316); }
+  .sv-emerald { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); }
+  .sv-emerald::before { background: linear-gradient(135deg, #10b981, #06b6d4); }
+  .sv-icon { width: 30px; height: 30px; border-radius: 8px; margin-bottom: 8px; }
+  .sv-indigo .sv-icon { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .sv-amber .sv-icon { background: linear-gradient(135deg, #f59e0b, #f97316); }
+  .sv-emerald .sv-icon { background: linear-gradient(135deg, #10b981, #06b6d4); }
+  .sv-num { font-size: 24px; font-weight: 900; color: white; line-height: 1; }
+  .sv-lbl { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+  /* appointment row */
+  .appt-list { display: flex; flex-direction: column; gap: 6px; }
+  .appt-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 10px 12px; transition: all 0.2s; }
+  .appt-row:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); transform: translateX(3px); }
+  .appt-time { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); width: 38px; flex-shrink: 0; }
+  .appt-color { width: 3px; height: 32px; border-radius: 2px; flex-shrink: 0; }
+  .appt-info { flex: 1; }
+  .appt-name { font-size: 12px; font-weight: 600; color: white; }
+  .appt-service { font-size: 10px; color: rgba(255,255,255,0.4); }
+  .appt-status { }
+</style>
+</head>
+<body>
+
+<h1>Design Section 2 — Tokens, Typography & Components</h1>
+<p class="sub">Color system · Type scale · UI component library</p>
+
+<!-- COLORS -->
+<div class="section-title">Color Tokens</div>
+<div class="color-grid">
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#060612"></div>
+    <div class="swatch-info"><div class="swatch-name">Background</div><div class="swatch-value">#060612</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#0f0e24"></div>
+    <div class="swatch-info"><div class="swatch-name">Surface</div><div class="swatch-value">#0f0e24</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#1a1838"></div>
+    <div class="swatch-info"><div class="swatch-name">Card</div><div class="swatch-value">#1a1838</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#6366f1"></div>
+    <div class="swatch-info"><div class="swatch-name">Primary</div><div class="swatch-value">#6366f1</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#a78bfa"></div>
+    <div class="swatch-info"><div class="swatch-name">Primary Light</div><div class="swatch-value">#a78bfa</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#f472b6"></div>
+    <div class="swatch-info"><div class="swatch-name">Accent Pink</div><div class="swatch-value">#f472b6</div></div>
+  </div>
+</div>
+<div class="color-grid">
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:rgba(255,255,255,0.06)"></div>
+    <div class="swatch-info"><div class="swatch-name">Border</div><div class="swatch-value">white/6%</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:rgba(255,255,255,0.4)"></div>
+    <div class="swatch-info"><div class="swatch-name">Muted Text</div><div class="swatch-value">white/40%</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#10b981"></div>
+    <div class="swatch-info"><div class="swatch-name">Success</div><div class="swatch-value">#10b981</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#f59e0b"></div>
+    <div class="swatch-info"><div class="swatch-name">Warning</div><div class="swatch-value">#f59e0b</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#ef4444"></div>
+    <div class="swatch-info"><div class="swatch-name">Danger</div><div class="swatch-value">#ef4444</div></div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch-color" style="background:#06b6d4"></div>
+    <div class="swatch-info"><div class="swatch-name">Info</div><div class="swatch-value">#06b6d4</div></div>
+  </div>
+</div>
+
+<!-- GRADIENTS -->
+<div class="section-title">Signature Gradients</div>
+<div class="gradient-row">
+  <div class="grad-swatch" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Primary</div>
+  <div class="grad-swatch" style="background:linear-gradient(135deg,#a78bfa,#f472b6)">Brand</div>
+  <div class="grad-swatch" style="background:linear-gradient(135deg,#f472b6,#fb923c)">Warm</div>
+  <div class="grad-swatch" style="background:linear-gradient(135deg,#10b981,#06b6d4)">Success</div>
+</div>
+
+<!-- TYPOGRAPHY -->
+<div class="section-title">Typography Scale — Geist Font</div>
+<div class="type-samples">
+  <div class="type-row">
+    <div class="type-meta"><div class="role">Display</div><div class="spec">900 · 56px · -2px</div></div>
+    <div class="type-sample" style="font-size:42px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#e0e7ff,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">TorUp</div>
+  </div>
+  <div class="type-row">
+    <div class="type-meta"><div class="role">H1</div><div class="spec">800 · 36px · -1px</div></div>
+    <div class="type-sample" style="font-size:28px;font-weight:800;letter-spacing:-1px;color:white">Smart Booking, Zero Friction</div>
+  </div>
+  <div class="type-row">
+    <div class="type-meta"><div class="role">H2</div><div class="spec">700 · 24px · -0.5px</div></div>
+    <div class="type-sample" style="font-size:20px;font-weight:700;letter-spacing:-0.5px;color:white">Today's Appointments</div>
+  </div>
+  <div class="type-row">
+    <div class="type-meta"><div class="role">H3 / Label</div><div class="spec">600 · 14px</div></div>
+    <div class="type-sample" style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.8)">Calendar · Customers · Services</div>
+  </div>
+  <div class="type-row">
+    <div class="type-meta"><div class="role">Body</div><div class="spec">400 · 14px · 1.6</div></div>
+    <div class="type-sample" style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6">WhatsApp bot + beautiful dashboard for modern service businesses. Full RTL support for Hebrew and Arabic.</div>
+  </div>
+  <div class="type-row">
+    <div class="type-meta"><div class="role">Caption</div><div class="spec">500 · 11px · +1px</div></div>
+    <div class="type-sample" style="font-size:11px;font-weight:500;color:rgba(255,255,255,0.35);letter-spacing:1px;text-transform:uppercase">Pending Approval · 3 items</div>
+  </div>
+</div>
+
+<!-- COMPONENTS -->
+<div class="section-title">Component Library</div>
+<div class="comp-grid">
+
+  <div class="comp-block">
+    <div class="comp-block-title">Buttons</div>
+    <div class="btn-row" style="margin-bottom:10px">
+      <button class="btn btn-grad">New Appointment</button>
+      <button class="btn btn-outline">View All</button>
+      <button class="btn btn-ghost">Cancel</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger btn-sm">Delete</button>
+      <button class="btn btn-grad btn-sm">+ Add</button>
+      <div class="btn-icon"><div class="btn-icon-inner"></div></div>
+    </div>
+  </div>
+
+  <div class="comp-block">
+    <div class="comp-block-title">Status Badges</div>
+    <div class="badge-row">
+      <span class="badge badge-purple">Confirmed</span>
+      <span class="badge badge-green">Completed</span>
+      <span class="badge badge-yellow">Pending</span>
+      <span class="badge badge-red">Cancelled</span>
+      <span class="badge badge-pink">Needs Approval</span>
+    </div>
+  </div>
+
+  <div class="comp-block">
+    <div class="comp-block-title">Form Inputs</div>
+    <div class="input-col">
+      <div><div class="input-label">Email</div><input class="mock-input focused-in" placeholder="name@example.com" /></div>
+      <div><div class="input-label">Password</div><input class="mock-input error-in" placeholder="Incorrect password" /></div>
+    </div>
+  </div>
+
+  <div class="comp-block">
+    <div class="comp-block-title">Stat Cards</div>
+    <div class="stat-variants">
+      <div class="sv sv-indigo">
+        <div class="sv-icon"></div>
+        <div class="sv-num">24</div>
+        <div class="sv-lbl">Today</div>
+      </div>
+      <div class="sv sv-amber">
+        <div class="sv-icon"></div>
+        <div class="sv-num">8</div>
+        <div class="sv-lbl">Pending</div>
+      </div>
+      <div class="sv sv-emerald">
+        <div class="sv-icon"></div>
+        <div class="sv-num">16</div>
+        <div class="sv-lbl">Done</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="comp-block" style="grid-column:span 2">
+    <div class="comp-block-title">Appointment List Rows — hover to see micro-interaction</div>
+    <div class="appt-list">
+      <div class="appt-row">
+        <div class="appt-time">09:00</div>
+        <div class="appt-color" style="background:linear-gradient(180deg,#6366f1,#8b5cf6)"></div>
+        <div class="appt-info"><div class="appt-name">Sarah Cohen</div><div class="appt-service">Haircut · 45 min</div></div>
+        <span class="badge badge-purple">Confirmed</span>
+      </div>
+      <div class="appt-row">
+        <div class="appt-time">11:00</div>
+        <div class="appt-color" style="background:linear-gradient(180deg,#f472b6,#fb923c)"></div>
+        <div class="appt-info"><div class="appt-name">Yossi Levi</div><div class="appt-service">Color Treatment · 90 min</div></div>
+        <span class="badge badge-pink">Needs Approval</span>
+      </div>
+      <div class="appt-row">
+        <div class="appt-time">13:30</div>
+        <div class="appt-color" style="background:linear-gradient(180deg,#10b981,#06b6d4)"></div>
+        <div class="appt-info"><div class="appt-name">Dana Mizrahi</div><div class="appt-service">Blowout · 30 min</div></div>
+        <span class="badge badge-green">Completed</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:24px;padding:16px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:12px;font-size:12px;color:rgba(255,255,255,0.6);">
+  <strong style="color:white">Does this color system and component style look right?</strong> These tokens will be set in <code style="color:#a78bfa">globals.css</code> as CSS variables and used across every component. Let me know in the terminal if you want to tweak anything.
+</div>
+
+</body>
+</html>

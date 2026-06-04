@@ -173,8 +173,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                 })}
               </tr>
             </thead>
-            <tbody>
-              <motion.div variants={calendarRowContainer} initial="hidden" animate="show">
+            <motion.tbody variants={calendarRowContainer} initial="hidden" animate="show">
               {HOURS.map((hour) => (
                 <motion.tr key={hour} variants={calendarRowItem}>
                   <td className="border-b border-e border-gray-100 p-1 text-end text-xs text-gray-400 align-top pe-2">
@@ -221,8 +220,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                   })}
                 </motion.tr>
               ))}
-              </motion.div>
-            </tbody>
+            </motion.tbody>
           </table>
         )}
       </div>

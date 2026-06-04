@@ -1,0 +1,185 @@
+<style>
+  .anim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 16px; }
+  .anim-card { border: 2px solid #e2e8f0; border-radius: 16px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+  .anim-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 12px 40px rgba(99,102,241,0.15); }
+  .anim-card.selected { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.2); }
+  .anim-preview { height: 180px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .anim-label { padding: 14px 16px; border-top: 1px solid #e2e8f0; background: white; }
+  .anim-label h3 { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .anim-label p { font-size: 12px; color: #64748b; margin: 0; line-height: 1.5; }
+  .examples { font-size: 11px; color: #a78bfa; margin-top: 6px; font-weight: 600; }
+
+  /* A — Smooth & Purposeful */
+  .preview-smooth { background: linear-gradient(135deg, #1e1b4b, #312e81); }
+  .smooth-demo { display: flex; flex-direction: column; gap: 8px; width: 80%; }
+  .smooth-item {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;
+    animation: slideInLeft 2s ease infinite alternate;
+  }
+  .smooth-item:nth-child(2) { animation-delay: 0.15s; }
+  .smooth-item:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes slideInLeft {
+    0% { transform: translateX(0); opacity: 0.7; }
+    100% { transform: translateX(6px); opacity: 1; }
+  }
+  .si-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .si-lines { flex: 1; }
+  .si-line { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.2); margin-bottom: 3px; }
+  .si-line:last-child { width: 60%; }
+
+  /* B — Physics & Spring */
+  .preview-spring { background: linear-gradient(135deg, #0f172a, #1e1b4b); }
+  .spring-cards { display: flex; gap: 10px; }
+  .spring-card {
+    width: 70px; height: 90px; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    animation: spring 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite alternate;
+  }
+  .spring-card:nth-child(1) { background: linear-gradient(135deg, #6366f1, #8b5cf6); animation-delay: 0s; }
+  .spring-card:nth-child(2) { background: linear-gradient(135deg, #f472b6, #ec4899); animation-delay: 0.2s; }
+  .spring-card:nth-child(3) { background: linear-gradient(135deg, #34d399, #06b6d4); animation-delay: 0.4s; }
+  @keyframes spring {
+    0% { transform: translateY(0) scale(1); }
+    100% { transform: translateY(-10px) scale(1.05); }
+  }
+  .sc-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.25); }
+  .sc-num { font-size: 20px; font-weight: 800; color: white; }
+  .sc-lbl { font-size: 9px; color: rgba(255,255,255,0.7); }
+
+  /* C — Cinematic Reveals */
+  .preview-cinematic { background: #030712; overflow: hidden; }
+  .cin-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.3) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 50%, rgba(168,85,247,0.2) 0%, transparent 60%);
+    animation: glow-pulse 3s ease-in-out infinite alternate;
+  }
+  @keyframes glow-pulse {
+    0% { opacity: 0.5; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1.1); }
+  }
+  .cin-content { position: relative; z-index: 1; text-align: center; }
+  .cin-title {
+    font-size: 28px; font-weight: 900; color: white; letter-spacing: -1px;
+    animation: revealUp 2s ease infinite alternate;
+    background: linear-gradient(135deg, #a78bfa, #f472b6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  @keyframes revealUp {
+    0% { transform: translateY(4px); opacity: 0.6; }
+    100% { transform: translateY(-4px); opacity: 1; }
+  }
+  .cin-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; letter-spacing: 3px; text-transform: uppercase; }
+  .cin-line { width: 60px; height: 2px; background: linear-gradient(90deg, #6366f1, #f472b6); margin: 8px auto 0; border-radius: 2px; animation: lineExpand 2s ease infinite alternate; }
+  @keyframes lineExpand { 0% { width: 40px; } 100% { width: 80px; } }
+
+  /* D — Micro-interactions */
+  .preview-micro { background: linear-gradient(135deg, #1e1b4b, #4c1d95); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+  .micro-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;
+    border: none; border-radius: 10px; padding: 10px 24px; font-size: 13px; font-weight: 700;
+    cursor: pointer; position: relative; overflow: hidden;
+    animation: btnPulse 2s ease infinite alternate;
+  }
+  @keyframes btnPulse {
+    0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); transform: scale(1); }
+    100% { box-shadow: 0 0 0 12px rgba(99,102,241,0); transform: scale(1.03); }
+  }
+  .micro-row { display: flex; gap: 8px; }
+  .micro-tag {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    color: white; border-radius: 8px; padding: 4px 12px; font-size: 11px;
+    animation: tagBounce 1.5s ease infinite alternate;
+  }
+  .micro-tag:nth-child(2) { animation-delay: 0.2s; }
+  .micro-tag:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tagBounce {
+    0% { transform: scale(1); background: rgba(255,255,255,0.08); }
+    100% { transform: scale(1.05); background: rgba(255,255,255,0.15); }
+  }
+  .micro-bar { width: 160px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+  .micro-fill { height: 100%; width: 65%; background: linear-gradient(90deg, #6366f1, #f472b6); border-radius: 3px; animation: fillPulse 2s ease infinite alternate; }
+  @keyframes fillPulse { 0% { width: 45%; } 100% { width: 75%; } }
+</style>
+
+<h2>What animation style fits the Bold & Vibrant direction?</h2>
+<p class="subtitle">This sets the feel for all transitions, entries, and interactions across the app</p>
+
+<div class="anim-grid">
+
+  <div class="anim-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="anim-preview preview-smooth">
+      <div class="smooth-demo">
+        <div class="smooth-item">
+          <div class="si-dot" style="background:#a78bfa"></div>
+          <div class="si-lines"><div class="si-line"></div><div class="si-line"></div></div>
+        </div>
+        <div class="smooth-item">
+          <div class="si-dot" style="background:#f472b6"></div>
+          <div class="si-lines"><div class="si-line"></div><div class="si-line"></div></div>
+        </div>
+        <div class="smooth-item">
+          <div class="si-dot" style="background:#34d399"></div>
+          <div class="si-lines"><div class="si-line"></div><div class="si-line"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anim-label">
+      <h3>Smooth & Purposeful</h3>
+      <p>Elegant ease-in-out transitions, staggered list entries, fade + slide. Every motion has meaning.</p>
+      <div class="examples">→ Framer Motion stagger · Page transitions · Subtle hover lifts</div>
+    </div>
+  </div>
+
+  <div class="anim-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="anim-preview preview-spring">
+      <div class="spring-cards">
+        <div class="spring-card"><div class="sc-icon"></div><div class="sc-num">24</div><div class="sc-lbl">Today</div></div>
+        <div class="spring-card"><div class="sc-icon"></div><div class="sc-num">8</div><div class="sc-lbl">Pending</div></div>
+        <div class="spring-card"><div class="sc-icon"></div><div class="sc-num">16</div><div class="sc-lbl">Done</div></div>
+      </div>
+    </div>
+    <div class="anim-label">
+      <h3>Physics & Spring</h3>
+      <p>Bouncy, overshooting spring physics on cards and buttons. Playful but polished — like iOS.</p>
+      <div class="examples">→ spring() curves · Bounce on mount · Scale on press</div>
+    </div>
+  </div>
+
+  <div class="anim-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="anim-preview preview-cinematic">
+      <div class="cin-bg"></div>
+      <div class="cin-content">
+        <div class="cin-title">TorUp</div>
+        <div class="cin-sub">Appointment Platform</div>
+        <div class="cin-line"></div>
+      </div>
+    </div>
+    <div class="anim-label">
+      <h3>Cinematic Reveals</h3>
+      <p>Dramatic entrance animations — glowing backgrounds, text reveals, gradient sweeps. Maximum wow on first load.</p>
+      <div class="examples">→ Spotlight effects · Text clip reveal · Gradient pulse · Particle BG</div>
+    </div>
+  </div>
+
+  <div class="anim-card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="anim-preview preview-micro">
+      <div class="micro-btn">New Appointment</div>
+      <div class="micro-row">
+        <div class="micro-tag">Pending</div>
+        <div class="micro-tag">Confirmed</div>
+        <div class="micro-tag">Done</div>
+      </div>
+      <div class="micro-bar"><div class="micro-fill"></div></div>
+    </div>
+    <div class="anim-label">
+      <h3>Micro-interactions</h3>
+      <p>Every button pulses, tags bounce, progress bars fill. The UI feels alive in your hands as you use it.</p>
+      <div class="examples">→ Ripple on click · Progress fills · Hover scale · Active press states</div>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:16px;">You can pick multiple — we'll blend them together</p>

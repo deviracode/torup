@@ -75,7 +75,8 @@
       "Bash(mv /tmp/repair-reminders.mjs /Users/adamazz1993/Desktop/QueueManagement/apps/api/repair-reminders.mjs)",
       "Bash(node repair-reminders.mjs)",
       "Bash(node setup-test-apt.mjs)",
-      "Bash(pnpm --filter @torup/shared test)"
+      "Bash(pnpm --filter @torup/shared test)",
+      "Bash(pnpm test *)"
     ],
     "additionalDirectories": [
       "/Users/adamazz1993/Desktop/QueueManagement/apps/web/src/app/[locale]/(auth)",

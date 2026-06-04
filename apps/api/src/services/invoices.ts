@@ -163,7 +163,7 @@ export function renderInvoiceHtml(invoice: Invoice): string {
 <body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px">
   <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:40px">
     <div>
-      <h1 style="margin:0;color:#1a56db">QueuePro</h1>
+      <h1 style="margin:0;color:#1a56db">TorUp</h1>
       <p style="color:#666;margin:4px 0">Invoice</p>
     </div>
     <div style="text-align:right">
