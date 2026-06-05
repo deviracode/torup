@@ -782,6 +782,18 @@ async function handleIncomingMessage(
     session = createSession(from, businessPhoneNumberId, ctx.biz.businessId, language);
   }
 
+  // Re-detect language on every free-text message so switching languages works
+  if (!interactionId) {
+    const detectedLang = detectLanguage(text);
+    if (detectedLang !== session.language) {
+      session.language = detectedLang;
+      updateSession(from, businessPhoneNumberId, { language: detectedLang });
+      if (session.customerId) {
+        void getSupabase().from("customers").update({ language_preference: detectedLang }).eq("id", session.customerId);
+      }
+    }
+  }
+
   // --- Customer identification (run once per session) ---
   if (!session.customerId) {
     const customer = await loadOrInitCustomer(from, session.language);
