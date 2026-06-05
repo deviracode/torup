@@ -50,6 +50,55 @@ export async function sendWhatsAppMessage(
   return msgId;
 }
 
+export async function sendManagerApprovalRequest(
+  to: string,
+  body: string,
+  appointmentId: string
+): Promise<string | null> {
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.log(`[WhatsApp] (dev mode) Manager approval request to: ${to}, appointmentId: ${appointmentId}`);
+    return `dev_msg_${Date.now()}`;
+  }
+
+  const res = await fetch(
+    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: to.replace(/[^0-9]/g, ""),
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: { text: body },
+          action: {
+            buttons: [
+              { type: "reply", reply: { id: `approve_${appointmentId}`, title: "✅ אשר" } },
+              { type: "reply", reply: { id: `reject_${appointmentId}`, title: "❌ דחה" } },
+            ],
+          },
+        },
+      }),
+    }
+  );
+
+  const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (manager approval) to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  return data.messages?.[0]?.id ?? null;
+}
+
 export async function sendInteractiveReminder(
   to: string,
   body: string,

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { createServiceClient } from "../lib/supabase.js";
 import { validateTransition } from "@torup/shared";
 import { sendWhatsAppMessage } from "../services/whatsapp.js";
+import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -72,17 +73,63 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
     for (const message of value.messages) {
       if (message.type !== "interactive" || !message.interactive?.button_reply) continue;
 
-      const buttonId = message.interactive.button_reply.id;
-      const from = message.from;
+      const buttonId = message.interactive.button_reply.id as string;
+      const from = message.from as string;
 
-      if (buttonId !== "confirm" && buttonId !== "cancel") continue;
-
-      await handleButtonResponse(from, buttonId);
+      if (buttonId.startsWith("approve_") || buttonId.startsWith("reject_")) {
+        const appointmentId = buttonId.replace(/^(approve|reject)_/, "");
+        const action = buttonId.startsWith("approve_") ? "approve" : "reject";
+        await handleManagerResponse(from, appointmentId, action);
+      } else if (buttonId === "confirm" || buttonId === "cancel") {
+        await handleButtonResponse(from, buttonId);
+      }
     }
   } catch (err) {
     console.error("[Webhook] Error processing:", err);
   }
 });
+
+async function handleManagerResponse(
+  managerPhone: string,
+  appointmentId: string,
+  action: "approve" | "reject"
+) {
+  const supabase = createServiceClient();
+
+  // Verify this phone belongs to the business owner of this appointment
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("id, status, business_id, businesses(phone)")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!appointment) return;
+
+  const apt = appointment as unknown as {
+    id: string; status: string; business_id: string;
+    businesses: { phone: string };
+  };
+
+  const normalizedManagerPhone = managerPhone.replace(/[^0-9]/g, "");
+  const normalizedOwnerPhone = (apt.businesses?.phone || "").replace(/[^0-9]/g, "");
+
+  if (normalizedManagerPhone !== normalizedOwnerPhone) return;
+
+  if (apt.status !== "pending_approval") {
+    await sendWhatsAppMessage(managerPhone, "התור כבר טופל.");
+    return;
+  }
+
+  if (action === "approve") {
+    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId);
+    await sendWhatsAppMessage(managerPhone, "✅ התור אושר! הלקוח יקבל הודעה.");
+    await sendApprovalNotification(appointmentId);
+  } else {
+    await supabase.from("appointments").update({ status: "cancelled" }).eq("id", appointmentId);
+    await sendWhatsAppMessage(managerPhone, "❌ התור נדחה. הלקוח יקבל הודעה.");
+    await sendRejectionNotification(appointmentId, "manual");
+  }
+}
 
 async function handleButtonResponse(customerPhone: string, action: "confirm" | "cancel") {
   const supabase = createServiceClient();

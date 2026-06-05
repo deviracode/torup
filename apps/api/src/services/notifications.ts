@@ -1,5 +1,5 @@
 import { createServiceClient } from "../lib/supabase.js";
-import { sendInteractiveReminder, sendWhatsAppMessage } from "./whatsapp.js";
+import { sendInteractiveReminder, sendManagerApprovalRequest, sendWhatsAppMessage } from "./whatsapp.js";
 
 /**
  * Notifications Engine
@@ -325,16 +325,15 @@ export async function sendManagerNotification(appointmentId: string) {
   const statusLabel = apt.status === "pending_approval" ? "ממתין לאישור" : "אושר";
 
   const message =
-    `🔔 תור חדש!\n` +
+    `🔔 תור חדש ממתין לאישורך!\n` +
     `👤 ${apt.customers.name}\n` +
     `✂️ ${apt.services.name_he}\n` +
     `📅 ${dateStr} ⏰ ${timeStr}\n` +
-    `📱 ${apt.customers.phone}\n\n` +
-    `סטטוס: ${statusLabel}`;
+    `📱 ${apt.customers.phone}`;
 
   let whatsappMessageId: string | null = null;
   try {
-    whatsappMessageId = await sendWhatsAppMessage(ownerPhone, message);
+    whatsappMessageId = await sendManagerApprovalRequest(ownerPhone, message, apt.id);
   } catch (err) {
     console.error("Failed to send manager notification:", err);
   }
