@@ -15,7 +15,8 @@ function getSupabase() {
 export async function executeTool(
   toolName: string,
   input: Record<string, string>,
-  businessId: string
+  businessId: string,
+  language: "he" | "ar" | "en" = "he"
 ): Promise<string> {
   const supabase = getSupabase();
 
@@ -91,7 +92,7 @@ export async function executeTool(
 
       const { data: appointments } = await supabase
         .from("appointments")
-        .select("id, start_time, end_time, status, services(name_he)")
+        .select("id, start_time, end_time, status, services(name_he, name_ar, name_en)")
         .eq("business_id", businessId)
         .eq("customer_id", customer.id)
         .in("status", ["pending", "confirmed"])

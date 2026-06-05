@@ -97,7 +97,8 @@ export async function processMessage(
       const result = await executeTool(
         toolUse.name,
         toolUse.input as Record<string, string>,
-        businessContext.businessId
+        businessContext.businessId,
+        businessContext.language
       );
 
       toolResults.push({

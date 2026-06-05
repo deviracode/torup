@@ -252,7 +252,14 @@ function getSupabase() {
   );
 }
 
-const DAY_NAMES_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const DAY_NAMES: Record<"he" | "ar" | "en", string[]> = {
+  he: ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"],
+  ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+};
+const TODAY_LABEL: Record<"he" | "ar" | "en", string> = { he: "היום", ar: "اليوم", en: "Today" };
+const TOMORROW_LABEL: Record<"he" | "ar" | "en", string> = { he: "מחר", ar: "غداً", en: "Tomorrow" };
+const DAY_PREFIX: Record<"he" | "ar" | "en", string> = { he: "יום", ar: "يوم", en: "" };
 const IL_TZ = "Asia/Jerusalem";
 
 function getIsraelDate(d: Date = new Date()): { dateStr: string; day: number; hours: number; minutes: number } {
@@ -284,7 +291,7 @@ function getIsraelOffset(date: string): string {
   return `+${String(offset).padStart(2, "0")}:00`;
 }
 
-async function findNextAvailableDates(businessId: string, serviceId: string, maxDays = 14): Promise<{ date: string; label: string }[]> {
+async function findNextAvailableDates(businessId: string, serviceId: string, maxDays = 14, language: "he" | "ar" | "en" = "he"): Promise<{ date: string; label: string }[]> {
   const results: { date: string; label: string }[] = [];
 
   for (let i = 0; i < maxDays && results.length < 5; i++) {
@@ -294,9 +301,14 @@ async function findNextAvailableDates(businessId: string, serviceId: string, max
     if (slots.length === 0) continue;
 
     let label: string;
-    if (i === 0) label = "היום";
-    else if (i === 1) label = "מחר";
-    else label = `יום ${DAY_NAMES_HE[dow]} (${dateStr.slice(5).replace("-", "/")})`;
+    const dateShort = dateStr.slice(5).replace("-", "/");
+    if (i === 0) label = TODAY_LABEL[language];
+    else if (i === 1) label = TOMORROW_LABEL[language];
+    else {
+      const prefix = DAY_PREFIX[language];
+      const dayName = DAY_NAMES[language][dow];
+      label = prefix ? `${prefix} ${dayName} (${dateShort})` : `${dayName} (${dateShort})`;
+    }
 
     results.push({ date: dateStr, label });
   }
@@ -682,7 +694,7 @@ async function resumeFromIntent(
   if (slots.length === 0) {
     const bf = BOOKING_FLOW_I18N[lang];
     await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
-    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays);
+    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
       await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
@@ -714,7 +726,7 @@ async function resumeFromIntent(
     const dateDisplay = intent.date.slice(5).replace("-", "/");
     await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](String(intent.time_hour), dateDisplay));
     const bf = BOOKING_FLOW_I18N[lang];
-    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays);
+    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
       await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
@@ -936,9 +948,18 @@ async function handleIncomingMessage(
     }
 
     if (interactionId === "menu_my_appointments" || interactionId === "menu_cancel") {
-      const prompt = interactionId === "menu_my_appointments"
-        ? "הראה לי את התורים שלי"
-        : "אני רוצה לבטל תור";
+      const lang = session.language ?? "he";
+      const myApptsPrompt: Record<"he" | "ar" | "en", string> = {
+        he: "הראה לי את התורים שלי",
+        ar: "أرني مواعيدي",
+        en: "Show me my appointments",
+      };
+      const cancelPrompt: Record<"he" | "ar" | "en", string> = {
+        he: "אני רוצה לבטל תור",
+        ar: "أريد إلغاء موعد",
+        en: "I want to cancel an appointment",
+      };
+      const prompt = interactionId === "menu_my_appointments" ? myApptsPrompt[lang] : cancelPrompt[lang];
       const response = await processMessage(session, prompt, {
         businessId: ctx.biz.businessId,
         businessName: ctx.biz.businessName,
@@ -985,7 +1006,7 @@ async function handleIncomingMessage(
     // Quick date flow — show 5 next available dates
     if (interactionId === "flow_quick" && session.booking?.step === "select_date") {
       updateSession(from, businessPhoneNumberId, { bookingFlow: "quick" });
-      const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId, ctx.maxFutureDays);
+      const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId, ctx.maxFutureDays, session.language ?? "he");
 
       const bf2 = BOOKING_FLOW_I18N[session.language ?? "he"];
       if (dates.length === 0) {
