@@ -62,9 +62,9 @@ export default async function BookingPage({
   const services = await getServices(business.id);
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50" style={{ backgroundColor: "#f8fafc" }}>
       {/* Business Header */}
-      <div className="bg-white border-b">
+      <div className="border-b" style={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0" }}>
         <div className="mx-auto max-w-2xl px-4 py-6">
           <div className="flex items-center gap-4">
             {business.logo_url && (
@@ -75,9 +75,9 @@ export default async function BookingPage({
               />
             )}
             <div>
-              <h1 className="text-2xl font-bold">{business.name}</h1>
+              <h1 className="text-2xl font-bold" style={{ color: "#0f172a" }}>{business.name}</h1>
               {business.description && (
-                <p className="text-gray-600 mt-1">{business.description}</p>
+                <p className="mt-1" style={{ color: "#64748b" }}>{business.description}</p>
               )}
             </div>
           </div>
