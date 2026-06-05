@@ -3,6 +3,8 @@
  * For production, replace with Redis.
  */
 
+import type { BookingIntent } from "./intent.js";
+
 export interface BookingState {
   step: "select_date" | "select_time_period" | "select_time" | "confirm";
   serviceId: string;
@@ -21,6 +23,8 @@ export interface ConversationSession {
   customerId?: string;
   customerName?: string;
   awaitingName?: boolean;
+  pendingIntent?: BookingIntent;
+  chainRemaining?: number;
   createdAt: number;
   lastActiveAt: number;
 }
