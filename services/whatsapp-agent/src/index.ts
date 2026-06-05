@@ -145,19 +145,36 @@ async function getCachedBusinessContext(businessPhoneNumberId: string) {
   return entry;
 }
 
+const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
+  greeting: (name: string | undefined, biz: string) => string;
+  book: string; myAppts: string; cancel: string;
+}> = {
+  he: {
+    greeting: (n, b) => n ? `שלום ${n}! 👋\nברוכים הבאים ל${b}.\nאיך אפשר לעזור?` : `ברוכים הבאים ל${b}! 👋\nאיך אפשר לעזור?`,
+    book: "קביעת תור", myAppts: "התורים שלי", cancel: "ביטול תור",
+  },
+  ar: {
+    greeting: (n, b) => n ? `أهلاً ${n}! 👋\nمرحباً بك في ${b}.\nكيف يمكنني مساعدتك؟` : `مرحباً بك في ${b}! 👋\nكيف يمكنني مساعدتك؟`,
+    book: "حجز موعد", myAppts: "مواعيدي", cancel: "إلغاء موعد",
+  },
+  en: {
+    greeting: (n, b) => n ? `Hi ${n}! 👋\nWelcome to ${b}.\nHow can I help?` : `Welcome to ${b}! 👋\nHow can I help?`,
+    book: "Book Appointment", myAppts: "My Appointments", cancel: "Cancel Appointment",
+  },
+};
+
 async function sendMainMenu(
   phoneNumberId: string,
   to: string,
   businessName: string,
-  customerName?: string
+  customerName?: string,
+  language: "he" | "ar" | "en" = "he"
 ) {
-  const greeting = customerName
-    ? `שלום ${customerName}! 👋\nברוכים הבאים ל${businessName}.\nאיך אפשר לעזור?`
-    : `ברוכים הבאים ל${businessName}! 👋\nאיך אפשר לעזור?`;
-  await sendButtonMessage(phoneNumberId, to, greeting, [
-    { id: "menu_book", title: "קביעת תור" },
-    { id: "menu_my_appointments", title: "התורים שלי" },
-    { id: "menu_cancel", title: "ביטול תור" },
+  const i18n = MAIN_MENU_I18N[language];
+  await sendButtonMessage(phoneNumberId, to, i18n.greeting(customerName, businessName), [
+    { id: "menu_book", title: i18n.book },
+    { id: "menu_my_appointments", title: i18n.myAppts },
+    { id: "menu_cancel", title: i18n.cancel },
   ]);
 }
 
@@ -192,23 +209,27 @@ const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
 };
 
-async function sendServiceList(phoneNumberId: string, to: string, services: Record<string, any>[]) {
-  const rows = services.map((s: any) => ({
-    id: `service_${s.id || s.name_he}`,
-    title: (s.name_he || "").slice(0, 24),
-    description: s.price_type === "discuss"
-      ? `${s.duration_minutes} דק׳ • לשיחה עם בעל העסק`
-      : `${s.duration_minutes} דק׳ • ₪${s.price}`,
-  }));
+const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
+  he: { prompt: "בחרו שירות:", button: "הצג שירותים", section: "שירותים", discuss: "לשיחה עם בעל העסק", min: "דק׳" },
+  ar: { prompt: "اختر الخدمة:", button: "عرض الخدمات", section: "الخدمات", discuss: "للتحدث مع صاحب العمل", min: "دقيقة" },
+  en: { prompt: "Choose a service:", button: "Show Services", section: "Services", discuss: "Discuss with owner", min: "min" },
+};
 
-  // WhatsApp list messages max 10 rows per section
+async function sendServiceList(phoneNumberId: string, to: string, services: Record<string, any>[], language: "he" | "ar" | "en" = "he") {
+  const i18n = SERVICE_LIST_I18N[language];
+  const rows = services.map((s: any) => {
+    const name = (language === "ar" && s.name_ar ? s.name_ar : language === "en" && s.name_en ? s.name_en : s.name_he) || s.name_he || "";
+    return {
+      id: `service_${s.id || s.name_he}`,
+      title: name.slice(0, 24),
+      description: s.price_type === "discuss"
+        ? `${s.duration_minutes} ${i18n.min} • ${i18n.discuss}`
+        : `${s.duration_minutes} ${i18n.min} • ₪${s.price}`,
+    };
+  });
+
   const displayRows = rows.slice(0, 10);
-
-  await sendListMessage(phoneNumberId, to,
-    "בחרו שירות:",
-    "הצג שירותים",
-    [{ title: "שירותים", rows: displayRows }]
-  );
+  await sendListMessage(phoneNumberId, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows: displayRows }]);
 }
 
 function getSupabase() {
@@ -456,10 +477,66 @@ async function updateCustomerName(customerId: string, name: string): Promise<voi
   await supabase.from("customers").update({ name }).eq("id", customerId);
 }
 
-const TIME_GROUP_LABELS: Record<string, string> = {
-  morning: "☀️ בוקר",
-  noon: "🌤️ צהריים",
-  evening: "🌙 אחה\"צ/ערב",
+const TIME_GROUP_LABELS: Record<"he" | "ar" | "en", Record<string, string>> = {
+  he: { morning: "☀️ בוקר", noon: "🌤️ צהריים", evening: "🌙 אחה\"צ/ערב" },
+  ar: { morning: "☀️ الصباح", noon: "🌤️ الظهر", evening: "🌙 المساء" },
+  en: { morning: "☀️ Morning", noon: "🌤️ Noon", evening: "🌙 Evening" },
+};
+
+const TIME_SLOTS_I18N: Record<"he" | "ar" | "en", { chooseTime: string; showTimes: string; choosePartOfDay: string; noSlots: string }> = {
+  he: { chooseTime: "בחרו שעה:", showTimes: "הצג שעות", choosePartOfDay: "בחרו חלק ביום:", noSlots: "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר." },
+  ar: { chooseTime: "اختر الوقت:", showTimes: "عرض المواعيد", choosePartOfDay: "اختر وقت اليوم:", noSlots: "لا توجد مواعيد متاحة في هذا اليوم 😔\nجرب يوماً آخر." },
+  en: { chooseTime: "Choose a time:", showTimes: "Show Times", choosePartOfDay: "Choose time of day:", noSlots: "No slots available on this date 😔\nTry another date." },
+};
+
+const BOOKING_FLOW_I18N: Record<"he" | "ar" | "en", {
+  howPickDate: string; quickDates: string; specificDate: string;
+  typeDate: string; noDates: string; chooseDate: string;
+  summary: (svc: string, date: string, time: string) => string;
+  confirmYes: string; confirmNo: string;
+  pastDate: string; noSlotsDate: string;
+  discussService: (url: string) => string;
+  cantChangeStatus: string;
+}> = {
+  he: {
+    howPickDate: "איך תרצו לבחור תאריך?",
+    quickDates: "📅 התאריכים הקרובים", specificDate: "📆 תאריך אחר",
+    typeDate: "הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)",
+    noDates: "אין תאריכים פנויים בשבועיים הקרובים 😔",
+    chooseDate: "בחרו תאריך:",
+    summary: (s, d, t) => `📋 סיכום הזמנה:\n✂️ ${s}\n📅 ${d}\n🕐 ${t}\n\nלאשר?`,
+    confirmYes: "✅ אישור", confirmNo: "❌ ביטול",
+    pastDate: "לא ניתן לקבוע תור בתאריך שעבר. נסו תאריך עתידי.",
+    noSlotsDate: "אין שעות פנויות בתאריך זה. נסו תאריך אחר.",
+    discussService: (url) => `שירות זה דורש תיאום עם בעל העסק.\n📞 צרו קשר בוואטסאפ: https://wa.me/${url}`,
+    cantChangeStatus: "לא ניתן לשנות את סטטוס התור כרגע.",
+  },
+  ar: {
+    howPickDate: "كيف تريد اختيار التاريخ؟",
+    quickDates: "📅 أقرب المواعيد", specificDate: "📆 تاريخ آخر",
+    typeDate: "اكتب التاريخ بصيغة DD/MM/YYYY (مثال: 30/12/2026)",
+    noDates: "لا توجد تواريخ متاحة في الأسبوعين القادمين 😔",
+    chooseDate: "اختر التاريخ:",
+    summary: (s, d, t) => `📋 ملخص الحجز:\n✂️ ${s}\n📅 ${d}\n🕐 ${t}\n\nهل تؤكد؟`,
+    confirmYes: "✅ تأكيد", confirmNo: "❌ إلغاء",
+    pastDate: "لا يمكن حجز موعد في تاريخ مضى. جرب تاريخاً مستقبلياً.",
+    noSlotsDate: "لا توجد مواعيد متاحة في هذا اليوم. جرب يوماً آخر.",
+    discussService: (url) => `هذه الخدمة تتطلب تنسيقاً مع صاحب العمل.\n📞 تواصل عبر واتساب: https://wa.me/${url}`,
+    cantChangeStatus: "لا يمكن تغيير حالة الموعد الآن.",
+  },
+  en: {
+    howPickDate: "How would you like to pick a date?",
+    quickDates: "📅 Next Available", specificDate: "📆 Specific Date",
+    typeDate: "Enter a date in DD/MM/YYYY format (e.g. 30/12/2026)",
+    noDates: "No available dates in the next two weeks 😔",
+    chooseDate: "Choose a date:",
+    summary: (s, d, t) => `📋 Booking Summary:\n✂️ ${s}\n📅 ${d}\n🕐 ${t}\n\nConfirm?`,
+    confirmYes: "✅ Confirm", confirmNo: "❌ Cancel",
+    pastDate: "Can't book a past date. Try a future date.",
+    noSlotsDate: "No slots available on this date. Try another date.",
+    discussService: (url) => `This service requires coordination with the owner.\n📞 Contact via WhatsApp: https://wa.me/${url}`,
+    cantChangeStatus: "Can't change the appointment status right now.",
+  },
 };
 
 export function groupTimeSlots(slots: { time: string; label: string }[]): Record<string, { time: string; label: string }[]> {
@@ -478,28 +555,28 @@ async function sendTimeSlotsGrouped(
   to: string,
   serviceName: string,
   date: string,
-  slots: { time: string; label: string }[]
+  slots: { time: string; label: string }[],
+  language: "he" | "ar" | "en" = "he"
 ) {
   const grouped = groupTimeSlots(slots);
+  const labels = TIME_GROUP_LABELS[language];
+  const i18n = TIME_SLOTS_I18N[language];
   const sections: { title: string; rows: { id: string; title: string }[] }[] = [];
 
-  for (const [key, label] of Object.entries(TIME_GROUP_LABELS)) {
+  for (const [key, label] of Object.entries(labels)) {
     const groupSlots = grouped[key] || [];
     if (groupSlots.length === 0) continue;
     sections.push({
       title: label,
-      rows: groupSlots.slice(0, 10).map((s) => ({
-        id: `time_${s.time}`,
-        title: s.label,
-      })),
+      rows: groupSlots.slice(0, 10).map((s) => ({ id: `time_${s.time}`, title: s.label })),
     });
   }
 
   if (sections.length === 0) return;
 
   await sendListMessage(phoneNumberId, to,
-    `${serviceName} • ${date.slice(5).replace("-", "/")}\nבחרו שעה:`,
-    "הצג שעות",
+    `${serviceName} • ${date.slice(5).replace("-", "/")}\n${i18n.chooseTime}`,
+    i18n.showTimes,
     sections
   );
 }
@@ -513,34 +590,36 @@ async function sendTimePeriodOrSlots(
 ): Promise<void> {
   const grouped = groupTimeSlots(slots);
 
-  const periodOrder: Array<keyof typeof TIME_GROUP_LABELS> = ["morning", "noon", "evening"];
+  const periodOrder: Array<"morning" | "noon" | "evening"> = ["morning", "noon", "evening"];
   const nonEmpty = periodOrder.filter((k) => (grouped[k] || []).length > 0);
 
   if (nonEmpty.length === 0) return;
 
+  const lang = session.language ?? "he";
+  const i18n = TIME_SLOTS_I18N[lang];
+  const labels = TIME_GROUP_LABELS[lang];
+
   if (nonEmpty.length === 1) {
-    // Skip picker — go straight to the only available period's slots
     updateSession(to, businessPhoneNumberId, {
       booking: { ...session.booking!, step: "select_time" },
     });
-    await sendTimeSlotsGrouped(phoneNumberId, to, session.booking!.serviceName, session.booking!.date!, grouped[nonEmpty[0]]);
+    await sendTimeSlotsGrouped(phoneNumberId, to, session.booking!.serviceName, session.booking!.date!, grouped[nonEmpty[0]], lang);
     return;
   }
 
-  // 2–3 periods available — show period picker
   updateSession(to, businessPhoneNumberId, {
     booking: { ...session.booking!, step: "select_time_period" },
   });
 
   const buttons = nonEmpty.map((k) => ({
     id: `period_${k}`,
-    title: TIME_GROUP_LABELS[k],
+    title: labels[k],
   }));
 
   await sendButtonMessage(
     phoneNumberId,
     to,
-    `${session.booking!.serviceName} ✂️\n${session.booking!.date!.slice(5).replace("-", "/")}\nבחרו חלק ביום:`,
+    `${session.booking!.serviceName} ✂️\n${session.booking!.date!.slice(5).replace("-", "/")}\n${i18n.choosePartOfDay}`,
     buttons
   );
 }
@@ -604,7 +683,7 @@ async function handleIncomingMessage(
     const inputDateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
     if (inputDateStr < today.dateStr) {
-      await sendTextMessage(businessPhoneNumberId, from, "לא ניתן לקבוע תור בתאריך שעבר. נסו תאריך עתידי.");
+      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].pastDate);
       return;
     }
 
@@ -618,7 +697,7 @@ async function handleIncomingMessage(
 
     const dateSlots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, inputDateStr);
     if (dateSlots.length === 0) {
-      await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך זה. נסו תאריך אחר.");
+      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].noSlotsDate);
       return;
     }
 
@@ -647,7 +726,7 @@ async function handleIncomingMessage(
         from,
         NAME_THANKS[session.language](candidate)
       );
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, candidate);
+      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, candidate, session.language ?? "he");
       return;
     }
     // Re-ask once and bail.
@@ -707,7 +786,7 @@ async function handleIncomingMessage(
                 await sendTextMessage(businessPhoneNumberId, from, "התור שלך בוטל. תוכל לקבוע תור חדש בכל עת 👋");
               }
             } else {
-              await sendTextMessage(businessPhoneNumberId, from, "לא ניתן לשנות את סטטוס התור כרגע.");
+              await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].cantChangeStatus);
             }
             return;
           }
@@ -718,7 +797,7 @@ async function handleIncomingMessage(
     }
 
     if (interactionId === "menu_book") {
-      await sendServiceList(businessPhoneNumberId, from, ctx.services);
+      await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
       return;
     }
 
@@ -748,12 +827,9 @@ async function handleIncomingMessage(
       const service = ctx.services.find((s: any) => s.id === serviceId);
       if (service?.price_type === "discuss") {
         const bizWhatsApp = ctx.biz.phone.replace(/[^0-9]/g, "");
-        await sendTextMessage(
-          businessPhoneNumberId,
-          from,
-          `שירות זה דורש תיאום עם בעל העסק.\n📞 צרו קשר בוואטסאפ: https://wa.me/${bizWhatsApp}`
-        );
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+        const bf0 = BOOKING_FLOW_I18N[session.language ?? "he"];
+        await sendTextMessage(businessPhoneNumberId, from, bf0.discussService(bizWhatsApp));
+        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
         return;
       }
 
@@ -761,11 +837,12 @@ async function handleIncomingMessage(
         booking: { step: "select_date", serviceId, serviceName },
       });
 
+      const bf1 = BOOKING_FLOW_I18N[session.language ?? "he"];
       await sendButtonMessage(businessPhoneNumberId, from,
-        `${serviceName} ✂️\nאיך תרצו לבחור תאריך?`,
+        `${serviceName} ✂️\n${bf1.howPickDate}`,
         [
-          { id: "flow_quick", title: "📅 התאריכים הקרובים" },
-          { id: "flow_specific", title: "📆 תאריך אחר" },
+          { id: "flow_quick", title: bf1.quickDates },
+          { id: "flow_specific", title: bf1.specificDate },
         ]
       );
       return;
@@ -776,13 +853,14 @@ async function handleIncomingMessage(
       updateSession(from, businessPhoneNumberId, { bookingFlow: "quick" });
       const dates = await findNextAvailableDates(ctx.biz.businessId, session.booking.serviceId, ctx.maxFutureDays);
 
+      const bf2 = BOOKING_FLOW_I18N[session.language ?? "he"];
       if (dates.length === 0) {
-        await sendTextMessage(businessPhoneNumberId, from, "אין תאריכים פנויים בשבועיים הקרובים 😔");
+        await sendTextMessage(businessPhoneNumberId, from, bf2.noDates);
         return;
       }
 
       await sendButtonMessage(businessPhoneNumberId, from,
-        `${session.booking.serviceName} ✂️\nבחרו תאריך:`,
+        `${session.booking.serviceName} ✂️\n${bf2.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
       return;
@@ -791,7 +869,7 @@ async function handleIncomingMessage(
     // Specific date flow — prompt for DD/MM/YYYY input
     if (interactionId === "flow_specific" && session.booking?.step === "select_date") {
       updateSession(from, businessPhoneNumberId, { bookingFlow: "specific" });
-      await sendTextMessage(businessPhoneNumberId, from, "הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)");
+      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].typeDate);
       return;
     }
 
@@ -800,16 +878,16 @@ async function handleIncomingMessage(
       const date = interactionId.replace("date_", "");
       const slots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, date);
 
+      const bf3 = BOOKING_FLOW_I18N[session.language ?? "he"];
       if (slots.length === 0) {
-        await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר.");
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+        await sendTextMessage(businessPhoneNumberId, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
+        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
         return;
       }
 
       updateSession(from, businessPhoneNumberId, {
         booking: { ...session.booking, date },
       });
-      // Re-read session after update so sendTimePeriodOrSlots sees the stored date
       const updatedSession = { ...session, booking: { ...session.booking, date } };
       await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
       return;
@@ -826,12 +904,11 @@ async function handleIncomingMessage(
       const periodSlots = grouped[period] || [];
 
       if (periodSlots.length === 0) {
-        // Race condition: that period filled up — re-show remaining periods
         const remaining = slots;
         if (remaining.length === 0) {
-          await sendTextMessage(businessPhoneNumberId, from, "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר.");
+          await sendTextMessage(businessPhoneNumberId, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
           updateSession(from, businessPhoneNumberId, { booking: undefined });
-          await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+          await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
           return;
         }
         const updatedSession = { ...session };
@@ -843,13 +920,7 @@ async function handleIncomingMessage(
         booking: { ...session.booking, step: "select_time" },
       });
 
-      await sendTimeSlotsGrouped(
-        businessPhoneNumberId,
-        from,
-        session.booking.serviceName,
-        session.booking.date!,
-        periodSlots
-      );
+      await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, session.booking.date!, periodSlots, session.language ?? "he");
       return;
     }
 
@@ -862,11 +933,12 @@ async function handleIncomingMessage(
         booking: { ...session.booking, step: "confirm", time: startTime },
       });
 
+      const bfConf = BOOKING_FLOW_I18N[session.language ?? "he"];
       await sendButtonMessage(businessPhoneNumberId, from,
-        `📋 סיכום הזמנה:\n✂️ ${session.booking.serviceName}\n📅 ${session.booking.date?.slice(5).replace("-", "/")}\n🕐 ${timeLabel}\n\nלאשר?`,
+        bfConf.summary(session.booking.serviceName, session.booking.date?.slice(5).replace("-", "/") ?? "", timeLabel),
         [
-          { id: "confirm_yes", title: "✅ אישור" },
-          { id: "confirm_no", title: "❌ ביטול" },
+          { id: "confirm_yes", title: bfConf.confirmYes },
+          { id: "confirm_no", title: bfConf.confirmNo },
         ]
       );
       return;
@@ -921,7 +993,7 @@ async function handleIncomingMessage(
     if (interactionId === "confirm_no") {
       updateSession(from, businessPhoneNumberId, { booking: undefined });
       await sendTextMessage(businessPhoneNumberId, from, "ההזמנה בוטלה. 👋");
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
       return;
     }
   }
@@ -935,7 +1007,7 @@ async function handleIncomingMessage(
       await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
       return;
     }
-    await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName);
+    await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
     return;
   }
 
@@ -948,7 +1020,7 @@ async function handleIncomingMessage(
       await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
       return;
     }
-    await sendServiceList(businessPhoneNumberId, from, ctx.services);
+    await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
     return;
   }
 
