@@ -844,6 +844,16 @@ async function handleIncomingMessage(
         from,
         NAME_THANKS[session.language](candidate)
       );
+
+      // Resume pending intent if one was saved before name was known
+      if (session.pendingIntent) {
+        const intent = session.pendingIntent;
+        updateSession(from, businessPhoneNumberId, { pendingIntent: undefined });
+        const updatedSession = { ...session, customerName: candidate, awaitingName: false, pendingIntent: undefined };
+        await resumeFromIntent(from, businessPhoneNumberId, updatedSession, ctx, intent);
+        return;
+      }
+
       await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, candidate, session.language ?? "he");
       return;
     }
@@ -1114,6 +1124,24 @@ async function handleIncomingMessage(
       await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
       return;
     }
+  }
+
+  // Intent extraction: parse service/date/time from free-text (only when not mid-flow)
+  if (!interactionId && !session.booking && !session.awaitingName) {
+    const { dateStr: todayDate } = getIsraelDate();
+    const intent = await extractBookingIntent(text, ctx.services as any, session.language, todayDate);
+
+    if (intent.confidence === "high") {
+      if (!session.customerName) {
+        updateSession(from, businessPhoneNumberId, { awaitingName: true, pendingIntent: intent });
+        session.awaitingName = true;
+        await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+        return;
+      }
+      await resumeFromIntent(from, businessPhoneNumberId, session, ctx, intent);
+      return;
+    }
+    // confidence=low: fall through to normal greeting/booking pattern matching
   }
 
   // Greetings → show main menu (no Claude needed)
