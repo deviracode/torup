@@ -1207,7 +1207,7 @@ async function handleIncomingMessage(
   }
 
   // Booking intent → redirect to structured button flow
-  const bookingPatterns = /תור|הזמנ|לקבוע|לזמן|book|appointment|schedule|reserve|حجز|موعد/i;
+  const bookingPatterns = /תור|הזמנ|לקבוע|לזמן|book|appointment|schedule|reserve|حجز|موعد|دور|بدي|بغي|نبي|احجز|حاجز|قص.*شعر|شعر.*قص|تسريح|صبغ.*شعر|شعر.*صبغ/i;
   if (bookingPatterns.test(text.trim())) {
     if (!session.customerName) {
       updateSession(from, businessPhoneNumberId, { awaitingName: true });
@@ -1229,6 +1229,13 @@ async function handleIncomingMessage(
   });
 
   addMessage(from, businessPhoneNumberId, "user", text);
+
+  // If Claude signals booking intent, redirect to structured service list
+  if (response.trim() === "SHOW_BOOKING_MENU") {
+    await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
+    return;
+  }
+
   addMessage(from, businessPhoneNumberId, "assistant", response);
   await sendTextMessage(businessPhoneNumberId, from, response);
 }
