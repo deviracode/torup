@@ -204,6 +204,12 @@ const PENDING_APPROVAL_MSG: Record<"he" | "ar" | "en", (svc: string, dateLabel: 
     `📩 Your booking request was received!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ Awaiting the business owner's approval. We'll message you the moment it's approved.`,
 };
 
+const CHAIN_BOOKING_MSG: Record<"he" | "ar" | "en", (remaining: number) => string> = {
+  he: (n) => `רוצים לקבוע תור לעוד ${n} ${n === 1 ? "אדם" : "אנשים"}?`,
+  ar: (n) => `هل تريد حجز موعد لـ ${n} ${n === 1 ? "شخص آخر" : "أشخاص آخرين"} أيضاً؟`,
+  en: (n) => `Want to book for ${n} more ${n === 1 ? "person" : "people"}?`,
+};
+
 const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   he: "יש לך כבר תור פעיל אצלנו 📌\nניתן לקבוע תור חדש רק לאחר שהתור הקיים יסתיים או יבוטל. אפשר לראות את התור ב\"התורים שלי\".",
   ar: "لديك بالفعل موعد نشط 📌\nيمكنك حجز موعد جديد فقط بعد انتهاء أو إلغاء الموعد الحالي. يمكنك رؤية موعدك في \"مواعيدي\".",
@@ -1108,6 +1114,20 @@ async function handleIncomingMessage(
             timeLabel
           )
         );
+
+        // Party size chaining: offer to book for remaining people
+        const chain = session.chainRemaining ?? 0;
+        if (chain > 0) {
+          updateSession(from, businessPhoneNumberId, { chainRemaining: chain - 1 });
+          const lang = session.language ?? "he";
+          await sendButtonMessage(businessPhoneNumberId, from,
+            CHAIN_BOOKING_MSG[lang](chain),
+            [
+              { id: "chain_yes", title: lang === "ar" ? "نعم" : lang === "en" ? "Yes" : "כן" },
+              { id: "chain_no", title: lang === "ar" ? "لا" : lang === "en" ? "No" : "לא" },
+            ]
+          );
+        }
       } else if (result === "already_booked") {
         await sendTextMessage(businessPhoneNumberId, from, ALREADY_BOOKED_MSG[session.language]);
       } else {
@@ -1121,6 +1141,35 @@ async function handleIncomingMessage(
     if (interactionId === "confirm_no") {
       updateSession(from, businessPhoneNumberId, { booking: undefined });
       await sendTextMessage(businessPhoneNumberId, from, "ההזמנה בוטלה. 👋");
+      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+      return;
+    }
+
+    if (interactionId === "chain_yes" && session.booking) {
+      const serviceId = session.booking.serviceId;
+      const serviceName = session.booking.serviceName;
+      const date = session.booking.date!;
+      const lang = session.language ?? "he";
+
+      const slots = await getAvailableTimeSlots(ctx.biz.businessId, serviceId, date);
+      if (slots.length === 0) {
+        const bf = BOOKING_FLOW_I18N[lang];
+        await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
+        updateSession(from, businessPhoneNumberId, { booking: undefined, chainRemaining: undefined });
+        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, lang);
+        return;
+      }
+
+      updateSession(from, businessPhoneNumberId, {
+        booking: { step: "select_date", serviceId, serviceName, date },
+      });
+      const updatedSession = { ...session, booking: { step: "select_date" as const, serviceId, serviceName, date } };
+      await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
+      return;
+    }
+
+    if (interactionId === "chain_no") {
+      updateSession(from, businessPhoneNumberId, { booking: undefined, chainRemaining: undefined });
       await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
       return;
     }
