@@ -10,6 +10,7 @@ import {
 import { detectLanguage } from "./language.js";
 import { processMessage } from "./agent.js";
 import { sendTextMessage, sendButtonMessage, sendListMessage, markAsRead } from "./whatsapp-api.js";
+import { extractBookingIntent, type BookingIntent } from "./intent.js";
 import { createClient } from "@torup/db";
 
 const app: Express = express();
@@ -207,6 +208,12 @@ const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   he: "יש לך כבר תור פעיל אצלנו 📌\nניתן לקבוע תור חדש רק לאחר שהתור הקיים יסתיים או יבוטל. אפשר לראות את התור ב\"התורים שלי\".",
   ar: "لديك بالفعل موعد نشط 📌\nيمكنك حجز موعد جديد فقط بعد انتهاء أو إلغاء الموعد الحالي. يمكنك رؤية موعدك في \"مواعيدي\".",
   en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
+};
+
+const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) => string> = {
+  he: (t, d) => `⚠️ השעה ${t}:00 ב-${d} תפוסה. בחרו תאריך אחר:`,
+  ar: (t, d) => `⚠️ الوقت ${t}:00 في ${d} محجوز. اختر تاريخاً آخر:`,
+  en: (t, d) => `⚠️ ${t}:00 on ${d} is taken. Choose another date:`,
 };
 
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
@@ -621,6 +628,117 @@ async function sendTimePeriodOrSlots(
     to,
     `${session.booking!.serviceName} ✂️\n${session.booking!.date!.slice(5).replace("-", "/")}\n${i18n.choosePartOfDay}`,
     buttons
+  );
+}
+
+async function resumeFromIntent(
+  from: string,
+  businessPhoneNumberId: string,
+  session: ConversationSession,
+  ctx: { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; maxFutureDays: number },
+  intent: BookingIntent
+) {
+  const lang = session.language ?? "he";
+
+  if (!intent.service_id) {
+    await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    return;
+  }
+
+  const service = ctx.services.find((s: any) => s.id === intent.service_id);
+  if (!service) {
+    await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    return;
+  }
+
+  const serviceName =
+    (lang === "ar" && service.name_ar
+      ? service.name_ar
+      : lang === "en" && service.name_en
+      ? service.name_en
+      : service.name_he) || service.name_he;
+
+  updateSession(from, businessPhoneNumberId, {
+    booking: { step: "select_date", serviceId: intent.service_id, serviceName },
+  });
+
+  if (!intent.date) {
+    const bf = BOOKING_FLOW_I18N[lang];
+    await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.howPickDate}`, [
+      { id: "flow_quick", title: bf.quickDates },
+      { id: "flow_specific", title: bf.specificDate },
+    ]);
+    return;
+  }
+
+  const slots = await getAvailableTimeSlots(ctx.biz.businessId, intent.service_id, intent.date);
+
+  if (slots.length === 0) {
+    const bf = BOOKING_FLOW_I18N[lang];
+    await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
+    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays);
+    if (dates.length > 0) {
+      await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
+        dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
+      );
+    }
+    return;
+  }
+
+  if (intent.time_hour === null) {
+    updateSession(from, businessPhoneNumberId, {
+      booking: { step: "select_date", serviceId: intent.service_id, serviceName, date: intent.date },
+    });
+    const updatedSession = { ...session, booking: { step: "select_date" as const, serviceId: intent.service_id, serviceName, date: intent.date } };
+    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
+    return;
+  }
+
+  const exactSlot = slots.find((s) => {
+    const ilParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Jerusalem",
+      hour: "numeric",
+      hour12: false,
+    }).formatToParts(new Date(s.time));
+    const h = Number(ilParts.find((p) => p.type === "hour")?.value ?? -1);
+    return h === intent.time_hour;
+  });
+
+  if (!exactSlot) {
+    const dateDisplay = intent.date.slice(5).replace("-", "/");
+    await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](String(intent.time_hour), dateDisplay));
+    const bf = BOOKING_FLOW_I18N[lang];
+    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays);
+    if (dates.length > 0) {
+      await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
+        dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
+      );
+    }
+    return;
+  }
+
+  if (intent.party_size > 1) {
+    updateSession(from, businessPhoneNumberId, { chainRemaining: intent.party_size - 1 });
+  }
+
+  updateSession(from, businessPhoneNumberId, {
+    booking: { step: "confirm", serviceId: intent.service_id, serviceName, date: intent.date, time: exactSlot.time },
+  });
+
+  const timeLabel = new Date(exactSlot.time).toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jerusalem",
+  });
+
+  const bfConf = BOOKING_FLOW_I18N[lang];
+  await sendButtonMessage(businessPhoneNumberId, from,
+    bfConf.summary(serviceName, intent.date.slice(5).replace("-", "/"), timeLabel),
+    [
+      { id: "confirm_yes", title: bfConf.confirmYes },
+      { id: "confirm_no", title: bfConf.confirmNo },
+    ]
   );
 }
 
