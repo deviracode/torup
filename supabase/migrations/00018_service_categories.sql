@@ -25,15 +25,12 @@ CREATE POLICY "Business members can read categories"
     business_id IN (
       SELECT business_id FROM business_members WHERE user_id = auth.uid()
     )
-    OR business_id IN (
-      SELECT id FROM businesses WHERE owner_id = auth.uid()
-    )
   );
 
 CREATE POLICY "Owners can manage categories"
   ON service_categories FOR ALL
   USING (
     business_id IN (
-      SELECT id FROM businesses WHERE owner_id = auth.uid()
+      SELECT business_id FROM business_members WHERE user_id = auth.uid() AND role = 'owner'
     )
   );
