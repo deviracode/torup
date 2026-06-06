@@ -24,7 +24,7 @@ interface BusinessContext {
 function buildSystemPrompt(ctx: BusinessContext): string {
   const langInstructions: Record<string, string> = {
     he: "תענה בעברית. היה ידידותי וקצר.",
-    ar: "أجب بالعربية. كن ودودا ومختصرا.",
+    ar: "احكي باللهجة الفلسطينية (عامية فلسطينية/شامية). كون ودودة ومختصرة. استخدمي كلمات زي: بدك، هلأ، شو، هاد، كمان، بكرا، يسلمو.",
     en: "Reply in English. Be friendly and concise.",
   };
 

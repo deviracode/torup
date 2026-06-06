@@ -23,27 +23,27 @@ function fillTemplate(template: string, vars: TemplateVars): string {
 const templates = {
   booking_confirmation: {
     he: "שלום {customer_name} 👋\nהתור שלך ב-{business_name} אושר!\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nנתראה!",
-    ar: "مرحبا {customer_name} 👋\nتم تأكيد موعدك في {business_name}!\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nنراك هناك!",
+    ar: "أهلين {customer_name} 👋\nتأكد دورك عند {business_name}!\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nنشوفك! 😊",
     en: "Hi {customer_name} 👋\nYour appointment at {business_name} is confirmed!\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nSee you there!",
   },
   reminder_24h: {
     he: "תזכורת 📅\nיש לך תור מחר ב-{business_name}\n\n📋 {service_name}\n⏰ {time}\n\nלביטול או שינוי, שלח/י הודעה.",
-    ar: "تذكير 📅\nلديك موعد غدا في {business_name}\n\n📋 {service_name}\n⏰ {time}\n\nللإلغاء أو التغيير، أرسل رسالة.",
+    ar: "تذكير 📅\nعندك دور بكرا عند {business_name}\n\n📋 {service_name}\n⏰ {time}\n\nإذا بدك تلغي أو تغير، ابعتلنا رسالة.",
     en: "Reminder 📅\nYou have an appointment tomorrow at {business_name}\n\n📋 {service_name}\n⏰ {time}\n\nTo cancel or reschedule, send a message.",
   },
   reminder_2h: {
     he: "תזכורת ⏰\nהתור שלך ב-{business_name} בעוד שעתיים!\n\n📋 {service_name}\n⏰ {time}",
-    ar: "تذكير ⏰\nموعدك في {business_name} بعد ساعتين!\n\n📋 {service_name}\n⏰ {time}",
+    ar: "تذكير ⏰\nدورك عند {business_name} بعد ساعتين!\n\n📋 {service_name}\n⏰ {time}",
     en: "Reminder ⏰\nYour appointment at {business_name} is in 2 hours!\n\n📋 {service_name}\n⏰ {time}",
   },
   cancellation: {
     he: "התור שלך ב-{business_name} בוטל.\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nלקביעת תור חדש, שלח/י הודעה.",
-    ar: "تم إلغاء موعدك في {business_name}.\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nلحجز موعد جديد، أرسل رسالة.",
+    ar: "اتلغى دورك عند {business_name}.\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nإذا بدك تحجزي دور جديد، ابعتيلنا رسالة.",
     en: "Your appointment at {business_name} has been cancelled.\n\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nTo book a new appointment, send a message.",
   },
   reschedule: {
     he: "התור שלך ב-{business_name} שונה.\n\n📋 {service_name}\n📅 {date} (חדש)\n⏰ {time} (חדש)\n\nנתראה!",
-    ar: "تم تغيير موعدك في {business_name}.\n\n📋 {service_name}\n📅 {date} (جديد)\n⏰ {time} (جديد)\n\nنراك هناك!",
+    ar: "اتغير دورك عند {business_name}.\n\n📋 {service_name}\n📅 {date} (جديد)\n⏰ {time} (جديد)\n\nنشوفك! 😊",
     en: "Your appointment at {business_name} has been rescheduled.\n\n📋 {service_name}\n📅 {date} (new)\n⏰ {time} (new)\n\nSee you there!",
   },
 } as const;
