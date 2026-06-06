@@ -93,7 +93,7 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
     const startOfToday = new Date(now);
     startOfToday.setUTCHours(startOfToday.getUTCHours() - 3);
     startOfToday.setUTCHours(0, 0, 0, 0);
-    const sixtyDaysLater = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    const sixtyDaysLater = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
 
     const res = await calendar.events.list({
       calendarId: config.google_calendar_id,
