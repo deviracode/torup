@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import {
   Card, CardContent, Input, Button, Skeleton,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@torup/ui";
 import { Search } from "lucide-react";
 
@@ -27,6 +28,11 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLang, setEditLang] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,6 +56,38 @@ export default function CustomersPage() {
   }, [businessId, search, session?.access_token]);
 
   useEffect(() => { if (businessId) fetchCustomers(); }, [businessId, fetchCustomers]);
+
+  function openEdit(c: Customer) {
+    setSelectedCustomer(c);
+    setEditName(c.name);
+    setEditPhone(c.phone);
+    setEditLang(c.language_preference);
+    setSaveError(null);
+  }
+
+  function closeEdit() {
+    setSelectedCustomer(null);
+    setSaveError(null);
+  }
+
+  async function handleSave() {
+    if (!selectedCustomer || !businessId || !session?.access_token) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await apiFetch<Customer>(
+        `/api/businesses/${businessId}/customers/${selectedCustomer.id}`,
+        { method: "PATCH", body: JSON.stringify({ name: editName, phone: editPhone, language_preference: editLang }) },
+        session.access_token
+      );
+      setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+      setSelectedCustomer(updated);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : tCommon("error"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div>
@@ -95,15 +133,15 @@ export default function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {customers.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableRow key={c.id} className={selectedCustomer?.id === c.id ? "bg-muted/50" : ""}>
+                    <TableCell className="font-medium">{c.name || <span className="text-muted-foreground italic">—</span>}</TableCell>
                     <TableCell className="text-muted-foreground" dir="ltr">{c.phone}</TableCell>
                     <TableCell className="text-muted-foreground">{c.language_preference}</TableCell>
                     <TableCell className="text-end">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSelectedCustomer(selectedCustomer?.id === c.id ? null : c)}
+                        onClick={() => selectedCustomer?.id === c.id ? closeEdit() : openEdit(c)}
                       >
                         {selectedCustomer?.id === c.id ? tCommon("close") : tCommon("edit")}
                       </Button>
@@ -119,16 +157,45 @@ export default function CustomersPage() {
       {selectedCustomer && (
         <Card className="mt-4">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">{selectedCustomer.name}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">{t("customerPhone")}:</span>
-                <span className="ms-2" dir="ltr">{selectedCustomer.phone}</span>
+            <h3 className="text-lg font-semibold mb-4">{tCommon("edit")}: {selectedCustomer.name || selectedCustomer.phone}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-muted-foreground">{t("customerName")}</label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder={t("customerName")}
+                />
               </div>
-              <div>
-                <span className="text-muted-foreground">{tCommon("language")}:</span>
-                <span className="ms-2">{selectedCustomer.language_preference}</span>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-muted-foreground">{t("customerPhone")}</label>
+                <Input
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  dir="ltr"
+                  placeholder={t("customerPhone")}
+                />
               </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-muted-foreground">{tCommon("language")}</label>
+                <Select value={editLang} onValueChange={setEditLang}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="he">עברית</SelectItem>
+                    <SelectItem value="ar">العربية</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {saveError && <p className="text-sm text-destructive mt-3">{saveError}</p>}
+            <div className="flex gap-2 mt-4">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? tCommon("loading") : tCommon("save")}
+              </Button>
+              <Button variant="outline" onClick={closeEdit}>{tCommon("cancel")}</Button>
             </div>
           </CardContent>
         </Card>
