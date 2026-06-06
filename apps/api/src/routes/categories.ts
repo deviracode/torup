@@ -49,15 +49,13 @@ router.patch(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const supabase = createServiceClient();
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("service_categories")
         .update(req.body)
         .eq("id", getParam(req, "categoryId"))
-        .eq("business_id", getBusinessId(req))
-        .select()
-        .single();
+        .eq("business_id", getBusinessId(req));
       if (error) throw new AppError(400, error.message);
-      res.json(data);
+      res.json({ ok: true });
     } catch (err) { next(err); }
   }
 );

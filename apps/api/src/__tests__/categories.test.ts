@@ -46,7 +46,7 @@ describe("Categories API", () => {
   it("PATCH /:categoryId updates category", async () => {
     const res = await request(app).patch("/cat-1").send({ name_he: "תסרוקות חדש" });
     expect(res.status).toBe(200);
-    expect(res.body.name_he).toBe("תסרוקות חדש");
+    expect(res.body.ok).toBe(true);
   });
 
   it("DELETE /:categoryId returns 204", async () => {

@@ -84,11 +84,10 @@ router.patch(
         .update(req.body)
         .eq("id", getParam(req, "serviceId"))
         .eq("business_id", getBusinessId(req))
-        .select()
-        .single();
+        .select();
 
       if (error) throw new AppError(400, error.message);
-      res.json(data);
+      res.json(data?.[0] ?? {});
     } catch (err) {
       next(err);
     }
