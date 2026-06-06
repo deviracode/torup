@@ -665,7 +665,12 @@ function SettingsPageInner() {
                 {staff.map((m) => (
                   <div key={m.id} className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-sm">
                     <div>
-                      <span className="font-medium">{m.user?.user_metadata?.name || m.user_id}</span>
+                      <span className="font-medium">
+                        {m.user?.user_metadata?.name || m.user?.email || m.user_id}
+                      </span>
+                      {m.user?.email && m.user?.user_metadata?.name && (
+                        <span className="ms-2 text-xs text-muted-foreground">{m.user.email}</span>
+                      )}
                       <span className={`ms-2 inline-block rounded-full px-2 py-0.5 text-xs ${m.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
                         {t(m.role as "owner" | "staff")}
                       </span>

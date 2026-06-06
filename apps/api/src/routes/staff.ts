@@ -26,7 +26,29 @@ router.get(
         .order("created_at");
 
       if (error) throw new AppError(500, error.message);
-      res.json(data);
+      if (!data || data.length === 0) { res.json([]); return; }
+
+      // Enrich with auth user data (email + name)
+      const userResults = await Promise.all(
+        data.map((m: Record<string, unknown>) =>
+          supabase.auth.admin.getUserById(m.user_id as string)
+        )
+      );
+
+      const enriched = data.map((m: Record<string, unknown>, i: number) => {
+        const authUser = userResults[i].data?.user;
+        return {
+          ...m,
+          user: authUser
+            ? {
+                email: authUser.email,
+                user_metadata: authUser.user_metadata,
+              }
+            : undefined,
+        };
+      });
+
+      res.json(enriched);
     } catch (err) {
       next(err);
     }
