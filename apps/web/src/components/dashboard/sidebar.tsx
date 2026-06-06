@@ -52,9 +52,7 @@ export function Sidebar() {
           className="flex items-center gap-2.5 px-4 mb-6 cursor-pointer"
           onClick={() => router.push(`/${locale}/dashboard`)}
         >
-          <div className="bg-white rounded-lg px-2 py-1">
-            <Image src="/logo.png" alt="TorUp" width={90} height={45} className="object-contain" priority />
-          </div>
+          <Image src="/logo-dark.png" alt="TorUp" width={110} height={55} className="object-contain" priority />
         </div>
 
         {/* Nav items */}
@@ -109,8 +107,8 @@ export function Sidebar() {
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/6 bg-[hsl(242_44%_10%)] px-3 md:hidden">
         {/* Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => router.push(`/${locale}/dashboard`)} aria-label="TorUp" className="bg-white rounded-lg px-1.5 py-0.5">
-            <Image src="/logo.png" alt="TorUp" width={72} height={36} className="object-contain" priority />
+          <button onClick={() => router.push(`/${locale}/dashboard`)} aria-label="TorUp">
+            <Image src="/logo-dark.png" alt="TorUp" width={80} height={40} className="object-contain" priority />
           </button>
         </div>
 
