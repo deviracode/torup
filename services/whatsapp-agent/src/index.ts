@@ -117,7 +117,7 @@ async function getBusinessServices(businessId: string) {
 }
 
 // Cache business info + services + booking rules (5 min TTL)
-const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; maxFutureDays: number; expiresAt: number }>();
+const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
 
 async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const cached = bizCache.get(businessPhoneNumberId);
@@ -131,19 +131,29 @@ async function getCachedBusinessContext(businessPhoneNumberId: string) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || ""
   );
 
-  const [services, rulesResult] = await Promise.all([
+  const [services, rulesResult, categoriesResult] = await Promise.all([
     getBusinessServices(biz.businessId),
     supabase
       .from("booking_rules")
       .select("max_future_days")
       .eq("business_id", biz.businessId)
       .single(),
+    supabase.from("service_categories").select("id, name_he, name_ar, name_en, sort_order").eq("business_id", biz.businessId).order("sort_order"),
   ]);
 
   const maxFutureDays = rulesResult.data?.max_future_days ?? 30;
-  const entry = { biz, services, maxFutureDays, expiresAt: Date.now() + 5 * 60 * 1000 };
+  const categories = categoriesResult.data || [];
+  const entry = { biz, services, categories, maxFutureDays, expiresAt: Date.now() + 5 * 60 * 1000 };
   bizCache.set(businessPhoneNumberId, entry);
   return entry;
+}
+
+function shouldShowCategories(
+  categories: Array<{ id: string }>,
+  services: Array<{ category_id?: string | null }>
+): boolean {
+  if (categories.length === 0) return false;
+  return services.some((s) => s.category_id != null);
 }
 
 const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
@@ -227,6 +237,31 @@ const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: st
   ar: { prompt: "شو بدك تعملي؟", button: "شوفي الخدمات", section: "الخدمات", discuss: "اتفقي مع صاحب المحل", min: "دقيقة" },
   en: { prompt: "Choose a service:", button: "Show Services", section: "Services", discuss: "Discuss with owner", min: "min" },
 };
+
+const CATEGORY_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; more: string }> = {
+  he: { prompt: "בחרו קטגוריה:", button: "הצג קטגוריות", section: "קטגוריות", more: "שירותים נוספים" },
+  ar: { prompt: "اختاري الفئة:", button: "شوفي الفئات", section: "الفئات", more: "خدمات أخرى" },
+  en: { prompt: "Choose a category:", button: "Show Categories", section: "Categories", more: "More services" },
+};
+
+async function sendCategoryList(
+  phoneNumberId: string,
+  to: string,
+  categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null }>,
+  hasUncategorized: boolean,
+  language: "he" | "ar" | "en" = "he"
+) {
+  const i18n = CATEGORY_LIST_I18N[language];
+  const rows = categories.map((c) => ({
+    id: `category_${c.id}`,
+    title: (language === "ar" && c.name_ar ? c.name_ar : language === "en" && c.name_en ? c.name_en : c.name_he).slice(0, 24),
+    description: "",
+  }));
+  if (hasUncategorized) {
+    rows.push({ id: "category_uncategorized", title: i18n.more, description: "" });
+  }
+  await sendListMessage(phoneNumberId, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows }]);
+}
 
 async function sendServiceList(phoneNumberId: string, to: string, services: Record<string, any>[], language: "he" | "ar" | "en" = "he") {
   const i18n = SERVICE_LIST_I18N[language];
@@ -972,7 +1007,13 @@ async function handleIncomingMessage(
     }
 
     if (interactionId === "menu_book") {
-      await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
+      const lang = session.language ?? "he";
+      if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
+        const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
+        await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+      } else {
+        await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+      }
       return;
     }
 
@@ -999,6 +1040,16 @@ async function handleIncomingMessage(
       addMessage(from, businessPhoneNumberId, "user", prompt);
       addMessage(from, businessPhoneNumberId, "assistant", response);
       await sendTextMessage(businessPhoneNumberId, from, response);
+      return;
+    }
+
+    if (interactionId.startsWith("category_")) {
+      const categoryId = interactionId.replace("category_", "");
+      const lang = session.language ?? "he";
+      const filtered = categoryId === "uncategorized"
+        ? ctx.services.filter((s: any) => !s.category_id)
+        : ctx.services.filter((s: any) => s.category_id === categoryId);
+      await sendServiceList(businessPhoneNumberId, from, filtered, lang);
       return;
     }
 
@@ -1265,7 +1316,13 @@ async function handleIncomingMessage(
       await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
       return;
     }
-    await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
+    const lang = session.language ?? "he";
+    if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
+      const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
+      await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+    } else {
+      await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    }
     return;
   }
 
@@ -1282,7 +1339,13 @@ async function handleIncomingMessage(
 
   // If Claude signals booking intent, redirect to structured service list
   if (response.trim() === "SHOW_BOOKING_MENU") {
-    await sendServiceList(businessPhoneNumberId, from, ctx.services, session.language ?? "he");
+    const lang = session.language ?? "he";
+    if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
+      const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
+      await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+    } else {
+      await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    }
     return;
   }
 
