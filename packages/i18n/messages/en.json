@@ -163,7 +163,20 @@
     "days7": "7 days",
     "days30": "30 days",
     "days90": "90 days",
-    "manageRequest": "Manage request"
+    "manageRequest": "Manage request",
+    "services": "Services",
+    "serviceName": "Service name",
+    "serviceCategory": "Category",
+    "noCategory": "No category",
+    "newCategory": "+ New category",
+    "categoryName": "Category name",
+    "addService": "Add service",
+    "duration": "Duration (min)",
+    "priceType": "Price type",
+    "priceTypeFixed": "Fixed price",
+    "priceTypeDiscuss": "Discuss",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "admin": {
     "businesses": "Businesses",

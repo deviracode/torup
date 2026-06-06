@@ -163,7 +163,20 @@
     "days7": "7 ימים",
     "days30": "30 ימים",
     "days90": "90 ימים",
-    "manageRequest": "טיפול בבקשה"
+    "manageRequest": "טיפול בבקשה",
+    "services": "שירותים",
+    "serviceName": "שם השירות",
+    "serviceCategory": "קטגוריה",
+    "noCategory": "ללא קטגוריה",
+    "newCategory": "+ קטגוריה חדשה",
+    "categoryName": "שם קטגוריה",
+    "addService": "הוסף שירות",
+    "duration": "משך (דקות)",
+    "priceType": "סוג מחיר",
+    "priceTypeFixed": "מחיר קבוע",
+    "priceTypeDiscuss": "לדיון",
+    "moveUp": "העבר למעלה",
+    "moveDown": "העבר למטה"
   },
   "admin": {
     "businesses": "עסקים",

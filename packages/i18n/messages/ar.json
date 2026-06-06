@@ -163,7 +163,20 @@
     "days7": "7 أيام",
     "days30": "30 يوماً",
     "days90": "90 يوماً",
-    "manageRequest": "إدارة الطلب"
+    "manageRequest": "إدارة الطلب",
+    "services": "الخدمات",
+    "serviceName": "اسم الخدمة",
+    "serviceCategory": "الفئة",
+    "noCategory": "بدون فئة",
+    "newCategory": "+ فئة جديدة",
+    "categoryName": "اسم الفئة",
+    "addService": "أضف خدمة",
+    "duration": "المدة (دقائق)",
+    "priceType": "نوع السعر",
+    "priceTypeFixed": "سعر ثابت",
+    "priceTypeDiscuss": "للاتفاق",
+    "moveUp": "انقل للأعلى",
+    "moveDown": "انقل للأسفل"
   },
   "admin": {
     "businesses": "الأعمال",

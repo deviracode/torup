@@ -67,7 +67,27 @@ interface BusinessProfile {
   address: string | null;
 }
 
-type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking" | "gcal";
+interface ServiceItem {
+  id: string;
+  name_he: string;
+  name_ar: string | null;
+  name_en: string | null;
+  duration_minutes: number;
+  price: number;
+  price_type: string;
+  sort_order: number;
+  category_id: string | null;
+}
+
+interface ServiceCategory {
+  id: string;
+  name_he: string;
+  name_ar: string | null;
+  name_en: string | null;
+  sort_order: number;
+}
+
+type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking" | "gcal" | "services";
 
 interface GCalStatus {
   connected: boolean;
@@ -116,6 +136,14 @@ function SettingsPageInner() {
 
   // Booking settings state
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
+
+  // Services state
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<string | null>(null);
+  const [serviceForm, setServiceForm] = useState<Partial<ServiceItem>>({});
 
   // Google Calendar state
   const [gcalStatus, setGcalStatus] = useState<GCalStatus | null>(null);
@@ -192,6 +220,16 @@ function SettingsPageInner() {
       } else if (tab === "booking") {
         const r = await apiFetch<{ allow_multiple_bookings: boolean }>(`/api/businesses/${businessId}`, {}, token);
         if (r) setAllowMultipleBookings(r.allow_multiple_bookings ?? false);
+      } else if (tab === "services") {
+        const [svcResult, catResult] = await Promise.all([
+          apiFetch<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
+            `/api/businesses/${businessId}/services`, {}, token
+          ),
+          apiFetch<ServiceCategory[]>(`/api/businesses/${businessId}/categories`, {}, token),
+        ]);
+        const svcList = Array.isArray(svcResult) ? svcResult : (svcResult as { services: ServiceItem[] }).services;
+        setServices(svcList || []);
+        setCategories(catResult || []);
       } else if (tab === "gcal") {
         const status = await apiFetch<GCalStatus>(`/api/businesses/${businessId}/google-calendar/status`, {}, token);
         if (status) setGcalStatus(status);
@@ -389,6 +427,7 @@ function SettingsPageInner() {
     { key: "profile", label: t("businessProfile") },
     { key: "booking", label: t("booking") },
     { key: "gcal", label: "Google Calendar" },
+    { key: "services", label: t("services") },
   ];
 
   return (
@@ -848,6 +887,172 @@ function SettingsPageInner() {
             </button>
           </div>
         )}
+        {/* Services */}
+        {tab === "services" && (
+          <div className="space-y-6">
+            {[
+              ...categories.map((cat) => ({
+                catId: cat.id,
+                label: cat.name_he,
+                items: services.filter((s) => s.category_id === cat.id),
+              })),
+              {
+                catId: null as string | null,
+                label: t("noCategory"),
+                items: services.filter((s) => !s.category_id),
+              },
+            ]
+              .filter((group) => group.items.length > 0 || group.catId === null)
+              .map((group) => (
+                <div key={group.catId ?? "uncategorized"}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                      {group.label}
+                    </h3>
+                    {group.catId && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1 text-xs"
+                          onClick={async () => {
+                            const cat = categories.find((c) => c.id === group.catId);
+                            if (!cat) return;
+                            const newOrder = Math.max(0, cat.sort_order - 1);
+                            await apiFetch(`/api/businesses/${businessId}/categories/${cat.id}`, {
+                              method: "PATCH", body: JSON.stringify({ sort_order: newOrder }),
+                            }, session?.access_token);
+                            setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, sort_order: newOrder } : c).sort((a, b) => a.sort_order - b.sort_order));
+                          }}
+                        >▲</Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1 text-xs"
+                          onClick={async () => {
+                            const cat = categories.find((c) => c.id === group.catId);
+                            if (!cat) return;
+                            const newOrder = cat.sort_order + 1;
+                            await apiFetch(`/api/businesses/${businessId}/categories/${cat.id}`, {
+                              method: "PATCH", body: JSON.stringify({ sort_order: newOrder }),
+                            }, session?.access_token);
+                            setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, sort_order: newOrder } : c).sort((a, b) => a.sort_order - b.sort_order));
+                          }}
+                        >▼</Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {group.items.map((svc) => (
+                      <Card key={svc.id}>
+                        <CardContent className="p-4">
+                          {editingService === svc.id ? (
+                            <div className="space-y-3">
+                              <Input
+                                value={serviceForm.name_he ?? svc.name_he}
+                                onChange={(e) => setServiceForm((f) => ({ ...f, name_he: e.target.value }))}
+                                placeholder={t("serviceName")}
+                              />
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input
+                                  type="number"
+                                  value={serviceForm.duration_minutes ?? svc.duration_minutes}
+                                  onChange={(e) => setServiceForm((f) => ({ ...f, duration_minutes: Number(e.target.value) }))}
+                                  placeholder={t("duration")}
+                                />
+                                <Input
+                                  type="number"
+                                  value={serviceForm.price ?? svc.price}
+                                  onChange={(e) => setServiceForm((f) => ({ ...f, price: Number(e.target.value) }))}
+                                  placeholder={t("price")}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">{t("serviceCategory")}</Label>
+                                <select
+                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={serviceForm.category_id ?? svc.category_id ?? ""}
+                                  onChange={async (e) => {
+                                    const val = e.target.value;
+                                    if (val === "__new__") {
+                                      setShowNewCategoryInput(svc.id);
+                                      return;
+                                    }
+                                    setServiceForm((f) => ({ ...f, category_id: val || null }));
+                                  }}
+                                >
+                                  <option value="">{t("noCategory")}</option>
+                                  {categories.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name_he}</option>
+                                  ))}
+                                  <option value="__new__">{t("newCategory")}</option>
+                                </select>
+                                {showNewCategoryInput === svc.id && (
+                                  <div className="flex gap-2 mt-2">
+                                    <Input
+                                      value={newCategoryName}
+                                      onChange={(e) => setNewCategoryName(e.target.value)}
+                                      placeholder={t("categoryName")}
+                                      className="text-sm"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (!newCategoryName.trim()) return;
+                                        const created = await apiFetch<ServiceCategory>(
+                                          `/api/businesses/${businessId}/categories`,
+                                          { method: "POST", body: JSON.stringify({ name_he: newCategoryName, sort_order: categories.length }) },
+                                          session?.access_token
+                                        );
+                                        setCategories((prev) => [...prev, created]);
+                                        setServiceForm((f) => ({ ...f, category_id: created.id }));
+                                        setNewCategoryName("");
+                                        setShowNewCategoryInput(null);
+                                      }}
+                                    >{tCommon("save")}</Button>
+                                    <Button size="sm" variant="outline" onClick={() => setShowNewCategoryInput(null)}>{tCommon("cancel")}</Button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={async () => {
+                                    const updated = await apiFetch<ServiceItem>(
+                                      `/api/businesses/${businessId}/services/${svc.id}`,
+                                      { method: "PATCH", body: JSON.stringify(serviceForm) },
+                                      session?.access_token
+                                    );
+                                    setServices((prev) => prev.map((s) => s.id === updated.id ? updated : s));
+                                    setEditingService(null);
+                                    setServiceForm({});
+                                  }}
+                                >{tCommon("save")}</Button>
+                                <Button size="sm" variant="outline" onClick={() => { setEditingService(null); setServiceForm({}); }}>{tCommon("cancel")}</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{svc.name_he}</p>
+                                <p className="text-xs text-muted-foreground">{svc.duration_minutes} {t("min")} • ₪{svc.price}</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setEditingService(svc.id); setServiceForm({}); }}
+                              >{tCommon("edit")}</Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
         </CardContent>
       </Card>
     </div>
