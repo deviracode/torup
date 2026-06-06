@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useLocale } from "next-intl";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeUpItem } from "@/components/motion";
@@ -80,16 +81,7 @@ export default function HomePage() {
         className="relative z-10 sticky top-0 flex items-center justify-between px-6 py-4 border-b border-white/6"
         style={{ background: "rgba(6,6,18,0.8)", backdropFilter: "blur(16px)" }}
       >
-        <span
-          className="text-xl font-black tracking-tight"
-          style={{
-            background: "var(--grad-brand)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          TorUp
-        </span>
+        <Image src="/logo.png" alt="TorUp" width={100} height={50} className="object-contain" priority />
         <div className="flex items-center gap-3">
           <Link
             href={`/${locale}/login`}

@@ -3,6 +3,7 @@
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { motion } from "framer-motion";
 import { useLocale } from "next-intl";
+import Image from "next/image";
 
 const FEATURES = [
   { icon: "📅", he: "ניהול תורים אוטומטי",         en: "Automated appointment scheduling" },
@@ -31,16 +32,14 @@ function BrandPanel() {
       />
 
       <div className="relative z-10">
-        <h1
-          className="text-4xl font-black tracking-tight mb-3"
-          style={{
-            background: "var(--grad-brand)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          TorUp
-        </h1>
+        <Image
+          src="/logo.png"
+          alt="TorUp"
+          width={180}
+          height={90}
+          className="mb-4 object-contain"
+          priority
+        />
         <p className="text-sm text-white/50 leading-relaxed mb-8">
           {isRtl
             ? "הפלטפורמה החכמה לניהול תורים לעסקים מודרניים"

@@ -8,6 +8,10 @@ import "../globals.css";
 export const metadata: Metadata = {
   title: "TorUp - Smart Appointment Management",
   description: "AI-powered appointment and queue management for businesses",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
 };
 
 function getDirection(locale: string) {
