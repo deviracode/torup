@@ -41,10 +41,10 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const query = search ? `?search=${encodeURIComponent(search)}` : "";
-      const result = await apiFetch<{ customers: Customer[] }>(
+      const result = await apiFetch<Customer[] | { customers: Customer[] }>(
         `/api/businesses/${businessId}/customers${query}`, {}, session.access_token
       );
-      setCustomers(result.customers || []);
+      setCustomers(Array.isArray(result) ? result : (result.customers || []));
     } catch { setCustomers([]); }
     finally { setLoading(false); }
   }, [businessId, search, session?.access_token]);
