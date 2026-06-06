@@ -30,7 +30,9 @@
     "phone": "هاتف",
     "email": "بريد إلكتروني",
     "password": "كلمة المرور",
-    "status": "الحالة"
+    "status": "الحالة",
+    "approve": "موافقة",
+    "reject": "رفض"
   },
   "nav": {
     "calendar": "التقويم",
@@ -160,7 +162,8 @@
     "deleteServiceConfirm": "هل تريد حذف هذه الخدمة؟",
     "days7": "7 أيام",
     "days30": "30 يوماً",
-    "days90": "90 يوماً"
+    "days90": "90 يوماً",
+    "manageRequest": "إدارة الطلب"
   },
   "admin": {
     "businesses": "الأعمال",

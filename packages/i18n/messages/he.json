@@ -30,7 +30,9 @@
     "phone": "טלפון",
     "email": "אימייל",
     "password": "סיסמה",
-    "status": "סטטוס"
+    "status": "סטטוס",
+    "approve": "אישור",
+    "reject": "דחייה"
   },
   "nav": {
     "calendar": "לוח שנה",
@@ -160,7 +162,8 @@
     "deleteServiceConfirm": "למחוק שירות זה?",
     "days7": "7 ימים",
     "days30": "30 ימים",
-    "days90": "90 ימים"
+    "days90": "90 ימים",
+    "manageRequest": "טיפול בבקשה"
   },
   "admin": {
     "businesses": "עסקים",

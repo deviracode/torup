@@ -30,7 +30,9 @@
     "phone": "Phone",
     "email": "Email",
     "password": "Password",
-    "status": "Status"
+    "status": "Status",
+    "approve": "Approve",
+    "reject": "Reject"
   },
   "nav": {
     "calendar": "Calendar",
@@ -160,7 +162,8 @@
     "deleteServiceConfirm": "Delete this service?",
     "days7": "7 days",
     "days30": "30 days",
-    "days90": "90 days"
+    "days90": "90 days",
+    "manageRequest": "Manage request"
   },
   "admin": {
     "businesses": "Businesses",
