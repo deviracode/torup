@@ -49,10 +49,10 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div
-          className="flex items-center gap-2.5 px-4 mb-6 cursor-pointer"
+          className="flex justify-center px-4 mb-6 cursor-pointer"
           onClick={() => router.push(`/${locale}/dashboard`)}
         >
-          <Image src="/logo.png" alt="TorUp" width={110} height={55} className="object-contain" priority />
+          <Image src="/logo.png" alt="TorUp" width={200} height={100} className="object-contain" priority />
         </div>
 
         {/* Nav items */}
