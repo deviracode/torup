@@ -81,7 +81,7 @@ export default function CustomersPage() {
         session.access_token
       );
       setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
-      setSelectedCustomer(updated);
+      closeEdit();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : tCommon("error"));
     } finally {
