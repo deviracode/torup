@@ -5,6 +5,10 @@ import { createClient } from "@torup/db";
  * Each function talks to the database via Supabase service client.
  */
 
+function normalizePhone(p: string): string {
+  return p.startsWith("972") ? "0" + p.slice(3) : p;
+}
+
 function getSupabase() {
   return createClient(
     process.env.SUPABASE_URL || "",
@@ -80,12 +84,13 @@ export async function executeTool(
 
     case "list_appointments": {
       const { customer_phone } = input;
+      const normalizedPhone = normalizePhone(customer_phone);
 
       // Find customer
       const { data: customer } = await supabase
         .from("customers")
         .select("id")
-        .eq("phone", customer_phone)
+        .eq("phone", normalizedPhone)
         .single();
 
       if (!customer) return "No appointments found.";

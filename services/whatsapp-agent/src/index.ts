@@ -795,6 +795,8 @@ async function handleIncomingMessage(
   }
 
   // --- Customer identification (run once per session) ---
+  const wasAwaitingName = session.awaitingName;
+
   if (!session.customerId) {
     const customer = await loadOrInitCustomer(from, session.language);
     if (customer) {
@@ -807,6 +809,21 @@ async function handleIncomingMessage(
         awaitingName: !customer.name,
       });
     }
+  }
+
+  // If awaitingName was just set THIS request (new customer), extract intent for later
+  // and ask for name — do NOT treat the current message as the name answer
+  if (!wasAwaitingName && session.awaitingName && !interactionId && session.customerId) {
+    if (!session.booking) {
+      const { dateStr: todayDate } = getIsraelDate();
+      const intent = await extractBookingIntent(text, ctx.services as any, session.language, todayDate);
+      if (intent.confidence === "high") {
+        updateSession(from, businessPhoneNumberId, { pendingIntent: intent });
+        session.pendingIntent = intent;
+      }
+    }
+    await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+    return;
   }
 
   // --- Free-text date input for specific booking flow ---
