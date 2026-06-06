@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut } from "lucide-react";
 
 const navItems = [
@@ -51,20 +52,7 @@ export function Sidebar() {
           className="flex items-center gap-2.5 px-4 mb-6 cursor-pointer"
           onClick={() => router.push(`/${locale}/dashboard`)}
         >
-          <div
-            className="w-8 h-8 rounded-[8px] flex-shrink-0"
-            style={{ background: "var(--grad-primary)" }}
-          />
-          <span
-            className="text-base font-black tracking-tight"
-            style={{
-              background: "var(--grad-brand)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            TorUp
-          </span>
+          <Image src="/logo.png" alt="TorUp" width={100} height={50} className="object-contain" priority />
         </div>
 
         {/* Nav items */}
@@ -119,22 +107,9 @@ export function Sidebar() {
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/6 bg-[hsl(242_44%_10%)] px-3 md:hidden">
         {/* Logo */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={() => router.push(`/${locale}/dashboard`)}
-            className="w-8 h-8 rounded-lg"
-            style={{ background: "var(--grad-primary)" }}
-            aria-label="TorUp"
-          />
-          <span
-            className="text-base font-black tracking-tight"
-            style={{
-              background: "var(--grad-brand)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            TorUp
-          </span>
+          <button onClick={() => router.push(`/${locale}/dashboard`)} aria-label="TorUp">
+            <Image src="/logo.png" alt="TorUp" width={80} height={40} className="object-contain" priority />
+          </button>
         </div>
 
         {/* Nav icons — max 4 to avoid overflow */}
