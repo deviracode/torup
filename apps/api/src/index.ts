@@ -21,6 +21,7 @@ import billingRouter from "./routes/billing.js";
 import webhooksRouter from "./routes/webhooks.js";
 import internalRouter from "./routes/internal.js";
 import googleCalendarRouter from "./routes/google-calendar.js";
+import categoriesRouter from "./routes/categories.js";
 import { startReminderScheduler } from "./services/notifications.js";
 import { startGCalSyncScheduler } from "./services/google-calendar.js";
 
@@ -79,6 +80,7 @@ app.use("/api/businesses", businessesRouter);
 
 // Business-scoped routes
 app.use("/api/businesses/:businessId/services", servicesRouter);
+app.use("/api/businesses/:businessId/categories", categoriesRouter);
 app.use("/api/businesses/:businessId", configurationRouter);
 app.use("/api/businesses/:businessId/appointments", appointmentsRouter);
 app.use("/api/businesses/:businessId/availability", availabilityRouter);
