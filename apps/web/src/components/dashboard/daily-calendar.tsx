@@ -230,6 +230,11 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                             {apt.services?.name_he ? " · " : ""}
                             {tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status === "pending_approval" ? "pendingApproval" : apt.status)}
                           </div>
+                          {apt.notes && (
+                            <div className="opacity-50 truncate mt-0.5 italic">
+                              📝 {apt.notes}
+                            </div>
+                          )}
                         </button>
                       );
                     })}

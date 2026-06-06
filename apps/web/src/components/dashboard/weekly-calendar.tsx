@@ -232,6 +232,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                                 <span className="font-semibold">{time}</span>
                                 {" "}
                                 <span className="opacity-80">{apt.customers?.name || ""}</span>
+                                {apt.notes && <span className="opacity-50 ms-1" title={apt.notes}>📝</span>}
                               </button>
                             );
                           })}
