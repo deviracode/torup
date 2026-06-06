@@ -32,14 +32,9 @@ function BrandPanel() {
       />
 
       <div className="relative z-10">
-        <Image
-          src="/logo.png"
-          alt="TorUp"
-          width={180}
-          height={90}
-          className="mb-4 object-contain"
-          priority
-        />
+        <div className="bg-white rounded-xl px-3 py-2 inline-block mb-4">
+          <Image src="/logo.png" alt="TorUp" width={160} height={80} className="object-contain" priority />
+        </div>
         <p className="text-sm text-white/50 leading-relaxed mb-8">
           {isRtl
             ? "הפלטפורמה החכמה לניהול תורים לעסקים מודרניים"
