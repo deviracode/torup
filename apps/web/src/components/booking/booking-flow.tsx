@@ -16,6 +16,14 @@ interface Service {
   price_type: string;
 }
 
+interface ServiceCategory {
+  id: string;
+  name_he: string;
+  name_ar: string | null;
+  name_en: string | null;
+  sort_order: number;
+}
+
 interface Business {
   id: string;
   name: string;
@@ -36,6 +44,12 @@ function getServiceName(service: Service, locale: string) {
   if (locale === "ar" && service.name_ar) return service.name_ar;
   if (locale === "en" && service.name_en) return service.name_en;
   return service.name_he;
+}
+
+function getCategoryName(cat: ServiceCategory, locale: string) {
+  if (locale === "ar" && cat.name_ar) return cat.name_ar;
+  if (locale === "en" && cat.name_en) return cat.name_en;
+  return cat.name_he;
 }
 
 // Shared input class for the light booking page
@@ -84,7 +98,17 @@ function StepIndicator({ current, onStepClick }: { current: Step; locale: string
   );
 }
 
-export function BookingFlow({ business, services, locale }: { business: Business; services: Service[]; locale: string }) {
+export function BookingFlow({
+  business,
+  services,
+  categories,
+  locale,
+}: {
+  business: Business;
+  services: Service[];
+  categories: ServiceCategory[];
+  locale: string;
+}) {
   const t = useTranslations("booking");
   const [step, setStep] = useState<Step>("service");
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -98,6 +122,9 @@ export function BookingFlow({ business, services, locale }: { business: Business
   const [error, setError] = useState("");
   const [bookingResult, setBookingResult] = useState<Record<string, unknown> | null>(null);
   const [maxFutureDays, setMaxFutureDays] = useState(14);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const hasCategories = categories.length > 0 && (services as any[]).some((s) => s.category_id != null);
+  const uncategorizedServices = (services as any[]).filter((s) => !s.category_id);
 
   useEffect(() => {
     apiFetch<{ max_future_days?: number }>(`/api/businesses/${business.id}/booking-rules`)
@@ -184,6 +211,14 @@ export function BookingFlow({ business, services, locale }: { business: Business
     </button>
   );
 
+  const servicesInView: Service[] = !hasCategories
+    ? services
+    : selectedCategory === "uncategorized"
+      ? (uncategorizedServices as Service[])
+      : selectedCategory
+        ? (services as any[]).filter((s) => s.category_id === selectedCategory) as Service[]
+        : [];
+
   return (
     <div className="space-y-6">
       {step !== "confirmed" && <StepIndicator current={step} locale={locale} onStepClick={setStep} />}
@@ -192,12 +227,54 @@ export function BookingFlow({ business, services, locale }: { business: Business
         <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
       )}
 
-      {/* Step 1: Service */}
-      {step === "service" && (
+      {/* Category picker (when categories exist and none selected yet) */}
+      {step === "service" && hasCategories && selectedCategory === null && (
         <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">
+            {locale === "ar" ? "اختاري الفئة" : locale === "en" ? "Choose a category" : "בחרו קטגוריה"}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {categories.map((cat) => {
+              const cnt = (services as any[]).filter((s) => s.category_id === cat.id).length;
+              if (cnt === 0) return null;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className="rounded-xl border-2 border-gray-100 bg-white p-4 text-start hover:border-indigo-300 hover:shadow-sm transition-all"
+                >
+                  <p className="font-semibold text-gray-900">{getCategoryName(cat, locale)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{cnt} {locale === "ar" ? "خدمات" : locale === "en" ? "services" : "שירותים"}</p>
+                </button>
+              );
+            })}
+            {uncategorizedServices.length > 0 && (
+              <button
+                onClick={() => setSelectedCategory("uncategorized")}
+                className="rounded-xl border-2 border-gray-100 bg-white p-4 text-start hover:border-indigo-300 hover:shadow-sm transition-all"
+              >
+                <p className="font-semibold text-gray-900">{locale === "ar" ? "خدمات أخرى" : locale === "en" ? "More services" : "שירותים נוספים"}</p>
+                <p className="text-xs text-gray-400 mt-1">{uncategorizedServices.length} {locale === "ar" ? "خدمات" : locale === "en" ? "services" : "שירותים"}</p>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Service picker (flat list, or filtered after category selected) */}
+      {step === "service" && (!hasCategories || selectedCategory !== null) && (
+        <div>
+          {hasCategories && selectedCategory !== null && (
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 mb-4 hover:bg-indigo-100 transition-colors"
+            >
+              {locale === "ar" ? "← العودة للفئات" : locale === "en" ? "← Back to categories" : "← חזרה לקטגוריות"}
+            </button>
+          )}
           <h2 className="text-lg font-bold text-gray-900 mb-4">{t("selectService")}</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {services.map((service) => (
+            {servicesInView.map((service) => (
               <button
                 key={service.id}
                 onClick={() => handleServiceSelect(service)}

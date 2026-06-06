@@ -4,6 +4,14 @@ import { BookingFlow } from "@/components/booking/booking-flow";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+interface ServiceCategory {
+  id: string;
+  name_he: string;
+  name_ar: string | null;
+  name_en: string | null;
+  sort_order: number;
+}
+
 async function getBusiness(slug: string) {
   try {
     const res = await fetch(`${API_URL}/api/businesses/${slug}`, {
@@ -16,15 +24,19 @@ async function getBusiness(slug: string) {
   }
 }
 
-async function getServices(businessId: string) {
+async function getServices(businessId: string): Promise<{ services: unknown[]; categories: ServiceCategory[] }> {
   try {
     const res = await fetch(`${API_URL}/api/businesses/${businessId}/services`, {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return [];
-    return res.json();
+    if (!res.ok) return { services: [], categories: [] };
+    const result = await res.json();
+    if (Array.isArray(result)) {
+      return { services: result, categories: [] };
+    }
+    return { services: result.services || [], categories: result.categories || [] };
   } catch {
-    return [];
+    return { services: [], categories: [] };
   }
 }
 
@@ -59,7 +71,7 @@ export default async function BookingPage({
 
   if (!business) notFound();
 
-  const services = await getServices(business.id);
+  const { services, categories } = await getServices(business.id);
 
   return (
     <main className="min-h-screen bg-gray-50" style={{ backgroundColor: "#f8fafc" }}>
@@ -88,7 +100,9 @@ export default async function BookingPage({
       <div className="mx-auto max-w-2xl px-4 py-8">
         <BookingFlow
           business={business}
-          services={services}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          services={services as any[]}
+          categories={categories}
           locale={locale}
         />
       </div>
