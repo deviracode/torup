@@ -108,7 +108,7 @@ async function getBusinessServices(businessId: string) {
 
   const { data } = await supabase
     .from("services")
-    .select("id, name_he, name_ar, name_en, duration_minutes, price, price_type")
+    .select("id, name_he, name_ar, name_en, duration_minutes, price, price_type, category_id")
     .eq("business_id", businessId)
     .eq("is_active", true)
     .order("sort_order");

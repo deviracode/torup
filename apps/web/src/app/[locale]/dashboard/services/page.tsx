@@ -11,6 +11,14 @@ import {
 } from "@torup/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
+interface ServiceCategory {
+  id: string;
+  name_he: string;
+  name_ar: string | null;
+  name_en: string | null;
+  sort_order: number;
+}
+
 interface Service {
   id: string;
   name_he: string;
@@ -23,6 +31,7 @@ interface Service {
   max_capacity: number;
   is_active: boolean;
   sort_order: number;
+  category_id: string | null;
 }
 
 export default function ServicesPage() {
@@ -38,7 +47,9 @@ export default function ServicesPage() {
   const [formData, setFormData] = useState({
     name_he: "", name_ar: "", name_en: "", description_he: "",
     duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
+    category_id: "" as string,
   });
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,10 +64,14 @@ export default function ServicesPage() {
     if (!businessId || !session?.access_token) return;
     setLoading(true);
     try {
-      const result = await apiFetch<Service[]>(
-        `/api/businesses/${businessId}/services`, {}, session.access_token
-      );
-      setServices(Array.isArray(result) ? result : []);
+      const [svcResult, catResult] = await Promise.all([
+        apiFetch<Service[] | { categories: ServiceCategory[]; services: Service[] }>(
+          `/api/businesses/${businessId}/services`, {}, session.access_token
+        ),
+        apiFetch<ServiceCategory[]>(`/api/businesses/${businessId}/categories`, {}, session.access_token),
+      ]);
+      setServices(Array.isArray(svcResult) ? svcResult : (svcResult.services || []));
+      setCategories(catResult || []);
     } catch { setServices([]); }
     finally { setLoading(false); }
   }, [businessId, session?.access_token]);
@@ -70,6 +85,7 @@ export default function ServicesPage() {
       description_he: service.description_he || "", duration_minutes: service.duration_minutes,
       buffer_minutes: service.buffer_minutes, price: service.price,
       max_capacity: service.max_capacity, is_active: service.is_active,
+      category_id: service.category_id || "",
     });
     setShowForm(true);
   };
@@ -77,7 +93,8 @@ export default function ServicesPage() {
   const openNew = () => {
     setEditingService(null);
     setFormData({ name_he: "", name_ar: "", name_en: "", description_he: "",
-      duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true });
+      duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
+      category_id: "" });
     setShowForm(true);
   };
 
@@ -87,7 +104,7 @@ export default function ServicesPage() {
     setSaving(true);
     setError("");
     try {
-      const body = { ...formData, name_ar: formData.name_ar || null, name_en: formData.name_en || null, description_he: formData.description_he || null };
+      const body = { ...formData, name_ar: formData.name_ar || null, name_en: formData.name_en || null, description_he: formData.description_he || null, category_id: formData.category_id || null };
       if (editingService) {
         await apiFetch(`/api/businesses/${businessId}/services/${editingService.id}`, { method: "PATCH", body: JSON.stringify(body) }, session?.access_token || "");
       } else {
@@ -145,6 +162,7 @@ export default function ServicesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{tNav("services")}</TableHead>
+                  <TableHead>{t("serviceCategory")}</TableHead>
                   <TableHead>{t("min")}</TableHead>
                   <TableHead>₪</TableHead>
                   <TableHead>{t("status")}</TableHead>
@@ -159,6 +177,9 @@ export default function ServicesPage() {
                         <p className="font-medium">{service.name_he}</p>
                         {service.name_en && <p className="text-xs text-muted-foreground">{service.name_en}</p>}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {categories.find((c) => c.id === service.category_id)?.name_he || "—"}
                     </TableCell>
                     <TableCell>
                       {service.duration_minutes}
@@ -245,6 +266,21 @@ export default function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })} />
               </div>
             </div>
+            {categories.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("serviceCategory")}</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                >
+                  <option value="">{t("noCategory")}</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name_he}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input type="checkbox" id="is_active" checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} />
