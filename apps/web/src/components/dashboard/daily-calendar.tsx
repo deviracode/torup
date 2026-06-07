@@ -80,6 +80,9 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedGcalEvent, setSelectedGcalEvent] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     if (!session?.access_token) return;
@@ -158,6 +161,13 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
         </button>
       </div>
 
+      {dropError && (
+        <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between gap-2">
+          <span>{dropError}</span>
+          <button onClick={() => setDropError(null)} className="shrink-0 opacity-70 hover:opacity-100">×</button>
+        </div>
+      )}
+
       {/* Calendar grid */}
       <div className="rounded-xl border border-white/8 overflow-hidden" style={{ background: "rgba(255,255,255,0.02)" }}>
         {/* Day header */}
@@ -199,7 +209,39 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                   <div className="w-14 shrink-0 border-e border-white/5 py-3 pe-3 text-end text-xs text-white/25 font-mono">
                     {String(hour).padStart(2, "0")}:00
                   </div>
-                  <div className="flex-1 min-h-[56px] py-1.5 px-2 space-y-1">
+                  <div
+                    className={`flex-1 min-h-[56px] py-1.5 px-2 space-y-1 transition-colors ${dragOver === hour ? "bg-primary/10 rounded" : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(hour); }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      setDragOver(null);
+                      const appointmentId = e.dataTransfer.getData("appointmentId");
+                      if (!appointmentId || !session?.access_token) return;
+
+                      const apt = appointments.find((a) => a.id === appointmentId);
+                      const newStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`);
+                      if (apt) {
+                        const current = new Date(apt.start_time);
+                        if (formatDate(current) === date && current.getHours() === hour) {
+                          return; // no-op drop on the same slot
+                        }
+                      }
+
+                      setDropError(null);
+                      try {
+                        await apiFetch(
+                          `/api/businesses/${businessId}/appointments/${appointmentId}/reschedule`,
+                          { method: "PATCH", body: JSON.stringify({ start_time: newStart.toISOString() }) },
+                          session.access_token
+                        );
+                        fetchAppointments();
+                      } catch (err) {
+                        console.error("Reschedule failed:", err);
+                        setDropError(err instanceof Error ? err.message : t("rescheduleFailed"));
+                      }
+                    }}
+                  >
                     {hourGcal.map((evt) => {
                       const st = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                       return (
@@ -223,7 +265,13 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                         <button
                           key={apt.id}
                           onClick={() => setSelectedAppointment(apt)}
-                          className={`w-full rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all ${sc}`}
+                          draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("appointmentId", apt.id);
+                            setDraggingId(apt.id);
+                          }}
+                          onDragEnd={() => setDraggingId(null)}
+                          className={`w-full rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-semibold truncate">{apt.customers?.name || t("unknownCustomer")}</span>
