@@ -34,6 +34,9 @@ const STATUS_COLORS: Record<string, string> = {
   no_show:          "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
+const HIDDEN_STATUSES = new Set(["cancelled", "no_show"]);
+const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status);
+
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
 
 function getWeekStart(date: Date): Date {
@@ -96,9 +99,11 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
     setWeekStart(d);
   };
 
+  const visibleAppointments = appointments.filter(isVisible);
+
   const getAppointmentsForDayHour = (day: Date, hour: number) => {
     const dayStr = formatDate(day);
-    return appointments.filter((apt) =>
+    return visibleAppointments.filter((apt) =>
       apt.start_time.split("T")[0] === dayStr && new Date(apt.start_time).getHours() === hour
     );
   };

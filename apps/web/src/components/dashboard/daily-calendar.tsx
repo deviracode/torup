@@ -35,6 +35,9 @@ const STATUS_COLORS: Record<string, string> = {
   no_show:          "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
+const HIDDEN_STATUSES = new Set(["cancelled", "no_show"]);
+const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status);
+
 function computeHours(
   appointments: Appointment[],
   gcalEvents: { start_time: string; end_time: string }[],
@@ -125,6 +128,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const dateObj = new Date(date + "T12:00:00");
   const dayLabel = dateObj.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const hours = computeHours(appointments, gcalEvents, workingHours, dateObj.getDay());
+  const visibleAppointments = appointments.filter(isVisible);
 
   return (
     <div>
@@ -165,7 +169,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
           <span className={`text-xs font-semibold ${isToday ? "text-[#a78bfa]" : "text-white/40"}`}>
             {isToday ? t("today") : dateObj.toLocaleDateString("he-IL", { weekday: "long" })}
           </span>
-          <span className="ms-auto text-xs text-white/25">{appointments.length} {t("appointmentsCount")}</span>
+          <span className="ms-auto text-xs text-white/25">{visibleAppointments.length} {t("appointmentsCount")}</span>
         </div>
 
         {loading ? (
@@ -182,7 +186,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
         ) : (
           <motion.div variants={calendarRowContainer} initial="hidden" animate="show">
             {hours.map((hour) => {
-              const hourAppts = appointments.filter((a) => new Date(a.start_time).getHours() === hour);
+              const hourAppts = visibleAppointments.filter((a) => new Date(a.start_time).getHours() === hour);
               const hourGcal = gcalEvents.filter((e) => new Date(e.start_time).getHours() === hour);
               const hasItems = hourAppts.length > 0 || hourGcal.length > 0;
 
