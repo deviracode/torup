@@ -59,6 +59,8 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedGcalEvent, setSelectedGcalEvent] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string } | null>(null);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -127,15 +129,61 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-        <div className="text-center">
-          <p className="text-sm font-semibold text-white">{weekLabel}</p>
+        <div className="text-center relative">
+          <button
+            className="text-sm font-semibold text-white hover:text-[#a78bfa] transition-colors"
+            onClick={() => {
+              setPickerYear(weekDays[0].getFullYear());
+              setShowMonthPicker(!showMonthPicker);
+            }}
+          >
+            {weekLabel}
+          </button>
           <button
             onClick={() => setWeekStart(getWeekStart(new Date()))}
             disabled={isCurrentWeek}
-            className={`text-xs transition-colors mt-0.5 ${isCurrentWeek ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+            className={`text-xs transition-colors mt-0.5 block mx-auto ${isCurrentWeek ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
           >
             {t("today")}
           </button>
+          {showMonthPicker && (
+            <div
+              className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-white/10 bg-[hsl(242_44%_10%)] shadow-2xl p-3 w-56"
+              onMouseLeave={() => setShowMonthPicker(false)}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => setPickerYear((y) => y - 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <span className="text-sm font-semibold text-white">{pickerYear}</span>
+                <button onClick={() => setPickerYear((y) => y + 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {["ינו", "פבר", "מרץ", "אפר", "מאי", "יונ", "יול", "אוג", "ספט", "אוק", "נוב", "דצמ"].map((m, i) => {
+                  const currentMonth = weekDays[0].getMonth();
+                  const currentYear = weekDays[0].getFullYear();
+                  const isCurrentMonth = i === currentMonth && pickerYear === currentYear;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const d = new Date(pickerYear, i, 1);
+                        setWeekStart(getWeekStart(d));
+                        setShowMonthPicker(false);
+                      }}
+                      className={`rounded-lg py-1.5 text-xs transition-colors ${
+                        isCurrentMonth ? "bg-primary/20 text-[#a78bfa] font-semibold" : "text-white/60 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         <button
           onClick={() => changeWeek(1)}
