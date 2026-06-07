@@ -491,13 +491,17 @@ async function createBooking(
 
   // Fire-and-forget manager notification
   if (inserted?.id) {
-    const apiUrl = process.env.API_INTERNAL_URL || "http://localhost:3001";
+    const apiUrl = process.env.API_INTERNAL_URL || process.env.API_URL || "http://localhost:3001";
     const secret = process.env.INTERNAL_SECRET || "";
     fetch(`${apiUrl}/api/internal/notify-manager`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-internal-secret": secret },
       body: JSON.stringify({ appointmentId: inserted.id }),
-    }).catch(() => {});
+    })
+      .then((r) => {
+        if (!r.ok) console.error(`[notify-manager] request failed: ${r.status} ${r.statusText}`);
+      })
+      .catch((err) => console.error("[notify-manager] request error:", err));
   }
 
   return "ok";
