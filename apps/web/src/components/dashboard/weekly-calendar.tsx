@@ -60,6 +60,9 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [selectedGcalEvent, setSelectedGcalEvent] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -157,6 +160,13 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
         </button>
       </div>
 
+      {dropError && (
+        <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between gap-2">
+          <span>{dropError}</span>
+          <button onClick={() => setDropError(null)} className="shrink-0 opacity-70 hover:opacity-100">×</button>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="rounded-xl border border-white/8 overflow-auto" style={{ background: "rgba(255,255,255,0.02)" }}>
         {loading ? (
@@ -218,13 +228,47 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                     const isToday = formatDate(day) === todayStr;
                     const appts = getAppointmentsForDayHour(day, hour);
                     const gcals = getGcalEventsForDayHour(day, hour);
+                    const dayStr = formatDate(day);
+                    const cellKey = `${dayStr}_${hour}`;
                     return (
                       <td
                         key={day.toISOString()}
                         className="border-b border-e border-white/5 last:border-e-0 p-0.5 align-top"
                         style={isToday ? { background: "rgba(99,102,241,0.03)" } : {}}
                       >
-                        <div className="min-h-[44px] space-y-0.5 p-0.5">
+                        <div
+                          className={`min-h-[44px] space-y-0.5 p-0.5 rounded transition-colors ${dragOver === cellKey ? "bg-primary/10" : ""}`}
+                          onDragOver={(e) => { e.preventDefault(); setDragOver(cellKey); }}
+                          onDragLeave={() => setDragOver(null)}
+                          onDrop={async (e) => {
+                            e.preventDefault();
+                            setDragOver(null);
+                            const appointmentId = e.dataTransfer.getData("appointmentId");
+                            if (!appointmentId || !session?.access_token) return;
+
+                            const apt = appointments.find((a) => a.id === appointmentId);
+                            const newStart = new Date(`${dayStr}T${String(hour).padStart(2, "0")}:00:00`);
+                            if (apt) {
+                              const current = new Date(apt.start_time);
+                              if (formatDate(current) === dayStr && current.getHours() === hour) {
+                                return; // no-op drop on the same slot
+                              }
+                            }
+
+                            setDropError(null);
+                            try {
+                              await apiFetch(
+                                `/api/businesses/${businessId}/appointments/${appointmentId}/reschedule`,
+                                { method: "PATCH", body: JSON.stringify({ start_time: newStart.toISOString() }) },
+                                session.access_token
+                              );
+                              fetchWeekAppointments();
+                            } catch (err) {
+                              console.error("Reschedule failed:", err);
+                              setDropError(err instanceof Error ? err.message : t("rescheduleFailed"));
+                            }
+                          }}
+                        >
                           {gcals.map((evt) => {
                             const time = new Date(evt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                             return (
@@ -244,7 +288,13 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                               <button
                                 key={apt.id}
                                 onClick={() => setSelectedAppointment(apt)}
-                                className={`w-full rounded border-s-2 px-1.5 py-1 text-start text-xs truncate hover:brightness-110 transition-all ${sc}`}
+                                draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData("appointmentId", apt.id);
+                                  setDraggingId(apt.id);
+                                }}
+                                onDragEnd={() => setDraggingId(null)}
+                                className={`w-full rounded border-s-2 px-1.5 py-1 text-start text-xs truncate hover:brightness-110 transition-all ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
                               >
                                 <span className="font-semibold">{time}</span>
                                 {" "}
