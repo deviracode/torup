@@ -69,6 +69,18 @@ export function AppointmentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reminderLogs, setReminderLogs] = useState<{ template_id: string; status: string; sent_at: string; customer_response: string | null; responded_at: string | null }[]>([]);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleSlots, setRescheduleSlots] = useState<{ start: string; end: string; available_capacity: number; total_capacity: number }[]>([]);
+  const [rescheduleSlot, setRescheduleSlot] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+
+  useEffect(() => {
+    setShowReschedule(false);
+    setRescheduleDate("");
+    setRescheduleSlots([]);
+    setRescheduleSlot("");
+  }, [appointment.id]);
 
   useEffect(() => {
     apiFetch<{ notifications: { template_id: string; status: string; sent_at: string; customer_response: string | null; responded_at: string | null }[] }>(
@@ -77,6 +89,17 @@ export function AppointmentModal({
       token
     ).then((r) => setReminderLogs(Array.isArray(r.notifications) ? r.notifications : [])).catch(() => {});
   }, [businessId, appointment.id, token]);
+
+  useEffect(() => {
+    if (!showReschedule || !rescheduleDate) return;
+    apiFetch<{ slots: { start: string; end: string; available_capacity: number; total_capacity: number }[] }>(
+      `/api/businesses/${businessId}/availability?service_id=${appointment.service_id}&date=${rescheduleDate}`,
+      {},
+      token
+    )
+      .then((r) => setRescheduleSlots(r.slots || []))
+      .catch(() => setRescheduleSlots([]));
+  }, [showReschedule, rescheduleDate, businessId, appointment.service_id, token]);
 
   const nextStatuses = VALID_TRANSITIONS[appointment.status] || [];
 
@@ -98,6 +121,25 @@ export function AppointmentModal({
       setError(err instanceof Error ? err.message : "Failed to update status");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleSlot) return;
+    setRescheduling(true);
+    setError("");
+    try {
+      await apiFetch(
+        `/api/businesses/${businessId}/appointments/${appointment.id}/reschedule`,
+        { method: "PATCH", body: JSON.stringify({ start_time: rescheduleSlot }) },
+        token
+      );
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reschedule");
+    } finally {
+      setRescheduling(false);
     }
   };
 
@@ -329,6 +371,66 @@ export function AppointmentModal({
               </div>
             </div>
           </>
+        )}
+
+        {/* Reschedule — available for pending_approval, pending, confirmed */}
+        {["pending_approval", "pending", "confirmed"].includes(appointment.status) && (
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setShowReschedule(!showReschedule); setRescheduleDate(""); setRescheduleSlots([]); setRescheduleSlot(""); }}
+            >
+              🗓 {t("reschedule") || "Reschedule"}
+            </Button>
+            {showReschedule && (
+              <div className="mt-3 space-y-3 rounded-lg border border-border p-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectDate")}</label>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split("T")[0]}
+                    value={rescheduleDate}
+                    onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSlot(""); }}
+                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                {rescheduleSlots.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectTime")}</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {rescheduleSlots.map((slot) => {
+                        const time = new Date(slot.start).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+                        const partial = slot.available_capacity < slot.total_capacity;
+                        return (
+                          <button
+                            key={slot.start}
+                            type="button"
+                            onClick={() => setRescheduleSlot(slot.start)}
+                            className={`rounded border px-2 py-1.5 text-xs transition-colors ${
+                              rescheduleSlot === slot.start
+                                ? "border-primary bg-primary/10 text-primary font-medium"
+                                : "border-border text-foreground hover:border-primary hover:bg-primary/5"
+                            }`}
+                          >
+                            {time}{partial ? ` (${slot.available_capacity}/${slot.total_capacity})` : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {rescheduleDate && rescheduleSlots.length === 0 && (
+                  <p className="text-xs text-muted-foreground">{t("noAvailableSlots")}</p>
+                )}
+                {rescheduleSlot && (
+                  <Button size="sm" onClick={handleReschedule} disabled={rescheduling}>
+                    {rescheduling ? "..." : t("bookAppointment") || "Confirm"}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <DialogFooter>
