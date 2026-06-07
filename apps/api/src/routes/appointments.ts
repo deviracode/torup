@@ -19,6 +19,38 @@ import { cacheGet, cacheSet, cacheClear } from "../lib/redis.js";
 
 const router: RouterType = Router({ mergeParams: true });
 
+// Throws AppError(409, ...) if the slot is already at max capacity.
+async function checkSlotCapacity(
+  supabase: ReturnType<typeof createServiceClient>,
+  businessId: string,
+  serviceId: string,
+  startDate: Date,
+  service: { duration_minutes: number; buffer_minutes: number; max_capacity: number },
+  excludeAppointmentId?: string
+): Promise<void> {
+  const endDate = new Date(startDate.getTime() + service.duration_minutes * 60 * 1000);
+  const endWithBuffer = new Date(endDate.getTime() + service.buffer_minutes * 60 * 1000);
+
+  let query = supabase
+    .from("appointments")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("service_id", serviceId)
+    .lt("start_time", endWithBuffer.toISOString())
+    .gt("end_time", startDate.toISOString())
+    .not("status", "in", '("cancelled","no_show")');
+
+  if (excludeAppointmentId) {
+    query = query.neq("id", excludeAppointmentId);
+  }
+
+  const { data: overlapping } = await query;
+
+  if (overlapping && overlapping.length >= service.max_capacity) {
+    throw new AppError(409, "Time slot is fully booked");
+  }
+}
+
 // GET /businesses/:businessId/appointments
 router.get(
   "/",
@@ -93,20 +125,8 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
 
     const startDate = new Date(start_time);
     const endDate = new Date(startDate.getTime() + service.duration_minutes * 60 * 1000);
-    const endWithBuffer = new Date(endDate.getTime() + service.buffer_minutes * 60 * 1000);
 
-    const { data: overlapping } = await supabase
-      .from("appointments")
-      .select("id")
-      .eq("business_id", businessId)
-      .eq("service_id", service_id)
-      .lt("start_time", endWithBuffer.toISOString())
-      .gt("end_time", startDate.toISOString())
-      .not("status", "in", '("cancelled","no_show")');
-
-    if (overlapping && overlapping.length >= service.max_capacity) {
-      throw new AppError(409, "Time slot is fully booked");
-    }
+    await checkSlotCapacity(supabase, businessId, service_id, startDate, service);
 
     const { data, error } = await supabase
       .from("appointments")
@@ -200,6 +220,62 @@ router.patch(
         pushAppointmentToGoogle(data.id).catch(() => {});
       }
 
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// PATCH /businesses/:businessId/appointments/:appointmentId/reschedule
+router.patch(
+  "/:appointmentId/reschedule",
+  requireAuth,
+  requireBusinessAccess,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const supabase = createServiceClient();
+      const businessId = getBusinessId(req);
+      const appointmentId = getParam(req, "appointmentId");
+      const { start_time } = req.body;
+
+      if (!start_time) throw new AppError(400, "start_time is required");
+
+      const { data: apt } = await supabase
+        .from("appointments")
+        .select("id, status, service_id")
+        .eq("id", appointmentId)
+        .eq("business_id", businessId)
+        .single();
+
+      if (!apt) throw new AppError(404, "Appointment not found");
+      if (["completed", "cancelled", "no_show"].includes(apt.status)) {
+        throw new AppError(400, "Cannot reschedule an appointment with status: " + apt.status);
+      }
+
+      const { data: service, error: serviceErr } = await supabase
+        .from("services")
+        .select("duration_minutes, buffer_minutes, max_capacity")
+        .eq("id", apt.service_id)
+        .eq("business_id", businessId)
+        .single();
+
+      if (serviceErr || !service) throw new AppError(404, "Service not found");
+
+      const startDate = new Date(start_time);
+      const endDate = new Date(startDate.getTime() + service.duration_minutes * 60 * 1000);
+
+      await checkSlotCapacity(supabase, businessId, apt.service_id, startDate, service, appointmentId);
+
+      const { data, error } = await supabase
+        .from("appointments")
+        .update({ start_time: startDate.toISOString(), end_time: endDate.toISOString() })
+        .eq("id", appointmentId)
+        .eq("business_id", businessId)
+        .select("*, services(name_he), customers(name, phone)")
+        .single();
+
+      if (error) throw new AppError(400, error.message);
       res.json(data);
     } catch (err) {
       next(err);
