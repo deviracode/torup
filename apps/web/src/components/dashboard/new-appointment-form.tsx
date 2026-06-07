@@ -23,6 +23,7 @@ interface TimeSlot {
   start: string;
   end: string;
   available_capacity: number;
+  total_capacity: number;
 }
 
 function groupSlots(slots: TimeSlot[]): Record<string, TimeSlot[]> {
@@ -208,7 +209,7 @@ export function NewAppointmentForm({
                                     : "border-border text-foreground hover:border-primary hover:bg-primary/5"
                                 }`}
                               >
-                                {time}
+                                {time}{slot.total_capacity > 1 && slot.available_capacity < slot.total_capacity ? ` (${slot.available_capacity}/${slot.total_capacity})` : ""}
                               </button>
                             );
                           })}
