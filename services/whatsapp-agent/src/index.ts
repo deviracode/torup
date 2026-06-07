@@ -165,7 +165,7 @@ const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
     book: "קביעת תור", myAppts: "התורים שלי", cancel: "ביטול תור",
   },
   ar: {
-    greeting: (n, b) => n ? `أهلين ${n}! 👋\nمرحبتين بـ${b}.\nشو بدك؟` : `أهلين بـ${b}! 👋\nشو بدك؟`,
+    greeting: (n, b) => n ? `أهلين ${n}! 👋\nمرحبتين بـ${b}.\nكيف فيني ساعدك اليوم؟` : `أهلين بـ${b}! 👋\nكيف فيني ساعدك اليوم؟`,
     book: "احجز دور", myAppts: "دواراتي", cancel: "إلغي الدور",
   },
   en: {
@@ -216,7 +216,7 @@ const PENDING_APPROVAL_MSG: Record<"he" | "ar" | "en", (svc: string, dateLabel: 
 
 const CHAIN_BOOKING_MSG: Record<"he" | "ar" | "en", (remaining: number) => string> = {
   he: (n) => `רוצים לקבוע תור לעוד ${n} ${n === 1 ? "אדם" : "אנשים"}?`,
-  ar: (n) => `بدك تحجزي دور لـ ${n} ${n === 1 ? "شخص ثاني" : "أشخاص ثانيين"} كمان؟`,
+  ar: (n) => `حابة نحجز كمان لـ ${n} ${n === 1 ? "شخص ثاني" : "أشخاص ثانيين"}؟ 😊`,
   en: (n) => `Want to book for ${n} more ${n === 1 ? "person" : "people"}?`,
 };
 
@@ -234,7 +234,7 @@ const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) =>
 
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
   he: { prompt: "בחרו שירות:", button: "הצג שירותים", section: "שירותים", discuss: "לשיחה עם בעל העסק", min: "דק׳" },
-  ar: { prompt: "شو بدك تعملي؟", button: "شوفي الخدمات", section: "الخدمات", discuss: "اتفقي مع صاحب المحل", min: "دقيقة" },
+  ar: { prompt: "أي خدمة حابة تحجزي؟ 😊", button: "شوفي الخدمات", section: "الخدمات", discuss: "اتفقي مع صاحب المحل", min: "دقيقة" },
   en: { prompt: "Choose a service:", button: "Show Services", section: "Services", discuss: "Discuss with owner", min: "min" },
 };
 
@@ -545,7 +545,7 @@ const TIME_GROUP_LABELS: Record<"he" | "ar" | "en", Record<string, string>> = {
 
 const TIME_SLOTS_I18N: Record<"he" | "ar" | "en", { chooseTime: string; showTimes: string; choosePartOfDay: string; noSlots: string }> = {
   he: { chooseTime: "בחרו שעה:", showTimes: "הצג שעות", choosePartOfDay: "בחרו חלק ביום:", noSlots: "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר." },
-  ar: { chooseTime: "اختاري الوقت:", showTimes: "شوفي المواعيد", choosePartOfDay: "إيمتى بدك؟", noSlots: "ما في مواعيد فاضية هاليوم 😔\nجربي يوم ثاني." },
+  ar: { chooseTime: "اختاري الوقت:", showTimes: "شوفي المواعيد", choosePartOfDay: "أي وقت بيناسبك أكتر؟ 😊", noSlots: "ما في مواعيد فاضية هاليوم 😔\nجربي يوم ثاني." },
   en: { chooseTime: "Choose a time:", showTimes: "Show Times", choosePartOfDay: "Choose time of day:", noSlots: "No slots available on this date 😔\nTry another date." },
 };
 

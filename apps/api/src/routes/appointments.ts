@@ -276,6 +276,11 @@ router.patch(
         .single();
 
       if (error) throw new AppError(400, error.message);
+
+      sendAppointmentNotification(appointmentId, "reschedule").catch((err) =>
+        console.error("[reschedule] notification failed:", err)
+      );
+
       res.json(data);
     } catch (err) {
       next(err);
