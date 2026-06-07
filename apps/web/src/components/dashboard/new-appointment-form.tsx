@@ -189,10 +189,10 @@ export function NewAppointmentForm({
             />
             <div className="flex gap-1.5 mt-1.5 flex-wrap">
               {[
-                { label: "היום", getValue: () => today },
-                { label: "מחר", getValue: () => addDays(1) },
-                { label: "+שבוע", getValue: () => addDays(7) },
-                { label: "+חודש", getValue: () => addMonths(1) },
+                { label: t("shortcutToday"), getValue: () => today },
+                { label: t("shortcutTomorrow"), getValue: () => addDays(1) },
+                { label: t("shortcutNextWeek"), getValue: () => addDays(7) },
+                { label: t("shortcutNextMonth"), getValue: () => addMonths(1) },
               ].map(({ label, getValue }) => {
                 const val = getValue();
                 const withinRange = val >= today && val <= maxDate;
