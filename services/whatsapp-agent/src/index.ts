@@ -356,7 +356,7 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
   const d = new Date(date + "T12:00:00Z");
   const { day: dayOfWeek } = getIsraelDate(d);
 
-  const [hoursRes, serviceRes, aptsRes, gcalRes, breaksRes] = await Promise.all([
+  const [hoursRes, serviceRes, aptsRes, breaksRes] = await Promise.all([
     supabase.from("working_hours").select("start_time, end_time, is_closed")
       .eq("business_id", businessId).eq("day_of_week", dayOfWeek).is("staff_id", null),
     supabase.from("services").select("duration_minutes, buffer_minutes, max_capacity")
@@ -365,17 +365,14 @@ async function getAvailableTimeSlots(businessId: string, serviceId: string, date
       .eq("business_id", businessId).eq("service_id", serviceId)
       .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`)
       .in("status", ["pending", "confirmed", "in_progress"]),
-    supabase.from("google_calendar_events").select("start_time, end_time")
-      .eq("business_id", businessId)
-      .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`),
     supabase.from("breaks").select("type, day_of_week, specific_date, start_time, end_time")
       .eq("business_id", businessId).is("staff_id", null),
   ]);
 
-  // Merge Google Calendar events into conflict detection
-  const allConflicts = (aptsRes.data || []).concat(
-    (gcalRes.data || []).map((e: any) => ({ start_time: e.start_time, end_time: e.end_time }))
-  );
+  // Only same-service appointments count toward this service's capacity —
+  // Google Calendar events are external/unrelated commitments and shouldn't
+  // consume a slot in a multi-capacity service's booking pool.
+  const allConflicts = aptsRes.data || [];
 
   const wh = hoursRes.data?.[0];
   const service = serviceRes.data;
