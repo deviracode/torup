@@ -275,9 +275,11 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                               <button
                                 key={evt.google_event_id}
                                 onClick={() => setSelectedGcalEvent(evt)}
-                                className="w-full rounded border-s-2 px-1.5 py-1 text-xs truncate bg-white/5 border-white/20 text-white/45 hover:bg-white/8 hover:text-white/65 transition-all text-start"
+                                className="w-full rounded border-s-2 px-1.5 py-1 text-start text-xs truncate bg-white/5 border-white/20 text-white/45 hover:bg-white/8 hover:text-white/65 transition-all"
                               >
-                                📅 {time}
+                                <span className="font-semibold">{time}</span>
+                                {" "}
+                                <span className="opacity-80">📅 {evt.summary || "Google Calendar"}</span>
                               </button>
                             );
                           })}
