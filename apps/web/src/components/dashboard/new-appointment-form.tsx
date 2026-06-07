@@ -184,6 +184,32 @@ export function NewAppointmentForm({
               onChange={(e) => { setDate(e.target.value); setSelectedSlot(""); }}
               className={inputCls}
             />
+            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              {[
+                { label: "היום", getValue: () => today },
+                { label: "מחר", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; } },
+                { label: "+שבוע", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split("T")[0]; } },
+                { label: "+חודש", getValue: () => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().split("T")[0]; } },
+              ].map(({ label, getValue }) => {
+                const val = getValue();
+                const withinRange = val >= today && val <= maxDate;
+                if (!withinRange) return null;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => { setDate(val); setSelectedSlot(""); }}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                      date === val
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Time Slots */}
