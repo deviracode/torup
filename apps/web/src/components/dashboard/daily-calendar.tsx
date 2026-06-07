@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import { AppointmentModal } from "./appointment-modal";
 import { GCalConvertModal } from "./gcal-convert-modal";
+import { MonthYearPicker } from "./month-year-picker";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { motion } from "framer-motion";
 import { calendarRowContainer, calendarRowItem } from "@/components/motion";
@@ -83,8 +84,6 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
 
   const fetchAppointments = useCallback(async () => {
     if (!session?.access_token) return;
@@ -145,62 +144,27 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-        <div className="text-center relative">
-          <button
-            className="text-sm font-semibold text-white hover:text-[#a78bfa] transition-colors"
-            onClick={() => {
-              setPickerYear(new Date(date + "T12:00:00").getFullYear());
-              setShowMonthPicker(!showMonthPicker);
-            }}
-          >
-            {dayLabel}
-          </button>
-          <button
-            onClick={() => setDate(formatDate(new Date()))}
-            disabled={isToday}
-            className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
-          >
-            {t("today")}
-          </button>
-          {showMonthPicker && (
-            <div
-              className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 rounded-xl border border-white/10 bg-[hsl(242_44%_10%)] shadow-2xl p-3 w-56"
-              onMouseLeave={() => setShowMonthPicker(false)}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <button onClick={() => setPickerYear((y) => y - 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10">
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                <span className="text-sm font-semibold text-white">{pickerYear}</span>
-                <button onClick={() => setPickerYear((y) => y + 1)} className="w-7 h-7 rounded-md flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10">
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-1">
-                {["ינו", "פבר", "מרץ", "אפר", "מאי", "יונ", "יול", "אוג", "ספט", "אוק", "נוב", "דצמ"].map((m, i) => {
-                  const currentMonth = new Date(date + "T12:00:00").getMonth();
-                  const currentYear = new Date(date + "T12:00:00").getFullYear();
-                  const isCurrentMonth = i === currentMonth && pickerYear === currentYear;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        const d = new Date(pickerYear, i, 1);
-                        setDate(formatDate(d));
-                        setShowMonthPicker(false);
-                      }}
-                      className={`rounded-lg py-1.5 text-xs transition-colors ${
-                        isCurrentMonth ? "bg-primary/20 text-[#a78bfa] font-semibold" : "text-white/60 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        <MonthYearPicker
+          value={dateObj}
+          onSelect={(d) => setDate(formatDate(d))}
+          trigger={
+            <span className="block">
+              <span className="text-sm font-semibold text-white hover:text-[#a78bfa] transition-colors">
+                {dayLabel}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDate(formatDate(new Date()));
+                }}
+                disabled={isToday}
+                className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+              >
+                {t("today")}
+              </button>
+            </span>
+          }
+        />
         <button
           onClick={() => changeDate(1)}
           className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"

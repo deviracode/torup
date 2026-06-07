@@ -143,8 +143,11 @@ export function NewAppointmentForm({
     }
   };
 
-  const today = new Date().toISOString().split("T")[0];
-  const maxDate = (() => { const d = new Date(); d.setDate(d.getDate() + maxFutureDays); return d.toISOString().split("T")[0]; })();
+  const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().split("T")[0]; };
+  const addMonths = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toISOString().split("T")[0]; };
+
+  const today = addDays(0);
+  const maxDate = addDays(maxFutureDays);
   const grouped = groupSlots(slots);
   const groupOrder = ["morning", "noon", "evening"] as const;
 
@@ -187,9 +190,9 @@ export function NewAppointmentForm({
             <div className="flex gap-1.5 mt-1.5 flex-wrap">
               {[
                 { label: "היום", getValue: () => today },
-                { label: "מחר", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; } },
-                { label: "+שבוע", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split("T")[0]; } },
-                { label: "+חודש", getValue: () => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().split("T")[0]; } },
+                { label: "מחר", getValue: () => addDays(1) },
+                { label: "+שבוע", getValue: () => addDays(7) },
+                { label: "+חודש", getValue: () => addMonths(1) },
               ].map(({ label, getValue }) => {
                 const val = getValue();
                 const withinRange = val >= today && val <= maxDate;
