@@ -8,6 +8,7 @@ import {
   Card, CardContent, Input, Button, Skeleton,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@torup/ui";
 import { Search } from "lucide-react";
 
@@ -141,9 +142,9 @@ export default function CustomersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => selectedCustomer?.id === c.id ? closeEdit() : openEdit(c)}
+                        onClick={() => openEdit(c)}
                       >
-                        {selectedCustomer?.id === c.id ? tCommon("close") : tCommon("edit")}
+                        {tCommon("edit")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -154,52 +155,52 @@ export default function CustomersPage() {
         </CardContent>
       </Card>
 
-      {selectedCustomer && (
-        <Card className="mt-4">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">{tCommon("edit")}: {selectedCustomer.name || selectedCustomer.phone}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-muted-foreground">{t("customerName")}</label>
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder={t("customerName")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-muted-foreground">{t("customerPhone")}</label>
-                <Input
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  dir="ltr"
-                  placeholder={t("customerPhone")}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-muted-foreground">{tCommon("language")}</label>
-                <Select value={editLang} onValueChange={setEditLang}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="he">עברית</SelectItem>
-                    <SelectItem value="ar">العربية</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <Dialog open={!!selectedCustomer} onOpenChange={(open) => { if (!open) closeEdit(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tCommon("edit")}: {selectedCustomer?.name || selectedCustomer?.phone}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-muted-foreground">{t("customerName")}</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={t("customerName")}
+              />
             </div>
-            {saveError && <p className="text-sm text-destructive mt-3">{saveError}</p>}
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? tCommon("loading") : tCommon("save")}
-              </Button>
-              <Button variant="outline" onClick={closeEdit}>{tCommon("cancel")}</Button>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-muted-foreground">{t("customerPhone")}</label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                dir="ltr"
+                placeholder={t("customerPhone")}
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-muted-foreground">{tCommon("language")}</label>
+              <Select value={editLang} onValueChange={setEditLang}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="he">עברית</SelectItem>
+                  <SelectItem value="ar">العربية</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {saveError && <p className="text-sm text-destructive mt-3">{saveError}</p>}
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={closeEdit}>{tCommon("cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? tCommon("loading") : tCommon("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
