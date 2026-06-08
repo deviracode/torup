@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { processReminders, sendManagerNotification } from "../services/notifications.js";
 import { syncGoogleCalendar } from "../services/google-calendar.js";
+import { approveAppointment, rejectAppointment } from "../services/appointment-actions.js";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -32,6 +33,26 @@ router.post("/notify-manager", requireInternalSecret, async (req: Request, res: 
     if (!appointmentId) { res.status(400).json({ error: "appointmentId required" }); return; }
     await sendManagerNotification(appointmentId);
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/appointments/:appointmentId/approve", requireInternalSecret, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const appointmentId = req.params.appointmentId as string;
+    const result = await approveAppointment(appointmentId);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/appointments/:appointmentId/reject", requireInternalSecret, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const appointmentId = req.params.appointmentId as string;
+    const result = await rejectAppointment(appointmentId);
+    res.json(result);
   } catch (err) {
     next(err);
   }

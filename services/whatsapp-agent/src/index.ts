@@ -805,6 +805,31 @@ async function handleIncomingMessage(
 ) {
   markAsRead(businessPhoneNumberId, messageId).catch(() => {});
 
+  // Manager approve/reject buttons from sendManagerApprovalRequest (id format: approve_<apptId> / reject_<apptId>)
+  if (interactionId && (interactionId.startsWith("approve_") || interactionId.startsWith("reject_"))) {
+    const action = interactionId.startsWith("approve_") ? "approve" : "reject";
+    const appointmentId = interactionId.slice(action.length + 1);
+    const apiUrl = process.env.API_INTERNAL_URL || process.env.API_URL || "http://localhost:3001";
+    const secret = process.env.INTERNAL_SECRET || "";
+    try {
+      const r = await fetch(`${apiUrl}/api/internal/appointments/${appointmentId}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-secret": secret },
+      });
+      if (r.ok) {
+        await sendTextMessage(businessPhoneNumberId, from, action === "approve" ? "✅ התור אושר ונשלחה הודעה ללקוח" : "❌ התור נדחה ונשלחה הודעה ללקוח");
+      } else {
+        const body = await r.text().catch(() => "");
+        console.error(`[manager-action] ${action} failed: ${r.status} ${body}`);
+        await sendTextMessage(businessPhoneNumberId, from, "⚠️ לא הצלחנו לעדכן את התור. ייתכן שכבר טופל.");
+      }
+    } catch (err) {
+      console.error(`[manager-action] ${action} error:`, err);
+      await sendTextMessage(businessPhoneNumberId, from, "⚠️ אירעה שגיאה בעדכון התור.");
+    }
+    return;
+  }
+
   const ctx = await getCachedBusinessContext(businessPhoneNumberId);
   if (!ctx) {
     console.error("Could not resolve business for phone number:", businessPhoneNumberId);

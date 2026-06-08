@@ -12,9 +12,8 @@ import { pushAppointmentToGoogle } from "../services/google-calendar.js";
 import {
   sendAppointmentNotification,
   sendManagerNotification,
-  sendApprovalNotification,
-  sendRejectionNotification,
 } from "../services/notifications.js";
+import { approveAppointment, rejectAppointment } from "../services/appointment-actions.js";
 import { cacheGet, cacheSet, cacheClear } from "../lib/redis.js";
 
 const router: RouterType = Router({ mergeParams: true });
@@ -299,56 +298,16 @@ router.post(
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
 
-      const { data: target, error: fetchErr } = await supabase
+      const { data: target } = await supabase
         .from("appointments")
-        .select("id, business_id, status, start_time, end_time")
+        .select("id")
         .eq("id", appointmentId)
         .eq("business_id", businessId)
         .single();
+      if (!target) throw new AppError(404, "Appointment not found");
 
-      if (fetchErr || !target) throw new AppError(404, "Appointment not found");
-      if (target.status !== "pending_approval") {
-        throw new AppError(409, `Cannot approve an appointment with status '${target.status}'`);
-      }
-
-      // Approve the target.
-      const { error: updErr } = await supabase
-        .from("appointments")
-        .update({ status: "confirmed" })
-        .eq("id", appointmentId);
-      if (updErr) throw new AppError(400, updErr.message);
-
-      // Reject overlapping pending_approval siblings (overlap = start < target.end AND end > target.start).
-      const { data: overlapping, error: ovErr } = await supabase
-        .from("appointments")
-        .select("id")
-        .eq("business_id", businessId)
-        .eq("status", "pending_approval")
-        .neq("id", appointmentId)
-        .lt("start_time", target.end_time)
-        .gt("end_time", target.start_time);
-      if (ovErr) throw new AppError(400, ovErr.message);
-
-      const rejectedIds = (overlapping || []).map((r) => r.id);
-      if (rejectedIds.length > 0) {
-        const { error: rejErr } = await supabase
-          .from("appointments")
-          .update({ status: "cancelled" })
-          .in("id", rejectedIds);
-        if (rejErr) throw new AppError(400, rejErr.message);
-      }
-
-      await cacheClear(`appts:${businessId}:*`);
-      sendApprovalNotification(appointmentId)
-        .catch((err) => console.error("[Notification] approval failed:", err));
-      pushAppointmentToGoogle(appointmentId).catch(() => {});
-      for (const id of rejectedIds) {
-        sendRejectionNotification(id, "slot_taken")
-          .catch((err) => console.error("[Notification] slot_taken rejection failed:", err));
-        pushAppointmentToGoogle(id).catch(() => {});
-      }
-
-      res.json({ approved: appointmentId, rejected: rejectedIds });
+      const result = await approveAppointment(appointmentId);
+      res.json(result);
     } catch (err) {
       next(err);
     }
@@ -366,29 +325,16 @@ router.post(
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
 
-      const { data: target, error: fetchErr } = await supabase
+      const { data: target } = await supabase
         .from("appointments")
-        .select("id, status")
+        .select("id")
         .eq("id", appointmentId)
         .eq("business_id", businessId)
         .single();
-      if (fetchErr || !target) throw new AppError(404, "Appointment not found");
-      if (target.status !== "pending_approval") {
-        throw new AppError(409, `Cannot reject an appointment with status '${target.status}'`);
-      }
+      if (!target) throw new AppError(404, "Appointment not found");
 
-      const { error: updErr } = await supabase
-        .from("appointments")
-        .update({ status: "cancelled" })
-        .eq("id", appointmentId);
-      if (updErr) throw new AppError(400, updErr.message);
-
-      await cacheClear(`appts:${businessId}:*`);
-      sendRejectionNotification(appointmentId, "manual")
-        .catch((err) => console.error("[Notification] manual rejection failed:", err));
-      pushAppointmentToGoogle(appointmentId).catch(() => {});
-
-      res.json({ rejected: appointmentId });
+      const result = await rejectAppointment(appointmentId);
+      res.json(result);
     } catch (err) {
       next(err);
     }
