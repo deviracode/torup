@@ -314,15 +314,6 @@ export async function sendManagerNotification(appointmentId: string) {
   const ownerPhone = apt.businesses.phone;
   if (!ownerPhone) return;
 
-  // Testing only: also notify this number for the "Rawaa hairstylist" business
-  // (018a5da3-b020-4854-bd8a-d1bb62b65bdf) so owner notifications can be
-  // verified without going through the real business owner each time.
-  const recipients = Array.from(new Set(
-    apt.business_id === "018a5da3-b020-4854-bd8a-d1bb62b65bdf"
-      ? [ownerPhone, "+972526458790"]
-      : [ownerPhone]
-  ));
-
   const startDate = new Date(apt.start_time);
   const dateStr = startDate.toLocaleDateString("he-IL", {
     weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
@@ -340,26 +331,24 @@ export async function sendManagerNotification(appointmentId: string) {
     `📅 ${dateStr} ⏰ ${timeStr}\n` +
     `📱 ${apt.customers.phone}`;
 
-  for (const recipient of recipients) {
-    let whatsappMessageId: string | null = null;
-    try {
-      whatsappMessageId = await sendManagerApprovalRequest(recipient, message, apt.id);
-    } catch (err) {
-      console.error("Failed to send manager notification:", err);
-    }
-
-    await logNotification({
-      business_id: apt.business_id,
-      customer_id: apt.customers.id,
-      appointment_id: appointmentId,
-      type: "manager_new_booking",
-      channel: "whatsapp",
-      template_id: "manager_new_booking",
-      status: whatsappMessageId ? "sent" : "failed",
-      whatsapp_message_id: whatsappMessageId,
-      error: whatsappMessageId ? undefined : "WhatsApp send failed",
-    });
+  let whatsappMessageId: string | null = null;
+  try {
+    whatsappMessageId = await sendManagerApprovalRequest(ownerPhone, message, apt.id);
+  } catch (err) {
+    console.error("Failed to send manager notification:", err);
   }
+
+  await logNotification({
+    business_id: apt.business_id,
+    customer_id: apt.customers.id,
+    appointment_id: appointmentId,
+    type: "manager_new_booking",
+    channel: "whatsapp",
+    template_id: "manager_new_booking",
+    status: whatsappMessageId ? "sent" : "failed",
+    whatsapp_message_id: whatsappMessageId,
+    error: whatsappMessageId ? undefined : "WhatsApp send failed",
+  });
 }
 
 /**
