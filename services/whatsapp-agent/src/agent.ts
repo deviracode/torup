@@ -19,6 +19,7 @@ interface BusinessContext {
   services: ServiceInfo[];
   language: "he" | "ar" | "en";
   customerPhone?: string;
+  botContext?: string | null;
 }
 
 function buildSystemPrompt(ctx: BusinessContext): string {
@@ -36,6 +37,10 @@ function buildSystemPrompt(ctx: BusinessContext): string {
     })
     .join("\n");
 
+  const businessGuidelines = ctx.botContext?.trim()
+    ? `\nBusiness-specific guidelines from the owner (follow these closely — they describe THIS business and override generic assumptions):\n${ctx.botContext.trim()}\n`
+    : "";
+
   return `You are a friendly assistant for "${ctx.businessName}".
 ${langInstructions[ctx.language]}
 
@@ -43,6 +48,7 @@ Customer phone number: ${ctx.customerPhone || "unknown"}
 
 Available services:
 ${serviceList}
+${businessGuidelines}
 
 Your job is to help customers:
 1. View their existing appointments (use list_appointments tool)

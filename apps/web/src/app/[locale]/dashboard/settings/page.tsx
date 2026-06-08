@@ -65,6 +65,7 @@ interface BusinessProfile {
   phone: string | null;
   email: string | null;
   address: string | null;
+  bot_context: string | null;
 }
 
 interface ServiceItem {
@@ -343,7 +344,7 @@ function SettingsPageInner() {
     try {
       await apiFetch(`/api/businesses/${businessId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: profile.name, description: profile.description, phone: profile.phone, email: profile.email, address: profile.address }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, phone: profile.phone, email: profile.email, address: profile.address, bot_context: profile.bot_context }),
       }, token);
       showSaved();
     } catch {} finally { setSaving(false); }
@@ -884,6 +885,12 @@ function SettingsPageInner() {
             <div>
               <label className="block text-sm font-medium mb-1">{t("address")}</label>
               <input value={profile.address || ""} onChange={(e) => setProfile({ ...profile, address: e.target.value })}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">{t("botContext")}</label>
+              <p className="text-xs text-muted-foreground mb-1">{t("botContextDesc")}</p>
+              <textarea value={profile.bot_context || ""} onChange={(e) => setProfile({ ...profile, bot_context: e.target.value })} rows={5}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <button onClick={saveProfile} disabled={saving}

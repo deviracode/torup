@@ -73,7 +73,7 @@ app.post("/webhook", async (req, res) => {
  * Map business WhatsApp phone number IDs to business IDs.
  * In production, this would be a database lookup.
  */
-async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean } | null> {
+async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null } | null> {
   // Try to find from environment mapping
   const mapping = process.env.PHONE_BUSINESS_MAP;
   if (mapping) {
@@ -91,12 +91,12 @@ async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: s
 
   const { data } = await supabase
     .from("businesses")
-    .select("id, name, phone, allow_multiple_bookings")
+    .select("id, name, phone, allow_multiple_bookings, bot_context")
     .eq("is_active", true)
     .limit(1)
     .single();
 
-  if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, allowMultipleBookings: data.allow_multiple_bookings };
+  if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, allowMultipleBookings: data.allow_multiple_bookings, botContext: data.bot_context ?? null };
   return null;
 }
 
@@ -117,7 +117,7 @@ async function getBusinessServices(businessId: string) {
 }
 
 // Cache business info + services + booking rules (5 min TTL)
-const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
+const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
 
 async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const cached = bizCache.get(businessPhoneNumberId);
@@ -689,7 +689,7 @@ async function resumeFromIntent(
   from: string,
   businessPhoneNumberId: string,
   session: ConversationSession,
-  ctx: { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean }; services: Record<string, any>[]; maxFutureDays: number },
+  ctx: { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; maxFutureDays: number },
   intent: BookingIntent
 ) {
   const lang = session.language ?? "he";
@@ -1037,6 +1037,7 @@ async function handleIncomingMessage(
         services: ctx.services as any,
         language: session.language,
         customerPhone: from,
+        botContext: ctx.biz.botContext,
       });
       addMessage(from, businessPhoneNumberId, "user", prompt);
       addMessage(from, businessPhoneNumberId, "assistant", response);
@@ -1334,6 +1335,7 @@ async function handleIncomingMessage(
     services: ctx.services as any,
     language: session.language,
     customerPhone: from,
+    botContext: ctx.biz.botContext,
   });
 
   addMessage(from, businessPhoneNumberId, "user", text);

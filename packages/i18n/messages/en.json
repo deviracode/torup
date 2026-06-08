@@ -144,6 +144,8 @@
     "description": "Description",
     "phone": "Phone",
     "address": "Address",
+    "botContext": "WhatsApp Bot Context",
+    "botContextDesc": "Give the WhatsApp bot extra background about your business (e.g. specialties, policies, common questions) so its replies are more relevant and accurate.",
     "saved": "Saved successfully",
     "totalAppointments": "Total Appointments",
     "completed": "Completed",
