@@ -292,7 +292,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
             ))}
           </div>
         ) : (
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative" }} onDragOver={(e) => e.preventDefault()}>
             {/* Hour grid rows — drop zones only, no appointment rendering */}
             <motion.div variants={calendarRowContainer} initial="hidden" animate="show">
               {hours.map((hour) => {
@@ -366,7 +366,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                       key={apt.id}
                       onClick={() => setSelectedAppointment(apt)}
                       draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
-                      onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); setDraggingId(apt.id); }}
+                      onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); requestAnimationFrame(() => setDraggingId(apt.id)); }}
                       onDragEnd={() => setDraggingId(null)}
                       style={posStyle}
                       className={`rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all overflow-hidden ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}

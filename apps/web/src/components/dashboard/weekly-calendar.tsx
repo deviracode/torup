@@ -308,6 +308,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                     key={day.toISOString()}
                     className="flex-1 border-e border-white/5 last:border-e-0 relative"
                     style={isToday ? { background: "rgba(99,102,241,0.03)" } : {}}
+                    onDragOver={(e) => e.preventDefault()}
                   >
                     {/* Hour grid — visual only */}
                     {HOURS.map((hour) => {
@@ -360,7 +361,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                           key={apt.id}
                           onClick={() => setSelectedAppointment(apt)}
                           draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
-                          onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); setDraggingId(apt.id); }}
+                          onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); requestAnimationFrame(() => setDraggingId(apt.id)); }}
                           onDragEnd={() => setDraggingId(null)}
                           style={posStyle}
                           className={`rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden hover:brightness-110 transition-all ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
