@@ -62,7 +62,7 @@ router.post(
     try {
       const supabase = createServiceClient();
       const randomColor = SERVICE_COLORS[Math.floor(Math.random() * SERVICE_COLORS.length)];
-      const body = { ...req.body, color: req.body.color ?? randomColor };
+      const body = { ...req.body, color: req.body.color != null ? req.body.color : randomColor };
       if (typeof body.color !== "string" || !/^#([A-Fa-f0-9]{6})$/.test(body.color)) {
         throw new AppError(400, "Invalid color format. Use 6-digit hex, e.g. #6366f1");
       }
