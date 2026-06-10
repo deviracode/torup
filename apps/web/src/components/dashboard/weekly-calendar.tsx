@@ -10,6 +10,7 @@ import { GCalConvertModal } from "./gcal-convert-modal";
 import { MonthYearPicker } from "./month-year-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { calendarRowContainer, calendarRowItem } from "@/components/motion";
+import { serviceColorStyle } from "./service-color";
 
 interface Appointment {
   id: string;
@@ -22,7 +23,7 @@ interface Appointment {
   notes: string | null;
   created_via: string;
   customers?: { name: string; phone: string };
-  services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number };
+  services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number; color?: string | null };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -354,6 +355,7 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                       }
 
                       const { apt } = event;
+                      const svcStyle = serviceColorStyle(apt.services?.color);
                       const sc = STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending;
                       const time = new Date(apt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                       return (
@@ -363,8 +365,11 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
                           draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
                           onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); requestAnimationFrame(() => setDraggingId(apt.id)); }}
                           onDragEnd={() => setDraggingId(null)}
-                          style={posStyle}
-                          className={`rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden hover:brightness-110 transition-all ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
+                          style={{
+                            ...posStyle,
+                            ...(svcStyle ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
+                          }}
+                          className={`rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden hover:brightness-110 transition-all ${svcStyle ? "" : sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
                         >
                           <div className="font-semibold truncate">{time} {apt.customers?.name || ""}</div>
                           {height >= 36 && apt.services?.name_he && (
