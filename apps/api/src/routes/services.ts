@@ -56,9 +56,15 @@ router.post(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const supabase = createServiceClient();
+      const SERVICE_COLORS = [
+        "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316",
+        "#eab308", "#22c55e", "#14b8a6", "#06b6d4", "#3b82f6",
+      ];
+      const randomColor = SERVICE_COLORS[Math.floor(Math.random() * SERVICE_COLORS.length)];
+      const body = { ...req.body, color: req.body.color ?? randomColor };
       const { data, error } = await supabase
         .from("services")
-        .insert({ ...req.body, business_id: getBusinessId(req) })
+        .insert({ ...body, business_id: getBusinessId(req) })
         .select()
         .single();
 
