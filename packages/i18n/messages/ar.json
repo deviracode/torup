@@ -159,6 +159,7 @@
     "active": "نشط",
     "inactive": "غير نشط",
     "status": "الحالة",
+    "reminderConfirmation": "إرسال أزرار تأكيد/إلغاء في التذكير",
     "confirmed": "مؤكد",
     "pendingApproval": "بانتظار الموافقة",
     "discussWithManager": "للتحدث مع المدير",

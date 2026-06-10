@@ -159,6 +159,7 @@
     "active": "Active",
     "inactive": "Inactive",
     "status": "Status",
+    "reminderConfirmation": "Send confirm/cancel buttons in reminder",
     "confirmed": "Confirmed",
     "pendingApproval": "Pending Approval",
     "discussWithManager": "Discuss with Manager",

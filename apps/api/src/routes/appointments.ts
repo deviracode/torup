@@ -149,8 +149,10 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
       await cacheClear(`appts:${businessId}:*`);
       sendAppointmentNotification(data.id, "booking_confirmation")
         .catch((err) => console.error("[Notification] booking_confirmation failed:", err));
-      sendManagerNotification(data.id)
-        .catch((err) => console.error("[Notification] manager failed:", err));
+      if (created_via !== "manual") {
+        sendManagerNotification(data.id)
+          .catch((err) => console.error("[Notification] manager failed:", err));
+      }
       pushAppointmentToGoogle(data.id).catch(() => {});
     }
 

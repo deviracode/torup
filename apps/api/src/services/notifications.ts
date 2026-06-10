@@ -156,7 +156,8 @@ async function logNotification(params: {
 export async function sendAppointmentNotification(
   appointmentId: string,
   templateId: string,
-  extraVars: Partial<TemplateVars> = {}
+  extraVars: Partial<TemplateVars> = {},
+  options: { interactiveReminder?: boolean } = {}
 ) {
   const supabase = createServiceClient();
 
@@ -222,11 +223,12 @@ export async function sendAppointmentNotification(
   const message = renderTemplate(templateId, lang, vars);
 
   const isReminder = templateId.startsWith("reminder_");
+  const useButtons = isReminder && (options.interactiveReminder !== false);
   let whatsappMessageId: string | null = null;
   let sendError: string | null = null;
 
   try {
-    if (isReminder) {
+    if (useButtons) {
       whatsappMessageId = await sendInteractiveReminder(customer.phone, message, lang);
     } else {
       whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
@@ -379,13 +381,13 @@ export async function processReminders(): Promise<{ processed: number; sent: num
 
     const { data: appointments } = await supabase
       .from("appointments")
-      .select("id")
+      .select("id, services(reminder_confirmation)")
       .eq("business_id", setting.business_id)
       .in("status", ["pending", "confirmed"])
       .gte("start_time", windowStart.toISOString())
       .lt("start_time", windowEnd.toISOString());
 
-    for (const apt of appointments || []) {
+    for (const apt of (appointments || []) as Array<{ id: string; services: { reminder_confirmation: boolean } | null }>) {
       const { data: existing } = await supabase
         .from("notifications_log")
         .select("id")
@@ -396,7 +398,8 @@ export async function processReminders(): Promise<{ processed: number; sent: num
 
       if (!existing || existing.length === 0) {
         processed += 1;
-        const result = await sendAppointmentNotification(apt.id, templateId);
+        const interactiveReminder = apt.services?.reminder_confirmation !== false;
+        const result = await sendAppointmentNotification(apt.id, templateId, {}, { interactiveReminder });
         if (result?.sent) sent += 1;
         if (result?.failed) failed += 1;
       }
@@ -496,9 +499,16 @@ export async function updateDeliveryStatus(
   if (status === "read") updateData.read_at = new Date().toISOString();
   if (error) updateData.error = error;
 
-  // In production, correlate messageId with notification_log entry
-  // For now, just log it
-  console.log(`[Delivery Status] Message: ${messageId}, Status: ${status}`);
+  const { error: updErr } = await supabase
+    .from("notifications_log")
+    .update(updateData)
+    .eq("whatsapp_message_id", messageId);
+
+  if (updErr) {
+    console.error(`[Delivery Status] Failed to persist status for ${messageId}:`, updErr.message);
+  } else {
+    console.log(`[Delivery Status] Message: ${messageId}, Status: ${status}${error ? ` | ${error}` : ""}`);
+  }
 }
 
 // Start reminder processing interval (every 5 minutes)

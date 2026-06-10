@@ -32,6 +32,7 @@ interface Service {
   is_active: boolean;
   sort_order: number;
   category_id: string | null;
+  reminder_confirmation: boolean;
 }
 
 export default function ServicesPage() {
@@ -47,7 +48,7 @@ export default function ServicesPage() {
   const [formData, setFormData] = useState({
     name_he: "", name_ar: "", name_en: "", description_he: "",
     duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
-    category_id: "" as string,
+    category_id: "" as string, reminder_confirmation: true,
   });
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [saving, setSaving] = useState(false);
@@ -85,7 +86,7 @@ export default function ServicesPage() {
       description_he: service.description_he || "", duration_minutes: service.duration_minutes,
       buffer_minutes: service.buffer_minutes, price: service.price,
       max_capacity: service.max_capacity, is_active: service.is_active,
-      category_id: service.category_id || "",
+      category_id: service.category_id || "", reminder_confirmation: service.reminder_confirmation ?? true,
     });
     setShowForm(true);
   };
@@ -94,7 +95,7 @@ export default function ServicesPage() {
     setEditingService(null);
     setFormData({ name_he: "", name_ar: "", name_en: "", description_he: "",
       duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
-      category_id: "" });
+      category_id: "", reminder_confirmation: true });
     setShowForm(true);
   };
 
@@ -285,6 +286,11 @@ export default function ServicesPage() {
               <input type="checkbox" id="is_active" checked={formData.is_active}
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} />
               <Label htmlFor="is_active">{t("active")}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="reminder_confirmation" checked={formData.reminder_confirmation}
+                onChange={(e) => setFormData({ ...formData, reminder_confirmation: e.target.checked })} />
+              <Label htmlFor="reminder_confirmation">{t("reminderConfirmation")}</Label>
             </div>
 
             <DialogFooter className="pt-2">

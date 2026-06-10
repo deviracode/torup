@@ -159,6 +159,7 @@
     "active": "פעיל",
     "inactive": "לא פעיל",
     "status": "סטטוס",
+    "reminderConfirmation": "שלח כפתורי אישור/ביטול בתזכורת",
     "confirmed": "מאושר",
     "pendingApproval": "ממתין לאישור",
     "discussWithManager": "לשיחה עם בעל העסק",
