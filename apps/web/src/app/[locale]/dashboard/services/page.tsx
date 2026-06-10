@@ -33,6 +33,7 @@ interface Service {
   sort_order: number;
   category_id: string | null;
   reminder_confirmation: boolean;
+  color: string | null;
 }
 
 export default function ServicesPage() {
@@ -49,6 +50,7 @@ export default function ServicesPage() {
     name_he: "", name_ar: "", name_en: "", description_he: "",
     duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
     category_id: "" as string, reminder_confirmation: true,
+    color: "#6366f1",
   });
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [saving, setSaving] = useState(false);
@@ -87,6 +89,7 @@ export default function ServicesPage() {
       buffer_minutes: service.buffer_minutes, price: service.price,
       max_capacity: service.max_capacity, is_active: service.is_active,
       category_id: service.category_id || "", reminder_confirmation: service.reminder_confirmation ?? true,
+      color: service.color || "#6366f1",
     });
     setShowForm(true);
   };
@@ -174,9 +177,17 @@ export default function ServicesPage() {
                 {services.map((service) => (
                   <TableRow key={service.id} className={!service.is_active ? "opacity-50" : ""}>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{service.name_he}</p>
-                        {service.name_en && <p className="text-xs text-muted-foreground">{service.name_en}</p>}
+                      <div className="flex items-center gap-2">
+                        {service.color && (
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ background: service.color }}
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium">{service.name_he}</p>
+                          {service.name_en && <p className="text-xs text-muted-foreground">{service.name_en}</p>}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
@@ -291,6 +302,24 @@ export default function ServicesPage() {
               <input type="checkbox" id="reminder_confirmation" checked={formData.reminder_confirmation}
                 onChange={(e) => setFormData({ ...formData, reminder_confirmation: e.target.checked })} />
               <Label htmlFor="reminder_confirmation">{t("reminderConfirmation")}</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label>צבע שירות</Label>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-full border-2 border-white/20 cursor-pointer overflow-hidden flex-shrink-0"
+                  style={{ background: formData.color }}
+                  onClick={() => document.getElementById("service-color-input")?.click()}
+                />
+                <input
+                  id="service-color-input"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  className="sr-only"
+                />
+                <span className="text-xs text-muted-foreground font-mono">{formData.color}</span>
+              </div>
             </div>
 
             <DialogFooter className="pt-2">
