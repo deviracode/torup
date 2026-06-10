@@ -98,7 +98,7 @@ export default function ServicesPage() {
     setEditingService(null);
     setFormData({ name_he: "", name_ar: "", name_en: "", description_he: "",
       duration_minutes: 30, buffer_minutes: 0, price: 0, max_capacity: 1, is_active: true,
-      category_id: "", reminder_confirmation: true });
+      category_id: "", reminder_confirmation: true, color: "#6366f1" });
     setShowForm(true);
   };
 
