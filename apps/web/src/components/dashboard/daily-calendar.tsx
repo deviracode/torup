@@ -11,6 +11,7 @@ import { MonthYearPicker } from "./month-year-picker";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { motion } from "framer-motion";
 import { calendarRowContainer, calendarRowItem } from "@/components/motion";
+import { serviceColorStyle } from "./service-color";
 
 interface Appointment {
   id: string;
@@ -23,7 +24,7 @@ interface Appointment {
   notes: string | null;
   created_via: string;
   customers?: { name: string; phone: string };
-  services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number };
+  services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number; color?: string | null };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -128,11 +129,11 @@ function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export function DailyCalendar({ businessId }: { businessId: string }) {
+export function DailyCalendar({ businessId, controlledDate }: { businessId: string; controlledDate?: string }) {
   const t = useTranslations("dashboard");
   const tStatus = useTranslations("appointments");
   const { session } = useAuth();
-  const [date, setDate] = useState(() => formatDate(new Date()));
+  const [date, setDate] = useState(() => controlledDate ?? formatDate(new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [gcalEvents, setGcalEvents] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string }[]>([]);
   const [workingHours, setWorkingHours] = useState<{ day_of_week: number; start_time: string; end_time: string; is_closed: boolean }[]>([]);
@@ -143,6 +144,10 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [showGcal, setShowGcal] = useState(true);
+
+  useEffect(() => {
+    if (controlledDate) setDate(controlledDate);
+  }, [controlledDate]);
 
   const fetchAppointments = useCallback(async () => {
     if (!session?.access_token) return;
@@ -358,6 +363,7 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                   }
 
                   const { apt } = event;
+                  const svcStyle = serviceColorStyle(apt.services?.color);
                   const sc = STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending;
                   const st = new Date(apt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                   const et = new Date(apt.end_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -368,8 +374,11 @@ export function DailyCalendar({ businessId }: { businessId: string }) {
                       draggable={!["completed", "cancelled", "no_show"].includes(apt.status)}
                       onDragStart={(e) => { e.dataTransfer.setData("appointmentId", apt.id); requestAnimationFrame(() => setDraggingId(apt.id)); }}
                       onDragEnd={() => setDraggingId(null)}
-                      style={posStyle}
-                      className={`rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all overflow-hidden ${sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
+                      style={{
+                        ...posStyle,
+                        ...(svcStyle ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
+                      }}
+                      className={`rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all overflow-hidden ${svcStyle ? "" : sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold truncate">{apt.customers?.name || t("unknownCustomer")}</span>
