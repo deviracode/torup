@@ -176,6 +176,7 @@
     "manageRequest": "טיפול בבקשה",
     "services": "שירותים",
     "serviceName": "שם השירות",
+    "serviceColor": "צבע שירות",
     "serviceCategory": "קטגוריה",
     "noCategory": "ללא קטגוריה",
     "newCategory": "+ קטגוריה חדשה",

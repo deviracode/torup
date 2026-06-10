@@ -176,6 +176,7 @@
     "manageRequest": "Manage request",
     "services": "Services",
     "serviceName": "Service name",
+    "serviceColor": "Service Color",
     "serviceCategory": "Category",
     "noCategory": "No category",
     "newCategory": "+ New category",

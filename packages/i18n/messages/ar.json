@@ -176,6 +176,7 @@
     "manageRequest": "إدارة الطلب",
     "services": "الخدمات",
     "serviceName": "اسم الخدمة",
+    "serviceColor": "لون الخدمة",
     "serviceCategory": "الفئة",
     "noCategory": "بدون فئة",
     "newCategory": "+ فئة جديدة",

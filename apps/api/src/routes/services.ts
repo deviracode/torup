@@ -63,6 +63,9 @@ router.post(
       const supabase = createServiceClient();
       const randomColor = SERVICE_COLORS[Math.floor(Math.random() * SERVICE_COLORS.length)];
       const body = { ...req.body, color: req.body.color ?? randomColor };
+      if (typeof body.color !== "string" || !/^#([A-Fa-f0-9]{6})$/.test(body.color)) {
+        throw new AppError(400, "Invalid color format. Use 6-digit hex, e.g. #6366f1");
+      }
       const { data, error } = await supabase
         .from("services")
         .insert({ ...body, business_id: getBusinessId(req) })
@@ -86,6 +89,11 @@ router.patch(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const supabase = createServiceClient();
+      if (req.body.color !== undefined && req.body.color !== null) {
+        if (typeof req.body.color !== "string" || !/^#([A-Fa-f0-9]{6})$/.test(req.body.color)) {
+          throw new AppError(400, "Invalid color format. Use 6-digit hex, e.g. #6366f1");
+        }
+      }
       const { data, error } = await supabase
         .from("services")
         .update(req.body)

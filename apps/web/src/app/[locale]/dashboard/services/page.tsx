@@ -304,7 +304,7 @@ export default function ServicesPage() {
               <Label htmlFor="reminder_confirmation">{t("reminderConfirmation")}</Label>
             </div>
             <div className="flex items-center gap-3">
-              <Label>צבע שירות</Label>
+              <Label>{t("serviceColor")}</Label>
               <div className="flex items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-full border-2 border-white/20 cursor-pointer overflow-hidden flex-shrink-0"
