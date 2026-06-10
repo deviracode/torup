@@ -11,6 +11,7 @@ import { TopBarSlot } from "@/components/dashboard/top-bar-slot";
 import { motion, useSpring, useTransform, useMotionValue, useReducedMotion, AnimatePresence } from "framer-motion";
 import { staggerContainer, springItem } from "@/components/motion";
 import { CalendarDays, Clock, CheckCircle2, AlertCircle, Plus, X, ChevronRight, User, Scissors } from "lucide-react";
+import { PendingApprovalsPanel } from "@/components/dashboard/pending-approvals-panel";
 
 interface DayStats {
   total: number;
@@ -254,6 +255,11 @@ export default function DashboardPage() {
   const [drawerAppts, setDrawerAppts] = useState<Appointment[]>([]);
   const [drawerLoading, setDrawerLoading] = useState(false);
 
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitAppts, setSplitAppts] = useState<Appointment[]>([]);
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (!session?.access_token) return;
     apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
@@ -342,9 +348,32 @@ export default function DashboardPage() {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const openSplitMode = async () => {
+    if (!businessId || !session?.access_token) return;
+    setSplitMode(true);
+    setSplitLoading(true);
+    setSplitAppts([]);
+    try {
+      const r = await apiFetch<Appointment[]>(
+        `/api/businesses/${businessId}/appointments?status=pending_approval`,
+        {},
+        session.access_token
+      );
+      setSplitAppts(Array.isArray(r) ? r.sort((a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      ) : []);
+    } catch {
+      setSplitAppts([]);
+    } finally {
+      setSplitLoading(false);
+    }
+  };
+
+  const handleApprove = async (id: string, date?: string) => {
     if (!businessId || !session?.access_token) return;
     await apiFetch(`/api/businesses/${businessId}/appointments/${id}/approve`, { method: "POST" }, session.access_token).catch(() => {});
+    if (date) setCalendarDate(date);
+    setSplitAppts((prev) => prev.filter((a) => a.id !== id));
     setDrawerAppts((prev) => prev.filter((a) => a.id !== id));
     setRefreshKey((k) => k + 1);
   };
@@ -390,7 +419,7 @@ export default function DashboardPage() {
               <motion.button
                 key={cfg.key}
                 variants={springItem}
-                onClick={() => openDrawer(cfg.key)}
+                onClick={() => cfg.key === "pendingApproval" ? openSplitMode() : openDrawer(cfg.key)}
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
                 className="rounded-xl p-4 border border-white/8 text-start group cursor-pointer transition-all"
@@ -440,7 +469,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Calendar */}
+      {/* Calendar / Split view */}
       {!businessId ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -450,8 +479,23 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      ) : splitMode ? (
+        <div className="flex gap-4 items-start">
+          <PendingApprovalsPanel
+            appointments={splitAppts}
+            loading={splitLoading}
+            isRtl={isRtl}
+            onClose={() => { setSplitMode(false); setCalendarDate(undefined); }}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onSelectDate={(date) => setCalendarDate(date)}
+          />
+          <div className="flex-1 min-w-0">
+            <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+          </div>
+        </div>
       ) : view === "day" ? (
-        <DailyCalendar key={`day-${refreshKey}`} businessId={businessId} />
+        <DailyCalendar key={`day-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
       ) : (
         <WeeklyCalendar key={`week-${refreshKey}`} businessId={businessId} />
       )}
