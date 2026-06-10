@@ -381,6 +381,7 @@ export default function DashboardPage() {
   const handleReject = async (id: string) => {
     if (!businessId || !session?.access_token) return;
     await apiFetch(`/api/businesses/${businessId}/appointments/${id}/reject`, { method: "POST" }, session.access_token).catch(() => {});
+    setSplitAppts((prev) => prev.filter((a) => a.id !== id));
     setDrawerAppts((prev) => prev.filter((a) => a.id !== id));
     setRefreshKey((k) => k + 1);
   };
