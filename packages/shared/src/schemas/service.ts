@@ -15,6 +15,7 @@ export const serviceSchema = z.object({
   max_capacity: z.number().int().min(1).max(100).default(1),
   is_active: z.boolean().default(true),
   sort_order: z.number().int().default(0),
+  color: z.string().nullable().optional(),
 });
 
 export const createServiceSchema = serviceSchema.omit({
