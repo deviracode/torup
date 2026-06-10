@@ -349,6 +349,7 @@ export default function DashboardPage() {
   };
 
   const openSplitMode = async () => {
+    if (splitMode) return;
     if (!businessId || !session?.access_token) return;
     setSplitMode(true);
     setSplitLoading(true);
