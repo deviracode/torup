@@ -71,7 +71,7 @@ router.get(
 
       let query = supabase
         .from("appointments")
-        .select("*, services(name_he, name_ar, name_en), customers(name, phone)")
+        .select("*, services(name_he, name_ar, name_en, color), customers(name, phone)")
         .eq("business_id", businessId)
         .order("start_time");
 
@@ -140,7 +140,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunc
         created_via: created_via || "web",
         status: (created_via === "manual" && status) ? status : "pending",
       })
-      .select("*, services(name_he, name_ar, name_en), customers(name, phone)")
+      .select("*, services(name_he, name_ar, name_en, color), customers(name, phone)")
       .single();
 
     if (error) throw new AppError(400, error.message);
@@ -273,7 +273,7 @@ router.patch(
         .update({ start_time: startDate.toISOString(), end_time: endDate.toISOString() })
         .eq("id", appointmentId)
         .eq("business_id", businessId)
-        .select("*, services(name_he), customers(name, phone)")
+        .select("*, services(name_he, color), customers(name, phone)")
         .single();
 
       if (error) throw new AppError(400, error.message);
