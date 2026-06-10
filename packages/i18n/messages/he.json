@@ -187,7 +187,11 @@
     "priceTypeFixed": "מחיר קבוע",
     "priceTypeDiscuss": "לדיון",
     "moveUp": "העבר למעלה",
-    "moveDown": "העבר למטה"
+    "moveDown": "העבר למטה",
+    "pendingApprovalsTitle": "ממתינים לאישורך",
+    "noPendingRequests": "אין בקשות ממתינות",
+    "approve": "אשר",
+    "reject": "דחה"
   },
   "admin": {
     "businesses": "עסקים",

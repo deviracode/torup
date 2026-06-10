@@ -2,6 +2,7 @@
 
 import { Clock, Scissors, X } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 interface Appointment {
   id: string;
@@ -26,6 +27,7 @@ interface Props {
 export function PendingApprovalsPanel({
   appointments, loading, isRtl, onClose, onApprove, onReject, onSelectDate,
 }: Props) {
+  const t = useTranslations("dashboard");
   return (
     <div
       className="flex flex-col rounded-xl border border-white/8 overflow-hidden flex-shrink-0"
@@ -34,7 +36,7 @@ export function PendingApprovalsPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/7">
         <h2 className="text-sm font-bold text-white">
-          {isRtl ? "ממתינים לאישורך" : "Pending Approvals"}
+          {t("pendingApprovalsTitle")}
           {appointments.length > 0 && (
             <span className="ms-2 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
               {appointments.length}
@@ -43,6 +45,7 @@ export function PendingApprovalsPanel({
         </h2>
         <button
           onClick={onClose}
+          aria-label="Close"
           className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/8 transition-colors"
         >
           <X className="h-3.5 w-3.5" />
@@ -57,7 +60,7 @@ export function PendingApprovalsPanel({
           ))
         ) : appointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-white/30 text-sm">
-            {isRtl ? "אין בקשות ממתינות" : "No pending requests"}
+            {t("noPendingRequests")}
           </div>
         ) : (
           appointments.map((apt) => {
@@ -121,14 +124,14 @@ export function PendingApprovalsPanel({
                     className="flex-1 rounded-lg py-1.5 text-[11px] font-bold text-white"
                     style={{ background: "linear-gradient(135deg, #10b981, #06b6d4)" }}
                   >
-                    {isRtl ? "אשר" : "Approve"}
+                    {t("approve")}
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={(e) => { e.stopPropagation(); onReject(apt.id); }}
                     className="flex-1 rounded-lg py-1.5 text-[11px] font-bold border border-red-500/30 bg-red-500/10 text-red-300"
                   >
-                    {isRtl ? "דחה" : "Reject"}
+                    {t("reject")}
                   </motion.button>
                 </div>
               </motion.div>

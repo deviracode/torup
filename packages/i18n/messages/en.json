@@ -187,7 +187,11 @@
     "priceTypeFixed": "Fixed price",
     "priceTypeDiscuss": "Discuss",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "pendingApprovalsTitle": "Pending Approvals",
+    "noPendingRequests": "No pending requests",
+    "approve": "Approve",
+    "reject": "Reject"
   },
   "admin": {
     "businesses": "Businesses",

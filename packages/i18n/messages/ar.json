@@ -187,7 +187,11 @@
     "priceTypeFixed": "سعر ثابت",
     "priceTypeDiscuss": "للاتفاق",
     "moveUp": "انقل للأعلى",
-    "moveDown": "انقل للأسفل"
+    "moveDown": "انقل للأسفل",
+    "pendingApprovalsTitle": "في انتظار موافقتك",
+    "noPendingRequests": "لا توجد طلبات معلقة",
+    "approve": "موافقة",
+    "reject": "رفض"
   },
   "admin": {
     "businesses": "الأعمال",
