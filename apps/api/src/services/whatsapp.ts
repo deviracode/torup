@@ -2,6 +2,13 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WHATSAPP_API_URL = "https://graph.facebook.com/v21.0";
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return "972" + digits.slice(1);
+  return digits;
+}
+
 interface WhatsAppResponse {
   messages?: { id: string }[];
   error?: { message: string; type: string; code: number; fbtrace_id?: string };
@@ -26,7 +33,7 @@ export async function sendWhatsAppMessage(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: to.replace(/[^0-9]/g, ""),
+        to: normalizePhone(to),
         type: "text",
         text: { body },
       }),
@@ -70,7 +77,7 @@ export async function sendManagerApprovalRequest(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: to.replace(/[^0-9]/g, ""),
+        to: normalizePhone(to),
         type: "interactive",
         interactive: {
           type: "button",
@@ -122,7 +129,7 @@ export async function sendInteractiveReminder(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: to.replace(/[^0-9]/g, ""),
+        to: normalizePhone(to),
         type: "interactive",
         interactive: {
           type: "button",
