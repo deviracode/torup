@@ -24,6 +24,60 @@ export function verifySignature(
   );
 }
 
+export interface WhatsAppStatusUpdate {
+  messageId: string;
+  status: "delivered" | "read" | "failed";
+  error?: string;
+}
+
+/**
+ * Parse delivery/read/failure status updates from Meta WhatsApp Cloud API webhook payload.
+ * These arrive in `value.statuses` and are how silent send failures (e.g. messages
+ * sent outside the 24-hour customer service window) surface — the send call itself
+ * returns a message id even though delivery later fails.
+ */
+export function parseWebhookStatuses(
+  body: Record<string, unknown>
+): WhatsAppStatusUpdate[] {
+  const updates: WhatsAppStatusUpdate[] = [];
+
+  const entry = body.entry as Array<Record<string, unknown>> | undefined;
+  if (!entry) return updates;
+
+  for (const e of entry) {
+    const changes = e.changes as Array<Record<string, unknown>> | undefined;
+    if (!changes) continue;
+
+    for (const change of changes) {
+      const value = change.value as Record<string, unknown> | undefined;
+      if (!value) continue;
+
+      const statuses = value.statuses as
+        | Array<{
+            id?: string;
+            status?: string;
+            errors?: { code?: number; title?: string; message?: string }[];
+          }>
+        | undefined;
+      if (!statuses) continue;
+
+      for (const s of statuses) {
+        if (!s.id) continue;
+        if (s.status === "delivered" || s.status === "read" || s.status === "failed") {
+          const err = s.errors?.[0];
+          updates.push({
+            messageId: s.id,
+            status: s.status,
+            error: err ? `${err.code} ${err.title ?? ""}: ${err.message ?? ""}`.trim() : undefined,
+          });
+        }
+      }
+    }
+  }
+
+  return updates;
+}
+
 export interface WhatsAppMessage {
   from: string; // phone number
   text: string;
