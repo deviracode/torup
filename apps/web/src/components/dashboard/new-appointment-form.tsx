@@ -26,10 +26,20 @@ interface TimeSlot {
   total_capacity: number;
 }
 
+const IL_TZ = "Asia/Jerusalem";
+
+function ilHour(isoStr: string): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: IL_TZ, hour: "numeric", hour12: false }).format(new Date(isoStr)));
+}
+
+function ilTimeLabel(isoStr: string): string {
+  return new Date(isoStr).toLocaleTimeString("he-IL", { timeZone: IL_TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 function groupSlots(slots: TimeSlot[]): Record<string, TimeSlot[]> {
   const grouped: Record<string, TimeSlot[]> = { morning: [], noon: [], evening: [] };
   for (const slot of slots) {
-    const h = new Date(slot.start).getHours();
+    const h = ilHour(slot.start);
     if (h >= 6 && h < 12) grouped.morning.push(slot);
     else if (h >= 12 && h < 16) grouped.noon.push(slot);
     else grouped.evening.push(slot);
@@ -144,8 +154,9 @@ export function NewAppointmentForm({
     }
   };
 
-  const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().split("T")[0]; };
-  const addMonths = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toISOString().split("T")[0]; };
+  const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return toLocalDateStr(d); };
+  const addMonths = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() + n); return toLocalDateStr(d); };
 
   const today = addDays(0);
   const maxDate = addDays(maxFutureDays);
@@ -230,7 +241,7 @@ export function NewAppointmentForm({
                         <p className="text-xs font-medium text-muted-foreground mb-1">{TIME_GROUP_LABELS[key]}</p>
                         <div className="grid grid-cols-4 gap-1.5">
                           {grouped[key].map((slot) => {
-                            const time = new Date(slot.start).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+                            const time = ilTimeLabel(slot.start);
                             return (
                               <button key={slot.start} type="button" onClick={() => setSelectedSlot(slot.start)}
                                 className={`rounded border px-2 py-1.5 text-sm transition-colors ${

@@ -474,7 +474,7 @@ export function AppointmentModal({
                     <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectTime")}</label>
                     <div className="grid grid-cols-3 gap-1.5">
                       {rescheduleSlots.map((slot) => {
-                        const time = new Date(slot.start).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+                        const time = new Date(slot.start).toLocaleTimeString("he-IL", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false });
                         const partial = slot.available_capacity < slot.total_capacity;
                         return (
                           <button
