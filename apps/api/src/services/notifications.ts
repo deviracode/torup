@@ -387,7 +387,7 @@ export async function processReminders(): Promise<{ processed: number; sent: num
       .gte("start_time", windowStart.toISOString())
       .lt("start_time", windowEnd.toISOString());
 
-    for (const apt of (appointments || []) as Array<{ id: string; services: { reminder_confirmation: boolean } | null }>) {
+    for (const apt of (appointments || []) as unknown as Array<{ id: string; services: { reminder_confirmation: boolean } | null }>) {
       const { data: existing } = await supabase
         .from("notifications_log")
         .select("id")
