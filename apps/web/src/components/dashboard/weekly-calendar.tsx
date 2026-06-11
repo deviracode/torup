@@ -175,7 +175,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => changeWeek(-1)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/15 transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -193,7 +193,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                   setWeekStart(getWeekStart(new Date()));
                 }}
                 disabled={isCurrentWeek}
-                className={`text-xs transition-colors mt-0.5 block mx-auto ${isCurrentWeek ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+                className={`text-xs transition-colors mt-0.5 block mx-auto ${isCurrentWeek ? "text-white/40 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
               >
                 {t("today")}
               </button>
@@ -202,7 +202,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
         />
         <button
           onClick={() => changeWeek(1)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/15 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -214,8 +214,8 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
             onClick={() => setShowGcal((v) => !v)}
             className={`flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium border transition-colors ${
               showGcal
-                ? "bg-white/10 border-white/20 text-white/70"
-                : "bg-transparent border-white/10 text-white/30 hover:text-white/50"
+                ? "bg-white/10 border-white/20 text-white/90"
+                : "bg-transparent border-white/20 text-white/60 hover:text-white/80"
             }`}
           >
             📅 Google Calendar
@@ -233,7 +233,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
       {/* Grid */}
       <div className="rounded-xl border border-white/8 overflow-auto" style={{ background: "rgba(255,255,255,0.02)" }}>
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-white/30 text-sm">
+          <div className="flex items-center justify-center py-20 text-white/50 text-sm">
             {t("loadingAppointments")}
           </div>
         ) : (
@@ -249,10 +249,10 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                     className="flex-1 border-e border-white/7 last:border-e-0 px-2 py-3 text-center"
                     style={isToday ? { background: "rgba(99,102,241,0.1)" } : {}}
                   >
-                    <div className={`text-[11px] font-semibold uppercase tracking-wide ${isToday ? "text-[#a78bfa]" : "text-white/40"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wide ${isToday ? "text-[#a78bfa]" : "text-white/70"}`}>
                       {day.toLocaleDateString("he-IL", { weekday: "short" })}
                     </div>
-                    <div className={`text-xl font-black mt-0.5 leading-none ${isToday ? "text-white" : "text-white/60"}`}>
+                    <div className={`text-xl font-black mt-0.5 leading-none ${isToday ? "text-white" : "text-white/85"}`}>
                       {isToday ? (
                         <span
                           className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white text-sm font-black"
@@ -281,7 +281,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                       className="border-b border-white/5 last:border-b-0 text-end pe-3 flex items-start pt-2"
                       style={{ height: ROW_HEIGHT }}
                     >
-                      <span className="text-xs text-white/25 font-mono w-full text-end">
+                      <span className="text-xs text-white/50 font-mono w-full text-end">
                         {String(hour).padStart(2, "0")}:00
                       </span>
                     </motion.div>
@@ -350,10 +350,10 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                             key={evt.google_event_id}
                             onClick={() => setSelectedGcalEvent(evt)}
                             style={posStyle}
-                            className="rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden bg-white/5 border-white/20 text-white/50 hover:bg-white/8 hover:text-white/70 transition-all"
+                            className="rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden bg-white/5 border-white/30 text-white/70 hover:bg-white/10 hover:text-white/90 transition-all"
                           >
                             <div className="font-semibold truncate">📅 {evt.summary || "Google Calendar"}</div>
-                            {height >= 36 && <div className="opacity-60 truncate text-[10px]">{time}</div>}
+                            {height >= 36 && <div className="opacity-80 truncate text-[10px]">{time}</div>}
                           </button>
                         );
                       }
@@ -377,9 +377,9 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                         >
                           <div className="font-semibold truncate">{time} {apt.customers?.name || ""}</div>
                           {height >= 36 && apt.services?.name_he && (
-                            <div className="opacity-70 truncate text-[10px]">{apt.services.name_he}</div>
+                            <div className="opacity-85 truncate text-[10px]">{apt.services.name_he}</div>
                           )}
-                          {apt.notes && height >= 54 && <span className="opacity-50 ms-1" title={apt.notes}>📝</span>}
+                          {apt.notes && height >= 54 && <span className="opacity-70 ms-1" title={apt.notes}>📝</span>}
                         </button>
                       );
                     })}

@@ -217,7 +217,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => changeDate(-1)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/15 transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -235,7 +235,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                   setDate(formatDate(new Date()));
                 }}
                 disabled={isToday}
-                className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/25 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+                className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/40 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
               >
                 {t("today")}
               </button>
@@ -244,7 +244,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
         />
         <button
           onClick={() => changeDate(1)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center border border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/15 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -264,8 +264,8 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
           className="flex items-center gap-2 px-4 py-3 border-b border-white/7"
           style={isToday ? { background: "rgba(99,102,241,0.08)" } : {}}
         >
-          <CalendarDays className="h-4 w-4 text-white/30" />
-          <span className={`text-xs font-semibold ${isToday ? "text-[#a78bfa]" : "text-white/40"}`}>
+          <CalendarDays className="h-4 w-4 text-white/60" />
+          <span className={`text-xs font-semibold ${isToday ? "text-[#a78bfa]" : "text-white/70"}`}>
             {isToday ? t("today") : dateObj.toLocaleDateString("he-IL", { weekday: "long" })}
           </span>
           <div className="ms-auto flex items-center gap-2">
@@ -274,14 +274,14 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                 onClick={() => setShowGcal((v) => !v)}
                 className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border transition-colors ${
                   showGcal
-                    ? "bg-white/10 border-white/20 text-white/70"
-                    : "bg-transparent border-white/10 text-white/30 hover:text-white/50"
+                    ? "bg-white/10 border-white/20 text-white/90"
+                    : "bg-transparent border-white/20 text-white/60 hover:text-white/80"
                 }`}
               >
                 📅 Google
               </button>
             )}
-            <span className="text-xs text-white/25">{visibleAppointments.length} {t("appointmentsCount")}</span>
+            <span className="text-xs text-white/50">{visibleAppointments.length} {t("appointmentsCount")}</span>
           </div>
         </div>
 
@@ -310,7 +310,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                     className={`flex border-b border-white/5 last:border-b-0 ${hasItems ? "bg-white/[0.015]" : ""}`}
                     style={{ height: ROW_HEIGHT }}
                   >
-                    <div className="w-14 shrink-0 border-e border-white/5 py-3 pe-3 text-end text-xs text-white/25 font-mono">
+                    <div className="w-14 shrink-0 border-e border-white/5 py-3 pe-3 text-end text-xs text-white/50 font-mono">
                       {String(hour).padStart(2, "0")}:00
                     </div>
                     <div
@@ -352,7 +352,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                         key={evt.google_event_id}
                         onClick={() => setSelectedGcalEvent(evt)}
                         style={posStyle}
-                        className="rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium bg-white/5 border-white/20 text-white/50 hover:bg-white/8 hover:text-white/70 transition-all overflow-hidden"
+                        className="rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium bg-white/5 border-white/30 text-white/70 hover:bg-white/10 hover:text-white/90 transition-all overflow-hidden"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold truncate">📅 {evt.summary || "Google Calendar"}</span>
@@ -382,17 +382,17 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold truncate">{apt.customers?.name || t("unknownCustomer")}</span>
-                        <span className="shrink-0 opacity-70">{st}–{et}</span>
+                        <span className="shrink-0 opacity-90">{st}–{et}</span>
                       </div>
                       {height >= 40 && (
-                        <div className="opacity-60 truncate mt-0.5">
+                        <div className="opacity-80 truncate mt-0.5">
                           {apt.services?.name_he || ""}
                           {apt.services?.name_he ? " · " : ""}
                           {tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status === "pending_approval" ? "pendingApproval" : apt.status)}
                         </div>
                       )}
                       {apt.notes && height >= 56 && (
-                        <div className="opacity-50 truncate mt-0.5 italic">📝 {apt.notes}</div>
+                        <div className="opacity-70 truncate mt-0.5 italic">📝 {apt.notes}</div>
                       )}
                     </button>
                   );

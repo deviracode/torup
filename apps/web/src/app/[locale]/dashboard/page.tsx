@@ -483,6 +483,13 @@ export default function DashboardPage() {
         </div>
       ) : splitMode ? (
         <div className="flex gap-4 items-start">
+          <div className="flex-1 min-w-0">
+            {view === "day" ? (
+              <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+            ) : (
+              <WeeklyCalendar key={`week-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+            )}
+          </div>
           <PendingApprovalsPanel
             appointments={splitAppts}
             loading={splitLoading}
@@ -492,13 +499,6 @@ export default function DashboardPage() {
             onReject={handleReject}
             onSelectDate={(date) => setCalendarDate(date)}
           />
-          <div className="flex-1 min-w-0">
-            {view === "day" ? (
-              <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
-            ) : (
-              <WeeklyCalendar key={`week-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
-            )}
-          </div>
         </div>
       ) : view === "day" ? (
         <DailyCalendar key={`day-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
