@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
@@ -514,16 +515,17 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Mobile FAB — visible only on small screens where TopBar button is hidden */}
-      {businessId && (
+      {/* Mobile FAB — rendered via portal to escape Framer Motion transform context */}
+      {businessId && typeof document !== "undefined" && createPortal(
         <button
           onClick={() => setShowNewAppt(true)}
-          className="fixed bottom-6 end-6 z-40 flex md:hidden h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
+          className="fixed bottom-6 end-6 z-[9999] flex md:hidden h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
           style={{ background: "var(--grad-primary)" }}
           aria-label={t("newAppointment")}
         >
           <Plus className="h-6 w-6" />
-        </button>
+        </button>,
+        document.body
       )}
 
       {/* Appointment drawer */}
