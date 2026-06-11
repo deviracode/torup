@@ -85,6 +85,8 @@ export function NewAppointmentForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [maxFutureDays, setMaxFutureDays] = useState(14);
+  const [useCustomTime, setUseCustomTime] = useState(false);
+  const [customTime, setCustomTime] = useState("");
 
   const token = session?.access_token || "";
 
@@ -139,13 +141,13 @@ export function NewAppointmentForm({
         );
         customerId = c.id;
       }
+      const startTime = useCustomTime ? ilLocalToISO(date, customTime) : selectedSlot;
       await apiFetch(
         `/api/businesses/${businessId}/appointments`,
-        { method: "POST", body: JSON.stringify({ service_id: selectedServiceId, customer_id: customerId, start_time: selectedSlot, notes: notes || null, created_via: "manual", status }) },
+        { method: "POST", body: JSON.stringify({ service_id: selectedServiceId, customer_id: customerId, start_time: startTime, notes: notes || null, created_via: "manual", status }) },
         token
       );
-      // Return the date of the new appointment so the calendar navigates to it
-      onCreated(selectedSlot.split("T")[0]);
+      onCreated(startTime.split("T")[0]);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create appointment");
@@ -157,6 +159,19 @@ export function NewAppointmentForm({
   const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return toLocalDateStr(d); };
   const addMonths = (n: number) => { const d = new Date(); d.setMonth(d.getMonth() + n); return toLocalDateStr(d); };
+
+  const ilLocalToISO = (dateStr: string, timeStr: string): string => {
+    const ref = new Date(`${dateStr}T12:00:00Z`);
+    const ilH = Number(new Intl.DateTimeFormat("en-US", { timeZone: IL_TZ, hour: "numeric", hour12: false }).format(ref));
+    const utcH = ref.getUTCHours();
+    let offset = ilH - utcH;
+    if (offset > 12) offset -= 24;
+    const [h, m] = timeStr.split(":").map(Number);
+    const utcMin = h * 60 + m - offset * 60;
+    const uh = Math.floor(((utcMin % 1440) + 1440) % 1440 / 60);
+    const um = ((utcMin % 60) + 60) % 60;
+    return `${dateStr}T${String(uh).padStart(2,"0")}:${String(um).padStart(2,"0")}:00.000Z`;
+  };
 
   const today = addDays(0);
   const maxDate = addDays(maxFutureDays);
@@ -230,8 +245,25 @@ export function NewAppointmentForm({
           {/* Time Slots */}
           {selectedServiceId && date && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t("selectTime")}</label>
-              {slots.length === 0 ? (
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-foreground">{t("selectTime")}</label>
+                <button
+                  type="button"
+                  onClick={() => { setUseCustomTime(!useCustomTime); setSelectedSlot(""); setCustomTime(""); }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {useCustomTime ? "← בחר משעות פנויות" : "הכנס שעה ידנית"}
+                </button>
+              </div>
+              {useCustomTime ? (
+                <input
+                  type="time"
+                  required
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  className={inputCls}
+                />
+              ) : slots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("noResults")}</p>
               ) : (
                 <div className="space-y-3">
@@ -325,7 +357,7 @@ export function NewAppointmentForm({
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={loading || !selectedServiceId || !selectedSlot || (!selectedCustomer && (!newName || !newPhone))}
+              disabled={loading || !selectedServiceId || (useCustomTime ? !customTime : !selectedSlot) || (!selectedCustomer && (!newName || !newPhone))}
               className="flex-1 rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
             >
               {t("bookAppointment")}
