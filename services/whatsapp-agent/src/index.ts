@@ -1,5 +1,5 @@
 import express, { type Express } from "express";
-import { verifySignature, parseWebhookPayload } from "./webhook.js";
+import { verifySignature, parseWebhookPayload, parseWebhookStatuses } from "./webhook.js";
 import {
   getSession,
   createSession,
@@ -51,6 +51,33 @@ app.post("/webhook", async (req, res) => {
     if (!verifySignature(rawBody, signature, appSecret)) {
       console.warn("Invalid webhook signature");
       return;
+    }
+  }
+
+  // Parse delivery/read/failure status updates (e.g. messages sent but not
+  // delivered because the customer's 24h session window had expired)
+  const statusUpdates = parseWebhookStatuses(req.body);
+  if (statusUpdates.length > 0) {
+    const supabase = createClient(
+      process.env.SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    );
+    for (const update of statusUpdates) {
+      const updateData: Record<string, string> = { status: update.status };
+      if (update.status === "delivered") updateData.delivered_at = new Date().toISOString();
+      if (update.status === "read") updateData.read_at = new Date().toISOString();
+      if (update.error) updateData.error = update.error;
+
+      const { error: updErr } = await supabase
+        .from("notifications_log")
+        .update(updateData)
+        .eq("whatsapp_message_id", update.messageId);
+
+      if (updErr) {
+        console.error(`[Delivery Status] Failed to persist ${update.messageId}:`, updErr.message);
+      } else {
+        console.log(`[Delivery Status] ${update.messageId} → ${update.status}${update.error ? ` | ${update.error}` : ""}`);
+      }
     }
   }
 
@@ -1308,7 +1335,7 @@ async function handleIncomingMessage(
     const { dateStr: todayDate } = getIsraelDate();
     const intent = await extractBookingIntent(text, ctx.services as any, session.language, todayDate);
 
-    if (intent.confidence === "high") {
+    if (intent.confidence !== "low") {
       if (!session.customerName) {
         updateSession(from, businessPhoneNumberId, { awaitingName: true, pendingIntent: intent });
         session.awaitingName = true;
@@ -1318,7 +1345,7 @@ async function handleIncomingMessage(
       await resumeFromIntent(from, businessPhoneNumberId, session, ctx, intent);
       return;
     }
-    // confidence=low: fall through to normal greeting/booking pattern matching
+    // confidence=low: fall through to greeting/booking pattern matching
   }
 
   // Greetings → show main menu (no Claude needed)

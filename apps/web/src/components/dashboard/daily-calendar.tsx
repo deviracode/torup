@@ -90,8 +90,8 @@ function computeLayout(events: CalEvent[], firstHour: number, rowHeight: number)
 
   return sorted.map((event, i) => {
     const totalCols = (compMaxCol[find(i)] ?? 0) + 1;
-    const startMin = (() => { const d = new Date(getStart(event)); return d.getHours() * 60 + d.getMinutes(); })();
-    const endMin   = (() => { const d = new Date(getEnd(event));   return d.getHours() * 60 + d.getMinutes(); })();
+    const startMin = ilMinuteOfDay(event.kind === "apt" ? event.apt.start_time : event.evt.start_time);
+    const endMin   = ilMinuteOfDay(event.kind === "apt" ? event.apt.end_time   : event.evt.end_time);
     const top    = (startMin - firstHour * 60) * (rowHeight / 60);
     const height = Math.max(24, (endMin - startMin) * (rowHeight / 60));
     return { event, col: cols[i], totalCols, top, height };
@@ -112,12 +112,12 @@ function computeHours(
     endHour = Math.max(endHour, parseInt(dayWh.end_time.split(":")[0], 10));
   }
   for (const apt of appointments) {
-    startHour = Math.min(startHour, new Date(apt.start_time).getHours());
-    endHour = Math.max(endHour, new Date(apt.end_time).getHours() + 1);
+    startHour = Math.min(startHour, ilHour(apt.start_time));
+    endHour = Math.max(endHour, ilHour(apt.end_time) + 1);
   }
   for (const evt of gcalEvents) {
-    startHour = Math.min(startHour, new Date(evt.start_time).getHours());
-    endHour = Math.max(endHour, new Date(evt.end_time).getHours() + 1);
+    startHour = Math.min(startHour, ilHour(evt.start_time));
+    endHour = Math.max(endHour, ilHour(evt.end_time) + 1);
   }
   endHour = Math.min(endHour, 24);
   const hours: number[] = [];
@@ -126,7 +126,19 @@ function computeHours(
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function ilMinuteOfDay(isoStr: string): number {
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", minute: "numeric", hour12: false });
+  const parts = fmt.formatToParts(new Date(isoStr));
+  const h = Number(parts.find(p => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find(p => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
+function ilHour(isoStr: string): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", hour12: false }).format(new Date(isoStr)));
 }
 
 export function DailyCalendar({ businessId, controlledDate }: { businessId: string; controlledDate?: string }) {
@@ -301,8 +313,8 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
             {/* Hour grid rows — drop zones only, no appointment rendering */}
             <motion.div variants={calendarRowContainer} initial="hidden" animate="show">
               {hours.map((hour) => {
-                const hasItems = visibleAppointments.some((a) => new Date(a.start_time).getHours() === hour)
-                  || (showGcal && deduplicatedGcalEvents.some((e) => new Date(e.start_time).getHours() === hour));
+                const hasItems = visibleAppointments.some((a) => ilHour(a.start_time) === hour)
+                  || (showGcal && deduplicatedGcalEvents.some((e) => ilHour(e.start_time) === hour));
                 return (
                   <motion.div
                     key={hour}
@@ -424,10 +436,16 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                   const appointmentId = e.dataTransfer.getData("appointmentId");
                   if (!appointmentId || !session?.access_token) return;
                   const apt = appointments.find((a) => a.id === appointmentId);
-                  const newStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`);
+                  const ilOffset = (() => {
+                    const ref = new Date(`${date}T12:00:00Z`);
+                    const utcH = ref.getUTCHours();
+                    const ilH = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", hour12: false }).format(ref));
+                    let off = ilH - utcH; if (off < 0) off += 24; if (off > 12) off -= 24;
+                    return `+${String(off).padStart(2,"0")}:00`;
+                  })();
+                  const newStart = new Date(`${date}T${String(hour).padStart(2, "0")}:00:00${ilOffset}`);
                   if (apt) {
-                    const current = new Date(apt.start_time);
-                    if (formatDate(current) === date && current.getHours() === hour) return;
+                    if (formatDate(new Date(apt.start_time + "")) === date && ilHour(apt.start_time) === hour) return;
                   }
                   setDropError(null);
                   try {

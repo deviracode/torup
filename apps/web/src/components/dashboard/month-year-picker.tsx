@@ -67,8 +67,9 @@ export function MonthYearPicker({ value, onSelect, trigger }: MonthYearPickerPro
     cells.push({ date: new Date(viewYear, viewMonth + 1, d), current: false });
   }
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const selectedStr = value.toISOString().split("T")[0];
+  const toLocalStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const todayStr = toLocalStr(new Date());
+  const selectedStr = toLocalStr(value);
 
   return (
     <div className="text-center relative" ref={containerRef}>
@@ -98,7 +99,7 @@ export function MonthYearPicker({ value, onSelect, trigger }: MonthYearPickerPro
           {/* Day grid */}
           <div className="grid grid-cols-7 gap-y-0.5">
             {cells.map(({ date, current }, i) => {
-              const dateStr = date.toISOString().split("T")[0];
+              const dateStr = toLocalStr(date);
               const isToday = dateStr === todayStr;
               const isSelected = dateStr === selectedStr;
               return (

@@ -87,8 +87,8 @@ function computeLayout(events: CalEvent[]): EventLayout[] {
 
   return sorted.map((event, i) => {
     const totalCols = (compMaxCol[find(i)] ?? 0) + 1;
-    const startMin = (() => { const d = new Date(getStart(event)); return d.getHours() * 60 + d.getMinutes(); })();
-    const endMin   = (() => { const d = new Date(getEnd(event));   return d.getHours() * 60 + d.getMinutes(); })();
+    const startMin = ilMinuteOfDay(event.kind === "apt" ? event.apt.start_time : event.evt.start_time);
+    const endMin   = ilMinuteOfDay(event.kind === "apt" ? event.apt.end_time   : event.evt.end_time);
     const top    = (startMin - HOURS[0] * 60) * (ROW_HEIGHT / 60);
     const height = Math.max(18, (endMin - startMin) * (ROW_HEIGHT / 60));
     return { event, col: cols[i], totalCols, top, height };
@@ -103,7 +103,15 @@ function getWeekStart(date: Date): Date {
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function ilMinuteOfDay(isoStr: string): number {
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", minute: "numeric", hour12: false });
+  const parts = fmt.formatToParts(new Date(isoStr));
+  const h = Number(parts.find(p => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find(p => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
 }
 
 export function WeeklyCalendar({ businessId, controlledDate }: { businessId: string; controlledDate?: string }) {

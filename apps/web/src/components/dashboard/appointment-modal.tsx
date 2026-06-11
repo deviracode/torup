@@ -74,13 +74,23 @@ export function AppointmentModal({
   const [rescheduleSlots, setRescheduleSlots] = useState<{ start: string; end: string; available_capacity: number; total_capacity: number }[]>([]);
   const [rescheduleSlot, setRescheduleSlot] = useState("");
   const [rescheduling, setRescheduling] = useState(false);
+  const [showEditTime, setShowEditTime] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setShowReschedule(false);
     setRescheduleDate("");
     setRescheduleSlots([]);
     setRescheduleSlot("");
-  }, [appointment.id]);
+    setShowEditTime(false);
+    // Pre-populate edit fields from current appointment (Israel timezone)
+    const ilFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit" });
+    const ilTimeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false });
+    setEditDate(ilFmt.format(new Date(appointment.start_time)));
+    setEditTime(ilTimeFmt.format(new Date(appointment.start_time)));
+  }, [appointment.id, appointment.start_time]);
 
   useEffect(() => {
     apiFetch<{ notifications: { template_id: string; status: string; sent_at: string; customer_response: string | null; responded_at: string | null }[] }>(
@@ -140,6 +150,34 @@ export function AppointmentModal({
       setError(err instanceof Error ? err.message : "Failed to reschedule");
     } finally {
       setRescheduling(false);
+    }
+  };
+
+  const handleEditTime = async () => {
+    if (!editDate || !editTime) return;
+    setSaving(true);
+    setError("");
+    try {
+      // Convert Israel local date+time to UTC
+      const ilOffset = (() => {
+        const ref = new Date(`${editDate}T12:00:00Z`);
+        const utcH = ref.getUTCHours();
+        const ilH = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", hour12: false }).format(ref));
+        let diff = ilH - utcH; if (diff < 0) diff += 24; if (diff > 12) diff -= 24;
+        return `+${String(diff).padStart(2,"0")}:00`;
+      })();
+      const newStart = new Date(`${editDate}T${editTime}:00${ilOffset}`).toISOString();
+      await apiFetch(
+        `/api/businesses/${businessId}/appointments/${appointment.id}/reschedule`,
+        { method: "PATCH", body: JSON.stringify({ start_time: newStart }) },
+        token
+      );
+      onUpdate();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update time");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -373,16 +411,52 @@ export function AppointmentModal({
           </>
         )}
 
-        {/* Reschedule — available for pending_approval, pending, confirmed */}
+        {/* Edit time / Reschedule — available for pending_approval, pending, confirmed */}
         {["pending_approval", "pending", "confirmed"].includes(appointment.status) && (
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setShowReschedule(!showReschedule); setRescheduleDate(""); setRescheduleSlots([]); setRescheduleSlot(""); }}
-            >
-              🗓 {t("reschedule") || "Reschedule"}
-            </Button>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowEditTime(!showEditTime); setShowReschedule(false); }}
+              >
+                ✏️ {t("editTime") || "Edit Time"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowReschedule(!showReschedule); setShowEditTime(false); setRescheduleDate(""); setRescheduleSlots([]); setRescheduleSlot(""); }}
+              >
+                🗓 {t("reschedule") || "Reschedule"}
+              </Button>
+            </div>
+            {showEditTime && (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectDate")}</label>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectTime")}</label>
+                    <input
+                      type="time"
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <Button size="sm" onClick={handleEditTime} disabled={saving || !editDate || !editTime}>
+                  {saving ? "..." : t("bookAppointment") || "Save"}
+                </Button>
+              </div>
+            )}
             {showReschedule && (
               <div className="mt-3 space-y-3 rounded-lg border border-border p-3">
                 <div>

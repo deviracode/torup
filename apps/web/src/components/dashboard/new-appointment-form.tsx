@@ -53,7 +53,7 @@ export function NewAppointmentForm({
 }: {
   businessId: string;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (date: string) => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
@@ -134,7 +134,8 @@ export function NewAppointmentForm({
         { method: "POST", body: JSON.stringify({ service_id: selectedServiceId, customer_id: customerId, start_time: selectedSlot, notes: notes || null, created_via: "manual", status }) },
         token
       );
-      onCreated();
+      // Return the date of the new appointment so the calendar navigates to it
+      onCreated(selectedSlot.split("T")[0]);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create appointment");

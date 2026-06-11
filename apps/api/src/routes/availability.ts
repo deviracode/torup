@@ -24,6 +24,31 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 
     const dateStr = date as string;
 
+    // Compute Israel UTC offset (handles DST: +02 in winter, +03 in summer)
+    const getILOffset = (d: string): { hours: number; str: string } => {
+      const ref = new Date(`${d}T12:00:00Z`);
+      const utcH = ref.getUTCHours();
+      const ilH = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Jerusalem", hour: "numeric", hour12: false }).format(ref));
+      let diff = ilH - utcH;
+      if (diff < 0) diff += 24;
+      if (diff > 12) diff -= 24;
+      return { hours: diff, str: `+${String(diff).padStart(2, "0")}:00` };
+    };
+
+    // Helper: convert a local Israel "HH:mm" time string to UTC-equivalent "HH:mm"
+    const toUTCTime = (localTime: string, ilOffsetHours: number): string => {
+      const [h, m] = localTime.split(":").map(Number);
+      const utcMin = h * 60 + m - ilOffsetHours * 60;
+      const uh = Math.floor(utcMin / 60);
+      const um = utcMin % 60;
+      // Clamp to 0–23 range
+      const clampedH = Math.max(0, Math.min(23, uh));
+      return `${String(clampedH).padStart(2, "0")}:${String(Math.max(0, um)).padStart(2, "0")}`;
+    };
+
+    const ilOffset = getILOffset(dateStr);
+    const tzStr = ilOffset.str;
+
     const { data: service } = await supabase
       .from("services")
       .select("*")
@@ -42,17 +67,22 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
         .select("start_time, end_time, staff_id")
         .eq("business_id", businessId)
         .eq("service_id", service_id as string)
-        .gte("start_time", `${dateStr}T00:00:00+03:00`)
-        .lte("start_time", `${dateStr}T23:59:59+03:00`)
+        .gte("start_time", `${dateStr}T00:00:00${tzStr}`)
+        .lte("start_time", `${dateStr}T23:59:59${tzStr}`)
         .not("status", "in", '("cancelled","no_show")'),
       supabase.from("booking_rules").select("*").eq("business_id", businessId).single(),
     ]);
 
-    // Transform working hours
+    // Transform working hours — convert Israel local times to UTC-equivalent so the engine
+    // (which now uses UTC midnight as base) produces slot Date objects that are directly
+    // comparable with the UTC timestamps stored for existing appointments.
     const whMap = new Map<number, { start: string; end: string }[]>();
     for (const wh of whResult.data || []) {
       if (!whMap.has(wh.day_of_week)) whMap.set(wh.day_of_week, []);
-      if (!wh.is_closed) whMap.get(wh.day_of_week)!.push({ start: wh.start_time, end: wh.end_time });
+      if (!wh.is_closed) whMap.get(wh.day_of_week)!.push({
+        start: toUTCTime(wh.start_time, ilOffset.hours),
+        end: toUTCTime(wh.end_time, ilOffset.hours),
+      });
     }
 
     const workingHours: WorkingDay[] = Array.from({ length: 7 }, (_, day) => {
@@ -67,8 +97,8 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       type: b.type as "recurring" | "one_time",
       dayOfWeek: (b.day_of_week as number) ?? undefined,
       specificDate: (b.specific_date as string) ?? undefined,
-      start: b.start_time as string,
-      end: b.end_time as string,
+      start: toUTCTime(b.start_time as string, ilOffset.hours),
+      end: toUTCTime(b.end_time as string, ilOffset.hours),
     }));
 
     const existingAppointments: ExistingAppointment[] = (aptResult.data || []).map(

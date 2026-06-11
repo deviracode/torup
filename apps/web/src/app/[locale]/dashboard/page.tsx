@@ -510,8 +510,20 @@ export default function DashboardPage() {
         <NewAppointmentForm
           businessId={businessId}
           onClose={() => setShowNewAppt(false)}
-          onCreated={() => setRefreshKey((k) => k + 1)}
+          onCreated={(date) => { setCalendarDate(date); setRefreshKey((k) => k + 1); }}
         />
+      )}
+
+      {/* Mobile FAB — visible only on small screens where TopBar button is hidden */}
+      {businessId && (
+        <button
+          onClick={() => setShowNewAppt(true)}
+          className="fixed bottom-6 end-6 z-40 flex md:hidden h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
+          style={{ background: "var(--grad-primary)" }}
+          aria-label={t("newAppointment")}
+        >
+          <Plus className="h-6 w-6" />
+        </button>
       )}
 
       {/* Appointment drawer */}

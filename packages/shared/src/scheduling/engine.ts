@@ -31,9 +31,11 @@ export function minutesToTime(minutes: number): string {
  * Create a Date object for a specific date and time
  */
 function createDateTime(dateStr: string, timeMinutes: number): Date {
-  const date = new Date(dateStr + "T00:00:00");
-  date.setMinutes(timeMinutes);
-  return date;
+  // Always use UTC midnight as base so slot times are comparable with UTC timestamps
+  // stored in the database. Callers are responsible for passing UTC-adjusted time minutes.
+  const base = new Date(dateStr + "T00:00:00Z");
+  base.setUTCMinutes(base.getUTCMinutes() + timeMinutes);
+  return base;
 }
 
 /**
