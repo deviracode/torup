@@ -106,10 +106,10 @@ function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-export function WeeklyCalendar({ businessId }: { businessId: string }) {
+export function WeeklyCalendar({ businessId, controlledDate }: { businessId: string; controlledDate?: string }) {
   const t = useTranslations("dashboard");
   const { session } = useAuth();
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(controlledDate ? new Date(controlledDate + "T12:00:00") : new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [gcalEvents, setGcalEvents] = useState<{ google_event_id: string; summary: string; start_time: string; end_time: string; date: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +119,10 @@ export function WeeklyCalendar({ businessId }: { businessId: string }) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const [showGcal, setShowGcal] = useState(true);
+
+  useEffect(() => {
+    if (controlledDate) setWeekStart(getWeekStart(new Date(controlledDate + "T12:00:00")));
+  }, [controlledDate]);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);

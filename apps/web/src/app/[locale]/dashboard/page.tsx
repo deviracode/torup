@@ -493,7 +493,11 @@ export default function DashboardPage() {
             onSelectDate={(date) => setCalendarDate(date)}
           />
           <div className="flex-1 min-w-0">
-            <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+            {view === "day" ? (
+              <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+            ) : (
+              <WeeklyCalendar key={`week-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+            )}
           </div>
         </div>
       ) : view === "day" ? (
