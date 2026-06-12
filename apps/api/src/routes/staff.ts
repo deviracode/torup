@@ -256,25 +256,7 @@ router.get(
 
       if (error) throw new AppError(500, error.message);
 
-      const rows = data || [];
-      const ranges: { id: string; start_date: string; end_date: string; break_ids: string[] }[] = [];
-      for (const row of rows as Record<string, unknown>[]) {
-        const date = row.specific_date as string;
-        const last = ranges[ranges.length - 1];
-        if (last) {
-          const prevDate = new Date(last.end_date + "T12:00:00Z");
-          prevDate.setDate(prevDate.getDate() + 1);
-          const nextStr = prevDate.toISOString().split("T")[0];
-          if (nextStr === date) {
-            last.end_date = date;
-            last.break_ids.push(row.id as string);
-            continue;
-          }
-        }
-        ranges.push({ id: row.id as string, start_date: date, end_date: date, break_ids: [row.id as string] });
-      }
-
-      res.json({ ranges });
+      res.json({ ranges: groupIntoRanges(data || []) });
     } catch (err) {
       next(err);
     }
