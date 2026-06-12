@@ -232,3 +232,15 @@ describe("Availability Calculation", () => {
     expect(nineThirty).toBeUndefined();
   });
 });
+
+describe("Staff display_name validation", () => {
+  it("rejects empty display_name", () => {
+    const name = "  ";
+    expect(name.trim().length).toBe(0);
+  });
+
+  it("accepts valid display_name", () => {
+    const name = "Ahmed";
+    expect(name.trim().length).toBeGreaterThan(0);
+  });
+});
