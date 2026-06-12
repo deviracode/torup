@@ -1001,7 +1001,7 @@ async function handleIncomingMessage(
   if (interactionId) {
     // Reminder confirm/cancel buttons
     if (interactionId === "confirm" || interactionId === "cancel") {
-      const supabase = createClient();
+      const supabase = getSupabase();
       const { data: customer } = await supabase
         .from("customers")
         .select("id, language_preference")
