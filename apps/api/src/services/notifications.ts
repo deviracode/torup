@@ -34,22 +34,22 @@ const templates: Record<string, Record<string, string>> = {
   },
   approval: {
     he: "✅ {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nנתראה! 😊",
-    ar: "✅ {customer_name}، تأكد دورك عند {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nنشوفك قريب! 😊",
+    ar: "✅ {customer_name}، تم تأكيد موعدك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nنراك قريباً! 😊",
     en: "✅ {customer_name}, your appointment at {business_name} has been approved!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nSee you soon! 😊",
   },
   rejection_slot_taken: {
     he: "מצטערים {customer_name} 🙏\nהתור שביקשתם ב-{business_name} ב-{date} בשעה {time} ניתן ללקוח אחר.\nניתן לקבוע תור אחר כאן: {rebook_url}",
-    ar: "آسفين {customer_name} 🙏\nالدور يلي طلبتيه عند {business_name} يوم {date} الساعة {time} أخده زبون ثاني.\nتقدري تحجزي دور ثاني من هون: {rebook_url}",
+    ar: "نأسف {customer_name} 🙏\nالموعد الذي طلبته في {business_name} بتاريخ {date} الساعة {time} تم حجزه من قِبل عميل آخر.",
     en: "Sorry {customer_name} 🙏\nThe slot you requested at {business_name} on {date} at {time} was given to another customer.\nYou can book a different time here: {rebook_url}",
   },
   rejection_manual: {
     he: "{customer_name}, לצערנו לא נוכל לקבל אותך ב-{business_name} ב-{date} בשעה {time}.\nניתן לקבוע תור אחר כאן: {rebook_url}",
-    ar: "{customer_name}، للأسف ما بنقدر نستقبلك عند {business_name} يوم {date} الساعة {time}.\nتقدري تحجزي دور ثاني من هون: {rebook_url}",
+    ar: "{customer_name}، للأسف لن نتمكن من استقبالك في {business_name} بتاريخ {date} الساعة {time}.",
     en: "{customer_name}, unfortunately we can't host you at {business_name} on {date} at {time}.\nYou can book a different time here: {rebook_url}",
   },
   waitlist_available: {
     he: "התפנה מקום ב-{business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nיש לך 15 דקות לאשר.",
-    ar: "فضي مكان عند {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nعندك 15 دقيقة تأكدي!",
+    ar: "أصبح هناك موعد متاح في {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nلديك 15 دقيقة للتأكيد.",
     en: "A slot opened up at {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nYou have 15 minutes to confirm.",
   },
 };
@@ -79,7 +79,7 @@ function buildReminderBody(
       lang === "he"
         ? `תזכורת: יש לך תור מחר בשעה ${vars.time} ⏰`
         : lang === "ar"
-        ? `تذكير: عندك دور بكرا الساعة ${vars.time} ⏰`
+        ? `تذكير: لديك موعد غداً الساعة ${vars.time} ⏰`
         : `Reminder: appointment tomorrow at ${vars.time} ⏰`;
   } else if (m >= 1441) {
     const days = Math.round(m / 1440);
@@ -87,14 +87,14 @@ function buildReminderBody(
       lang === "he"
         ? `תזכורת: יש לך תור בעוד ${days} ימים ב-${vars.time} ⏰`
         : lang === "ar"
-        ? `تذكير: عندك دور بعد ${days} أيام الساعة ${vars.time} ⏰`
+        ? `تذكير: لديك موعد بعد ${days} أيام الساعة ${vars.time} ⏰`
         : `Reminder: appointment in ${days} days at ${vars.time} ⏰`;
   } else if (m === 60) {
     lead =
       lang === "he"
         ? `תזכורת: התור שלך בעוד שעה ⏰ ${vars.time}`
         : lang === "ar"
-        ? `تذكير: دورك بعد ساعة ⏰ ${vars.time}`
+        ? `تذكير: موعدك بعد ساعة ⏰ ${vars.time}`
         : `Reminder: appointment in 1 hour ⏰ ${vars.time}`;
   } else if (m > 60) {
     const hours = Math.round(m / 60);
@@ -102,14 +102,14 @@ function buildReminderBody(
       lang === "he"
         ? `תזכורת: התור שלך בעוד ${hours} שעות ⏰ ${vars.time}`
         : lang === "ar"
-        ? `تذكير: دورك بعد ${hours} ساعات ⏰ ${vars.time}`
+        ? `تذكير: موعدك بعد ${hours} ساعات ⏰ ${vars.time}`
         : `Reminder: appointment in ${hours}h ⏰ ${vars.time}`;
   } else {
     lead =
       lang === "he"
         ? `תזכורת: התור שלך בעוד ${m} דקות ⏰ ${vars.time}`
         : lang === "ar"
-        ? `تذكير: دورك بعد ${m} دقيقة ⏰ ${vars.time}`
+        ? `تذكير: موعدك بعد ${m} دقيقة ⏰ ${vars.time}`
         : `Reminder: appointment in ${m} min ⏰ ${vars.time}`;
   }
 

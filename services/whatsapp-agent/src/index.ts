@@ -192,8 +192,8 @@ const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
     book: "קביעת תור", myAppts: "התורים שלי", cancel: "ביטול תור",
   },
   ar: {
-    greeting: (n, b) => n ? `أهلين ${n}! 👋\nمرحبتين بـ${b}.\nكيف فيني ساعدك اليوم؟` : `أهلين بـ${b}! 👋\nكيف فيني ساعدك اليوم؟`,
-    book: "احجز دور", myAppts: "دواراتي", cancel: "إلغي الدور",
+    greeting: (n, b) => n ? `مرحباً ${n}! 👋\nأهلاً بك في ${b}.\nكيف يمكنني مساعدتك؟` : `أهلاً بك في ${b}! 👋\nكيف يمكنني مساعدتك؟`,
+    book: "حجز موعد", myAppts: "مواعيدي", cancel: "إلغاء موعد",
   },
   en: {
     greeting: (n, b) => n ? `Hi ${n}! 👋\nWelcome to ${b}.\nHow can I help?` : `Welcome to ${b}! 👋\nHow can I help?`,
@@ -222,13 +222,13 @@ function normalizePhone(p: string): string {
 
 const ASK_NAME: Record<"he" | "ar" | "en", string> = {
   he: "שמחים שפניתם! 🙂 איך קוראים לכם? (שם מלא יעזור לבעל העסק לזהות אתכם)",
-  ar: "أهلين! 🙂 ممكن تكتبي شو اسمك؟ (الاسم الكامل بساعد صاحب المحل يتعرف عليك)",
+  ar: "أهلاً! 🙂 ما اسمك الكريم؟ (الاسم الكامل يساعد صاحب العمل على التعرف عليك)",
   en: "Welcome! 🙂 What's your name? (Full name helps the business owner identify you)",
 };
 
 const NAME_THANKS: Record<"he" | "ar" | "en", (n: string) => string> = {
   he: (n) => `תודה ${n}! 🙏`,
-  ar: (n) => `يسلمو ${n}! 🙏`,
+  ar: (n) => `شكراً ${n}! 🙏`,
   en: (n) => `Thanks ${n}! 🙏`,
 };
 
@@ -236,38 +236,38 @@ const PENDING_APPROVAL_MSG: Record<"he" | "ar" | "en", (svc: string, dateLabel: 
   he: (svc, d, t) =>
     `📩 בקשת התור התקבלה!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ ממתין לאישור בעל העסק. נשלח לך הודעה ברגע שזה יאושר.`,
   ar: (svc, d, t) =>
-    `📩 وصلنا طلبك!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ بننتظر موافقة صاحب المحل. رح نبعتلك رسالة لما يوافق.`,
+    `📩 تم استلام طلبك!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ بانتظار موافقة صاحب العمل. سنرسل لك رسالة فور الموافقة.`,
   en: (svc, d, t) =>
     `📩 Your booking request was received!\n\n✂️ ${svc}\n📅 ${d}\n🕐 ${t}\n\n⏳ Awaiting the business owner's approval. We'll message you the moment it's approved.`,
 };
 
 const CHAIN_BOOKING_MSG: Record<"he" | "ar" | "en", (remaining: number) => string> = {
   he: (n) => `רוצים לקבוע תור לעוד ${n} ${n === 1 ? "אדם" : "אנשים"}?`,
-  ar: (n) => `حابة نحجز كمان لـ ${n} ${n === 1 ? "شخص ثاني" : "أشخاص ثانيين"}؟ 😊`,
+  ar: (n) => `هل تريد الحجز لـ ${n} ${n === 1 ? "شخص آخر" : "أشخاص آخرين"}؟ 😊`,
   en: (n) => `Want to book for ${n} more ${n === 1 ? "person" : "people"}?`,
 };
 
 const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   he: "יש לך כבר תור פעיל אצלנו 📌\nניתן לקבוע תור חדש רק לאחר שהתור הקיים יסתיים או יבוטל. אפשר לראות את התור ב\"התורים שלי\".",
-  ar: "عندك دور شاغل هلأ 📌\nتقدري تحجزي دور جديد بس بعد ما ينتهي أو يتلغى الدور الحالي. تقدري تشوفيه من \"دواراتي\".",
+  ar: "لديك موعد نشط حالياً 📌\nيمكنك حجز موعد جديد فقط بعد انتهاء الموعد الحالي أو إلغائه. يمكنك الاطلاع عليه من \"مواعيدي\".",
   en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
 };
 
 const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) => string> = {
   he: (t, d) => `⚠️ השעה ${t}:00 ב-${d} תפוסה. בחרו תאריך אחר:`,
-  ar: (t, d) => `⚠️ الساعة ${t}:00 يوم ${d} مأخوذة. اختاري تاريخ ثاني:`,
+  ar: (t, d) => `⚠️ الساعة ${t}:00 بتاريخ ${d} محجوزة. اختر تاريخاً آخر:`,
   en: (t, d) => `⚠️ ${t}:00 on ${d} is taken. Choose another date:`,
 };
 
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
   he: { prompt: "בחרו שירות:", button: "הצג שירותים", section: "שירותים", discuss: "לשיחה עם בעל העסק", min: "דק׳" },
-  ar: { prompt: "أي خدمة حابة تحجزي؟ 😊", button: "شوفي الخدمات", section: "الخدمات", discuss: "اتفقي مع صاحب المحل", min: "دقيقة" },
+  ar: { prompt: "ما الخدمة التي تودّ حجزها؟ 😊", button: "عرض الخدمات", section: "الخدمات", discuss: "يُحدَّد مع صاحب العمل", min: "دقيقة" },
   en: { prompt: "Choose a service:", button: "Show Services", section: "Services", discuss: "Discuss with owner", min: "min" },
 };
 
 const CATEGORY_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; more: string }> = {
   he: { prompt: "בחרו קטגוריה:", button: "הצג קטגוריות", section: "קטגוריות", more: "שירותים נוספים" },
-  ar: { prompt: "اختاري الفئة:", button: "شوفي الفئات", section: "الفئات", more: "خدمات أخرى" },
+  ar: { prompt: "اختر الفئة:", button: "عرض الفئات", section: "الفئات", more: "خدمات أخرى" },
   en: { prompt: "Choose a category:", button: "Show Categories", section: "Categories", more: "More services" },
 };
 
@@ -320,7 +320,7 @@ const DAY_NAMES: Record<"he" | "ar" | "en", string[]> = {
   en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
 };
 const TODAY_LABEL: Record<"he" | "ar" | "en", string> = { he: "היום", ar: "اليوم", en: "Today" };
-const TOMORROW_LABEL: Record<"he" | "ar" | "en", string> = { he: "מחר", ar: "بكرا", en: "Tomorrow" };
+const TOMORROW_LABEL: Record<"he" | "ar" | "en", string> = { he: "מחר", ar: "غداً", en: "Tomorrow" };
 const DAY_PREFIX: Record<"he" | "ar" | "en", string> = { he: "יום", ar: "يوم", en: "" };
 const IL_TZ = "Asia/Jerusalem";
 
@@ -567,13 +567,13 @@ async function updateCustomerName(customerId: string, name: string): Promise<voi
 
 const TIME_GROUP_LABELS: Record<"he" | "ar" | "en", Record<string, string>> = {
   he: { morning: "☀️ בוקר", noon: "🌤️ צהריים", evening: "🌙 אחה\"צ/ערב" },
-  ar: { morning: "☀️ الصبح", noon: "🌤️ الضهر", evening: "🌙 العصر/المسا" },
+  ar: { morning: "☀️ الصباح", noon: "🌤️ الظهر", evening: "🌙 العصر/المساء" },
   en: { morning: "☀️ Morning", noon: "🌤️ Noon", evening: "🌙 Evening" },
 };
 
 const TIME_SLOTS_I18N: Record<"he" | "ar" | "en", { chooseTime: string; showTimes: string; choosePartOfDay: string; noSlots: string }> = {
   he: { chooseTime: "בחרו שעה:", showTimes: "הצג שעות", choosePartOfDay: "בחרו חלק ביום:", noSlots: "אין שעות פנויות בתאריך הזה 😔\nנסו תאריך אחר." },
-  ar: { chooseTime: "اختاري الوقت:", showTimes: "شوفي المواعيد", choosePartOfDay: "أي وقت بيناسبك أكتر؟ 😊", noSlots: "ما في مواعيد فاضية هاليوم 😔\nجربي يوم ثاني." },
+  ar: { chooseTime: "اختر الوقت:", showTimes: "عرض المواعيد", choosePartOfDay: "ما الوقت المناسب لك؟ 😊", noSlots: "لا تتوفر مواعيد في هذا اليوم 😔\nجرّب يوماً آخر." },
   en: { chooseTime: "Choose a time:", showTimes: "Show Times", choosePartOfDay: "Choose time of day:", noSlots: "No slots available on this date 😔\nTry another date." },
 };
 
@@ -600,17 +600,17 @@ const BOOKING_FLOW_I18N: Record<"he" | "ar" | "en", {
     cantChangeStatus: "לא ניתן לשנות את סטטוס התור כרגע.",
   },
   ar: {
-    howPickDate: "كيف بدك تختاري التاريخ؟",
-    quickDates: "📅 أقرب المواعيد", specificDate: "📆 تاريخ ثاني",
-    typeDate: "اكتبي التاريخ بهالشكل DD/MM/YYYY (مثال: 30/12/2026)",
-    noDates: "ما في مواعيد فاضية بالأسبوعين الجايين 😔",
-    chooseDate: "اختاري التاريخ:",
-    summary: (s, d, t) => `📋 ملخص الحجز:\n✂️ ${s}\n📅 ${d}\n🕐 ${t}\n\nبتأكدي؟`,
-    confirmYes: "✅ آه، أكيد", confirmNo: "❌ لا، إلغي",
-    pastDate: "ما بنقدر نحجز بتاريخ فات. جربي تاريخ جاي.",
-    noSlotsDate: "ما في مواعيد فاضية هاليوم. جربي يوم ثاني.",
-    discussService: (url) => `هالخدمة بتحتاج تتفقي مع صاحب المحل.\n📞 تواصلي عبر واتساب: https://wa.me/${url}`,
-    cantChangeStatus: "ما بنقدر نغير الدور هلأ.",
+    howPickDate: "كيف تودّ اختيار التاريخ؟",
+    quickDates: "📅 أقرب المواعيد", specificDate: "📆 تاريخ محدد",
+    typeDate: "أدخل التاريخ بالصيغة DD/MM/YYYY (مثال: 30/12/2026)",
+    noDates: "لا تتوفر مواعيد في الأسبوعين القادمين 😔",
+    chooseDate: "اختر التاريخ:",
+    summary: (s, d, t) => `📋 ملخص الحجز:\n✂️ ${s}\n📅 ${d}\n🕐 ${t}\n\nهل تؤكد؟`,
+    confirmYes: "✅ تأكيد", confirmNo: "❌ إلغاء",
+    pastDate: "لا يمكن الحجز في تاريخ سابق. يرجى اختيار تاريخ مستقبلي.",
+    noSlotsDate: "لا تتوفر مواعيد في هذا التاريخ. جرّب تاريخاً آخر.",
+    discussService: (url) => `تتطلب هذه الخدمة التنسيق مع صاحب العمل.\n📞 تواصل عبر واتساب: https://wa.me/${url}`,
+    cantChangeStatus: "لا يمكن تغيير حالة الموعد في الوقت الحالي.",
   },
   en: {
     howPickDate: "How would you like to pick a date?",
@@ -1074,12 +1074,12 @@ async function handleIncomingMessage(
       const lang = session.language ?? "he";
       const myApptsPrompt: Record<"he" | "ar" | "en", string> = {
         he: "הראה לי את התורים שלי",
-        ar: "ورجيني دواراتي",
+        ar: "أرني مواعيدي",
         en: "Show me my appointments",
       };
       const cancelPrompt: Record<"he" | "ar" | "en", string> = {
         he: "אני רוצה לבטל תור",
-        ar: "بدي إلغي الدور",
+        ar: "أريد إلغاء موعد",
         en: "I want to cancel an appointment",
       };
       const prompt = interactionId === "menu_my_appointments" ? myApptsPrompt[lang] : cancelPrompt[lang];
