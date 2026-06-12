@@ -1416,4 +1416,12 @@ app.listen(port, () => {
   console.log(`WhatsApp agent running on http://localhost:${port}`);
 });
 
+process.on("unhandledRejection", (reason) => {
+  console.error("[FATAL] Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+});
+
 export default app;
