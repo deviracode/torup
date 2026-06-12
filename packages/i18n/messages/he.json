@@ -192,7 +192,18 @@
     "pendingApprovalsTitle": "ממתינים לאישורך",
     "noPendingRequests": "אין בקשות ממתינות",
     "approve": "אשר",
-    "reject": "דחה"
+    "reject": "דחה",
+    "staffDisplayName": "שם תצוגה",
+    "assignedServices": "שירותים מוקצים",
+    "timeOff": "ימי היעדרות",
+    "noServices": "אין שירותים זמינים",
+    "startDate": "תאריך התחלה",
+    "endDate": "תאריך סיום",
+    "errorSaveName": "שמירת השם נכשלה",
+    "errorUpdateServices": "עדכון השירותים נכשל",
+    "errorEndBeforeStart": "תאריך הסיום חייב להיות אחרי תאריך ההתחלה",
+    "errorAddTimeOff": "הוספת ימי ההיעדרות נכשלה",
+    "errorRemoveTimeOff": "מחיקת ימי ההיעדרות נכשלה"
   },
   "admin": {
     "businesses": "עסקים",

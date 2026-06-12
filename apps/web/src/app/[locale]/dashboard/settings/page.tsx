@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { Card, CardContent, Button, Input, Label } from "@torup/ui";
+import { StaffCard, type StaffMember } from "@/components/dashboard/staff-card";
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
@@ -33,12 +34,6 @@ interface BookingRules {
   reschedule_window_minutes: number;
 }
 
-interface StaffMember {
-  id: string;
-  user_id: string;
-  role: string;
-  user?: { email: string; user_metadata?: { name?: string } };
-}
 
 interface ReminderSetting {
   id: string;
@@ -213,8 +208,15 @@ function SettingsPageInner() {
         const r = await apiFetch<BookingRules>(`/api/businesses/${businessId}/booking-rules`, {}, token);
         if (r) setRules(r);
       } else if (tab === "staff") {
-        const r = await apiFetch<StaffMember[]>(`/api/businesses/${businessId}/staff`, {}, token);
+        const [r, svcResult] = await Promise.all([
+          apiFetch<StaffMember[]>(`/api/businesses/${businessId}/staff`, {}, token),
+          apiFetch<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
+            `/api/businesses/${businessId}/services`, {}, token
+          ),
+        ]);
         setStaff(Array.isArray(r) ? r : []);
+        const svcList = Array.isArray(svcResult) ? svcResult : (svcResult as { services: ServiceItem[] }).services;
+        setServices(svcList || []);
       } else if (tab === "profile") {
         const r = await apiFetch<BusinessProfile>(`/api/businesses/${businessId}`, {}, token);
         if (r) setProfile(r);
@@ -664,32 +666,31 @@ function SettingsPageInner() {
             {staff.length > 0 && (
               <div className="space-y-2">
                 {staff.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-sm">
-                    <div>
-                      <span className="font-medium">
-                        {m.user?.user_metadata?.name || m.user?.email || m.user_id}
-                      </span>
-                      {m.user?.email && m.user?.user_metadata?.name && (
-                        <span className="ms-2 text-xs text-muted-foreground">{m.user.email}</span>
-                      )}
-                      <span className={`ms-2 inline-block rounded-full px-2 py-0.5 text-xs ${m.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
-                        {t(m.role as "owner" | "staff")}
-                      </span>
-                    </div>
-                    {m.role !== "owner" && (
-                      <button onClick={() => removeStaff(m.id)} className="text-red-500 text-xs hover:underline">{tCommon("delete")}</button>
-                    )}
-                  </div>
+                  <StaffCard
+                    key={m.id}
+                    member={m}
+                    services={services}
+                    businessId={businessId!}
+                    token={token}
+                    onUpdate={(updated) => setStaff((prev) => prev.map((s) => s.id === updated.id ? updated : s))}
+                    onRemove={(id) => removeStaff(id)}
+                  />
                 ))}
               </div>
             )}
-
             <div className="flex gap-2">
-              <input type="email" placeholder={t("email")} value={newStaffEmail}
+              <input
+                type="email"
+                placeholder={t("email")}
+                value={newStaffEmail}
                 onChange={(e) => setNewStaffEmail(e.target.value)}
-                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm" />
-              <button onClick={addStaff} disabled={saving || !newStaffEmail}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
+                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <button
+                onClick={addStaff}
+                disabled={saving || !newStaffEmail}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
                 {t("addStaff")}
               </button>
             </div>

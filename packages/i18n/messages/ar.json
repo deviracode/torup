@@ -192,7 +192,18 @@
     "pendingApprovalsTitle": "في انتظار موافقتك",
     "noPendingRequests": "لا توجد طلبات معلقة",
     "approve": "موافقة",
-    "reject": "رفض"
+    "reject": "رفض",
+    "staffDisplayName": "اسم العرض",
+    "assignedServices": "الخدمات المُعيَّنة",
+    "timeOff": "أيام الغياب",
+    "noServices": "لا توجد خدمات متاحة",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء",
+    "errorSaveName": "فشل حفظ الاسم",
+    "errorUpdateServices": "فشل تحديث الخدمات",
+    "errorEndBeforeStart": "يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء",
+    "errorAddTimeOff": "فشل إضافة أيام الغياب",
+    "errorRemoveTimeOff": "فشل حذف أيام الغياب"
   },
   "admin": {
     "businesses": "الأعمال",

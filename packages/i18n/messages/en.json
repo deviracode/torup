@@ -192,7 +192,18 @@
     "pendingApprovalsTitle": "Pending Approvals",
     "noPendingRequests": "No pending requests",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "staffDisplayName": "Display Name",
+    "assignedServices": "Assigned Services",
+    "timeOff": "Time-Off Dates",
+    "noServices": "No services available",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "errorSaveName": "Failed to save name",
+    "errorUpdateServices": "Failed to update services",
+    "errorEndBeforeStart": "End date must be after start date",
+    "errorAddTimeOff": "Failed to add time-off",
+    "errorRemoveTimeOff": "Failed to remove time-off"
   },
   "admin": {
     "businesses": "Businesses",
