@@ -59,7 +59,7 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
 
     if (!service) throw new AppError(404, "Service not found");
 
-    const [whResult, brResult, aptResult, rulesResult] = await Promise.all([
+    const [whResult, brResult, aptResult, rulesResult, staffServicesResult, staffBreaksResult] = await Promise.all([
       supabase.from("working_hours").select("*").eq("business_id", businessId).is("staff_id", null),
       supabase.from("breaks").select("*").eq("business_id", businessId).is("staff_id", null),
       supabase
@@ -71,6 +71,14 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
         .lte("start_time", `${dateStr}T23:59:59${tzStr}`)
         .not("status", "in", '("cancelled","no_show")'),
       supabase.from("booking_rules").select("*").eq("business_id", businessId).single(),
+      supabase.from("staff_services").select("staff_id").eq("service_id", service_id as string),
+      supabase
+        .from("breaks")
+        .select("staff_id")
+        .eq("business_id", businessId)
+        .eq("label", "time_off")
+        .eq("specific_date", dateStr)
+        .not("staff_id", "is", null),
     ]);
 
     // Transform working hours — convert Israel local times to UTC-equivalent so the engine
@@ -109,10 +117,20 @@ router.get("/", async (req: Request, res: Response, next: NextFunction) => {
       })
     );
 
+    const assignedStaffIds = (staffServicesResult.data || []).map(
+      (r: Record<string, unknown>) => r.staff_id as string
+    );
+    const staffOffToday = new Set(
+      (staffBreaksResult.data || []).map((r: Record<string, unknown>) => r.staff_id as string)
+    );
+    const availableStaffCount = assignedStaffIds.length > 0
+      ? assignedStaffIds.filter((id) => !staffOffToday.has(id)).length
+      : null;
+
     const serviceConfig: ServiceConfig = {
       durationMinutes: service.duration_minutes,
       bufferMinutes: service.buffer_minutes,
-      maxCapacity: service.max_capacity,
+      maxCapacity: availableStaffCount !== null ? availableStaffCount : service.max_capacity,
     };
 
     const bookingRules: BookingRulesConfig | undefined = rulesResult.data

@@ -233,6 +233,40 @@ describe("Availability Calculation", () => {
   });
 });
 
+describe("Staff-derived capacity", () => {
+  function effectiveCapacity(
+    assignedStaffIds: string[],
+    timeOffDates: Map<string, string[]>,
+    targetDate: string,
+    fallbackCapacity: number
+  ): number {
+    if (assignedStaffIds.length === 0) return fallbackCapacity;
+    return assignedStaffIds.filter((id) => {
+      const offDates = timeOffDates.get(id) || [];
+      return !offDates.includes(targetDate);
+    }).length;
+  }
+
+  it("returns fallback when no staff assigned", () => {
+    expect(effectiveCapacity([], new Map(), "2026-06-20", 3)).toBe(3);
+  });
+
+  it("counts all staff when none are off", () => {
+    const timeOff = new Map([["s1", []], ["s2", []]]);
+    expect(effectiveCapacity(["s1", "s2"], timeOff, "2026-06-20", 3)).toBe(2);
+  });
+
+  it("reduces capacity when one staff is off", () => {
+    const timeOff = new Map([["s1", ["2026-06-20"]], ["s2", []]]);
+    expect(effectiveCapacity(["s1", "s2"], timeOff, "2026-06-20", 3)).toBe(1);
+  });
+
+  it("returns 0 when all assigned staff are off", () => {
+    const timeOff = new Map([["s1", ["2026-06-20"]], ["s2", ["2026-06-20"]]]);
+    expect(effectiveCapacity(["s1", "s2"], timeOff, "2026-06-20", 3)).toBe(0);
+  });
+});
+
 describe("Staff display_name validation", () => {
   it("rejects empty display_name", () => {
     const name = "  ";
