@@ -62,6 +62,16 @@ export async function generatePaymentPage(params: {
 }): Promise<{ paymentPageUrl: string; pageRequestUid: string }> {
   const appUrl = process.env.APP_URL || "http://localhost:3000";
   const apiUrl = process.env.API_URL || "http://localhost:3001";
+
+  // Mock mode: skip PayPlus API, return local mock payment page
+  if (process.env.PAYPLUS_MOCK === "true" || process.env.PAYPLUS_API_KEY === "sandbox_key_placeholder") {
+    const mockUrl = new URL(`${appUrl}/mock-payment`);
+    mockUrl.searchParams.set("success_url", params.successUrl || `${appUrl}/dashboard/billing?status=success`);
+    mockUrl.searchParams.set("failure_url", params.failureUrl || `${appUrl}/dashboard/billing?status=failed`);
+    mockUrl.searchParams.set("description", params.description);
+    mockUrl.searchParams.set("amount", String(params.amount));
+    return { paymentPageUrl: mockUrl.toString(), pageRequestUid: "mock-" + Date.now() };
+  }
   const response = await payPlusRequest<PaymentPageResponse>(
     "/PaymentPages/generateLink",
     "POST",
