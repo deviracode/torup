@@ -1,8 +1,9 @@
 -- Add unique constraint on plans.name if it doesn't exist
 ALTER TABLE plans ADD CONSTRAINT plans_name_unique UNIQUE (name);
 
--- yearly_price was NOT NULL in original schema; make it optional
+-- yearly_price and max_appointments_monthly were NOT NULL; make them optional
 ALTER TABLE plans ALTER COLUMN yearly_price DROP NOT NULL;
+ALTER TABLE plans ALTER COLUMN max_appointments_monthly DROP NOT NULL;
 
 -- Add feature-gate columns to plans
 ALTER TABLE plans
