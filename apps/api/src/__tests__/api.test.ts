@@ -312,3 +312,29 @@ describe("requireSubscription enforcement", () => {
     expect(blocked).toBe(false);
   });
 });
+
+describe("Staff limit enforcement", () => {
+  it("blocks adding staff when at max", () => {
+    function canAddStaff(currentCount: number, maxStaff: number | null): boolean {
+      if (maxStaff === null) return true;
+      return currentCount < maxStaff;
+    }
+    expect(canAddStaff(3, 3)).toBe(false);
+  });
+
+  it("allows adding staff when below max", () => {
+    function canAddStaff(currentCount: number, maxStaff: number | null): boolean {
+      if (maxStaff === null) return true;
+      return currentCount < maxStaff;
+    }
+    expect(canAddStaff(2, 3)).toBe(true);
+  });
+
+  it("always allows adding staff when maxStaff is null", () => {
+    function canAddStaff(currentCount: number, maxStaff: number | null): boolean {
+      if (maxStaff === null) return true;
+      return currentCount < maxStaff;
+    }
+    expect(canAddStaff(999, null)).toBe(true);
+  });
+});

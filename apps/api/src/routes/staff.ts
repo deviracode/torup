@@ -5,6 +5,7 @@ import {
   requireAuth,
   requireRole,
   requireBusinessAccess,
+  requireSubscription,
   type AuthenticatedRequest,
 } from "../middleware/auth.js";
 import { AppError } from "../middleware/error-handler.js";
@@ -102,6 +103,7 @@ router.post(
   "/",
   requireAuth,
   requireBusinessAccess,
+  requireSubscription,
   requireRole("business_owner", "super_admin"),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
@@ -110,6 +112,22 @@ router.post(
       const { email, role, display_name } = req.body;
 
       if (!email) throw new AppError(400, "Email is required");
+
+      // Enforce staff limit
+      if (req.planLimits && req.planLimits.maxStaff !== null) {
+        const { count } = await supabase
+          .from("business_members")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId);
+
+        if ((count ?? 0) >= req.planLimits.maxStaff) {
+          res.status(403).json({
+            error: "staff_limit_reached",
+            limit: req.planLimits.maxStaff,
+          });
+          return;
+        }
+      }
 
       const { data: users, error: lookupErr } = await supabase.auth.admin.listUsers();
       if (lookupErr) throw new AppError(500, lookupErr.message);
