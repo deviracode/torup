@@ -29,7 +29,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, name);
-      router.push(`/${locale}/dashboard`);
+      router.push(`/${locale}/onboarding`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       animate(scope.current, { x: [0, 10, -10, 6, -6, 0] }, { duration: 0.4 });
