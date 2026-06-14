@@ -1,6 +1,9 @@
 -- Add unique constraint on plans.name if it doesn't exist
 ALTER TABLE plans ADD CONSTRAINT plans_name_unique UNIQUE (name);
 
+-- yearly_price was NOT NULL in original schema; make it optional
+ALTER TABLE plans ALTER COLUMN yearly_price DROP NOT NULL;
+
 -- Add feature-gate columns to plans
 ALTER TABLE plans
   ADD COLUMN has_whatsapp_bot      BOOLEAN  NOT NULL DEFAULT false,
