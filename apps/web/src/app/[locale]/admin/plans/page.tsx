@@ -2,19 +2,64 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Plan {
   id: string;
   name: string;
   monthly_price: number;
-  yearly_price: number;
-  max_staff: number;
-  max_appointments_monthly: number;
-  features: Record<string, boolean> | null;
+  yearly_price: number | null;
+  max_staff: number | null;
+  max_appointments_monthly: number | null;
+  has_whatsapp_bot: boolean;
+  has_ai_bot: boolean;
+  max_ai_tokens_monthly: number;
   is_active: boolean;
 }
+
+const DEFAULT_AI_TOKENS = 2_400_000;
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M tokens/mo`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K tokens/mo`;
+  return `${n} tokens/mo`;
+}
+
+const emptyForm = {
+  name: "",
+  monthly_price: 0,
+  yearly_price: "" as number | "",
+  max_staff: "" as number | "",
+  max_appointments_monthly: "" as number | "",
+  has_whatsapp_bot: false,
+  has_ai_bot: false,
+  max_ai_tokens_monthly: 0,
+  is_active: true,
+};
+
+type FormData = typeof emptyForm;
 
 export default function AdminPlansPage() {
   const t = useTranslations("admin");
@@ -22,12 +67,9 @@ export default function AdminPlansPage() {
   const { session } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
-  const [formData, setFormData] = useState({
-    name: "", monthly_price: 0, yearly_price: 0, max_staff: 1,
-    max_appointments_monthly: 100, is_active: true,
-  });
+  const [formData, setFormData] = useState<FormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const token = session?.access_token || "";
@@ -45,127 +87,286 @@ export default function AdminPlansPage() {
     }
   }, [token]);
 
-  useEffect(() => { fetchPlans(); }, [fetchPlans]);
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
+  const openNew = () => {
+    setEditingPlan(null);
+    setFormData(emptyForm);
+    setDialogOpen(true);
+  };
 
   const openEdit = (plan: Plan) => {
     setEditingPlan(plan);
     setFormData({
-      name: plan.name, monthly_price: plan.monthly_price, yearly_price: plan.yearly_price,
-      max_staff: plan.max_staff, max_appointments_monthly: plan.max_appointments_monthly,
+      name: plan.name,
+      monthly_price: plan.monthly_price,
+      yearly_price: plan.yearly_price ?? "",
+      max_staff: plan.max_staff ?? "",
+      max_appointments_monthly: plan.max_appointments_monthly ?? "",
+      has_whatsapp_bot: plan.has_whatsapp_bot,
+      has_ai_bot: plan.has_ai_bot,
+      max_ai_tokens_monthly: plan.max_ai_tokens_monthly,
       is_active: plan.is_active,
     });
-    setShowForm(true);
-  };
-
-  const openNew = () => {
-    setEditingPlan(null);
-    setFormData({ name: "", monthly_price: 0, yearly_price: 0, max_staff: 1, max_appointments_monthly: 100, is_active: true });
-    setShowForm(true);
+    setDialogOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const payload = {
+      ...formData,
+      yearly_price: formData.yearly_price === "" ? null : Number(formData.yearly_price),
+      max_staff: formData.max_staff === "" ? null : Number(formData.max_staff),
+      max_appointments_monthly:
+        formData.max_appointments_monthly === "" ? null : Number(formData.max_appointments_monthly),
+    };
     try {
       if (editingPlan) {
-        await apiFetch(`/api/admin/plans/${editingPlan.id}`, { method: "PATCH", body: JSON.stringify(formData) }, token);
+        await apiFetch(
+          `/api/admin/plans/${editingPlan.id}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
+          token
+        );
       } else {
-        await apiFetch("/api/admin/plans", { method: "POST", body: JSON.stringify(formData) }, token);
+        await apiFetch(
+          "/api/admin/plans",
+          { method: "POST", body: JSON.stringify(payload) },
+          token
+        );
       }
-      setShowForm(false);
+      setDialogOpen(false);
       fetchPlans();
-    } catch {} finally { setSaving(false); }
+    } catch {
+      // TODO: surface error toast
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
 
   return (
     <div>
+      {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">{t("plans")}</h1>
-        <button onClick={openNew}
-          className="rounded-md bg-red-600 px-4 py-2 text-sm text-white font-medium hover:bg-red-700">
-          + {t("addPlan")}
-        </button>
+        <Button onClick={openNew}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Plan
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Plan cards grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full rounded-lg bg-white p-8 text-center text-gray-400 border border-gray-200">{tCommon("loading")}</div>
-        ) : plans.map((plan) => (
-          <div key={plan.id} className={`rounded-lg border bg-white p-6 ${plan.is_active ? "border-gray-200" : "border-gray-100 opacity-60"}`}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold">{plan.name}</h3>
-              <button onClick={() => openEdit(plan)} className="text-xs text-blue-600 hover:underline">{tCommon("edit")}</button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <p><span className="text-gray-500">{t("monthlyPrice")}:</span> ₪{plan.monthly_price}</p>
-              <p><span className="text-gray-500">{t("yearlyPrice")}:</span> ₪{plan.yearly_price}</p>
-              <p><span className="text-gray-500">{t("maxStaff")}:</span> {plan.max_staff}</p>
-              <p><span className="text-gray-500">{t("maxAppointments")}:</span> {plan.max_appointments_monthly}</p>
-            </div>
-            <div className="mt-3">
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${plan.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                {plan.is_active ? t("active") : t("inactive")}
-              </span>
-            </div>
-          </div>
-        ))}
+          <p className="col-span-full text-center text-muted-foreground py-12">
+            {tCommon("loading")}
+          </p>
+        ) : plans.length === 0 ? (
+          <p className="col-span-full text-center text-muted-foreground py-12">
+            No plans yet.
+          </p>
+        ) : (
+          plans.map((plan) => (
+            <Card
+              key={plan.id}
+              className={cn(!plan.is_active && "opacity-60")}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg">{plan.name}</CardTitle>
+                  <Badge variant={plan.is_active ? "default" : "secondary"}>
+                    {plan.is_active ? t("active") : t("inactive")}
+                  </Badge>
+                </div>
+                <p className="text-2xl font-bold text-foreground">
+                  ₪{plan.monthly_price}
+                  <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                </p>
+              </CardHeader>
+
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("maxStaff")}</span>
+                  <span>{plan.max_staff ?? "Unlimited"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("maxAppointments")}</span>
+                  <span>{plan.max_appointments_monthly ?? "Unlimited"}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <Badge variant={plan.has_whatsapp_bot ? "default" : "secondary"}>
+                    {plan.has_whatsapp_bot ? "✓" : "✗"} WhatsApp Bot
+                  </Badge>
+                  <Badge variant={plan.has_ai_bot ? "default" : "secondary"}>
+                    {plan.has_ai_bot ? "✓" : "✗"} AI Bot
+                  </Badge>
+                </div>
+
+                {plan.has_ai_bot && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatTokens(plan.max_ai_tokens_monthly)}
+                  </p>
+                )}
+              </CardContent>
+
+              <CardFooter>
+                <Button variant="outline" size="sm" onClick={() => openEdit(plan)} className="w-full">
+                  {t("editPlan")}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))
+        )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowForm(false)}>
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="text-lg font-semibold">{editingPlan ? t("editPlan") : t("addPlan")}</h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPlan ? t("editPlan") : t("addPlan")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-4">
+            {/* Plan name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-name">{t("planName")} *</Label>
+              <Input
+                id="plan-name"
+                required
+                value={formData.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
             </div>
-            <form onSubmit={handleSave} className="px-6 py-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">{t("planName")} *</label>
-                <input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+
+            {/* Prices */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="monthly-price">{t("monthlyPrice")} (₪)</Label>
+                <Input
+                  id="monthly-price"
+                  type="number"
+                  min={0}
+                  value={formData.monthly_price}
+                  onChange={(e) => set("monthly_price", Number(e.target.value))}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t("monthlyPrice")} (₪)</label>
-                  <input type="number" min={0} value={formData.monthly_price} onChange={(e) => setFormData({ ...formData, monthly_price: Number(e.target.value) })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t("yearlyPrice")} (₪)</label>
-                  <input type="number" min={0} value={formData.yearly_price} onChange={(e) => setFormData({ ...formData, yearly_price: Number(e.target.value) })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="yearly-price">{t("yearlyPrice")} (₪)</Label>
+                <Input
+                  id="yearly-price"
+                  type="number"
+                  min={0}
+                  placeholder="Optional"
+                  value={formData.yearly_price}
+                  onChange={(e) =>
+                    set("yearly_price", e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t("maxStaff")}</label>
-                  <input type="number" min={1} value={formData.max_staff} onChange={(e) => setFormData({ ...formData, max_staff: Number(e.target.value) })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t("maxAppointments")}</label>
-                  <input type="number" min={1} value={formData.max_appointments_monthly} onChange={(e) => setFormData({ ...formData, max_appointments_monthly: Number(e.target.value) })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-                </div>
+            </div>
+
+            {/* Limits */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="max-staff">{t("maxStaff")}</Label>
+                <Input
+                  id="max-staff"
+                  type="number"
+                  min={1}
+                  placeholder="Unlimited (leave blank)"
+                  value={formData.max_staff}
+                  onChange={(e) =>
+                    set("max_staff", e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="plan_active" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} />
-                <label htmlFor="plan_active" className="text-sm">{t("active")}</label>
+              <div className="space-y-1.5">
+                <Label htmlFor="max-appt">{t("maxAppointments")}</Label>
+                <Input
+                  id="max-appt"
+                  type="number"
+                  min={1}
+                  placeholder="Unlimited (leave blank)"
+                  value={formData.max_appointments_monthly}
+                  onChange={(e) =>
+                    set(
+                      "max_appointments_monthly",
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                />
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={saving}
-                  className="flex-1 rounded-md bg-red-600 px-4 py-2.5 text-sm text-white font-medium hover:bg-red-700 disabled:opacity-50">
-                  {tCommon("save")}
-                </button>
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="rounded-md border border-gray-300 px-4 py-2.5 text-sm hover:bg-gray-50">
-                  {tCommon("cancel")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+
+            {/* WhatsApp Bot */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="whatsapp-bot">WhatsApp Bot</Label>
+              <Switch
+                id="whatsapp-bot"
+                checked={formData.has_whatsapp_bot}
+                onCheckedChange={(v) => set("has_whatsapp_bot", v)}
+              />
+            </div>
+
+            {/* AI Bot */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="ai-bot">AI Bot</Label>
+              <Switch
+                id="ai-bot"
+                checked={formData.has_ai_bot}
+                onCheckedChange={(v) => {
+                  set("has_ai_bot", v);
+                  set("max_ai_tokens_monthly", v ? DEFAULT_AI_TOKENS : 0);
+                }}
+              />
+            </div>
+
+            {/* AI Tokens */}
+            <div className="space-y-1.5">
+              <Label htmlFor="ai-tokens">AI Tokens/Month</Label>
+              <Input
+                id="ai-tokens"
+                type="number"
+                min={0}
+                disabled
+                value={formData.max_ai_tokens_monthly}
+              />
+              {formData.has_ai_bot && (
+                <p className="text-xs text-muted-foreground">
+                  ≈ 2,000 conversations/month
+                </p>
+              )}
+            </div>
+
+            {/* Active */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="plan-active">{t("active")}</Label>
+              <Switch
+                id="plan-active"
+                checked={formData.is_active}
+                onCheckedChange={(v) => set("is_active", v)}
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
+                {tCommon("cancel")}
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {tCommon("save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
