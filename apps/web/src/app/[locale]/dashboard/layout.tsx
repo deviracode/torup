@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -9,6 +10,67 @@ import { TopBarProvider, useTopBar } from "@/components/dashboard/top-bar-contex
 import { AnimatePresence, motion } from "framer-motion";
 import { pageVariants } from "@/components/motion";
 import { useAuth } from "@/components/auth/auth-provider";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function SubscriptionGuard({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  const router = useRouter();
+  const locale = useLocale();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    const token = session.access_token;
+
+    async function check() {
+      try {
+        const bizRes = await fetch(`${API_URL}/api/businesses/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!bizRes.ok) {
+          router.replace(`/${locale}/onboarding`);
+          return;
+        }
+        const biz = await bizRes.json();
+        if (!biz?.id) {
+          router.replace(`/${locale}/onboarding`);
+          return;
+        }
+
+        const subRes = await fetch(`${API_URL}/api/billing/status?business_id=${biz.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!subRes.ok) {
+          router.replace(`/${locale}/onboarding`);
+          return;
+        }
+        const subscription = await subRes.json();
+        if (!subscription || subscription.status !== "active") {
+          router.replace(`/${locale}/onboarding`);
+          return;
+        }
+
+        setChecked(true);
+      } catch {
+        // Fail open on network error
+        setChecked(true);
+      }
+    }
+
+    check();
+  }, [session, locale, router]);
+
+  if (!checked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 const PAGE_TITLES: Record<string, { he: string; en: string }> = {
   "/dashboard":            { he: "לוח שנה",    en: "Calendar"  },
@@ -84,9 +146,11 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <AuthGuard>
-        <TopBarProvider>
-          <DashboardShell>{children}</DashboardShell>
-        </TopBarProvider>
+        <SubscriptionGuard>
+          <TopBarProvider>
+            <DashboardShell>{children}</DashboardShell>
+          </TopBarProvider>
+        </SubscriptionGuard>
       </AuthGuard>
     </AuthProvider>
   );
