@@ -106,6 +106,18 @@ export default function OnboardingPage() {
           address: address.trim() || undefined,
         }),
       });
+      if (res.status === 409) {
+        // User already has a business — fetch it and continue
+        const meRes = await fetch(`${API_URL}/api/businesses/me`, {
+          headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
+        });
+        if (meRes.ok) {
+          const biz = await meRes.json();
+          setBusinessId(biz.id);
+          setStep(2);
+          return;
+        }
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.message ?? "Error");
