@@ -47,7 +47,7 @@ router.post(
           category,
           phone: phone.trim(),
           address: address?.trim() || null,
-          email: req.userEmail || null,
+          email: req.userEmail || "",
           is_active: true,
         })
         .select()
@@ -61,11 +61,15 @@ router.post(
         .insert({
           business_id: business.id,
           user_id: userId,
-          role: "business_owner",
+          role: "owner",
           display_name: req.userEmail || "Owner",
         });
 
-      if (memberErr) throw new AppError(400, memberErr.message);
+      if (memberErr) {
+        // Roll back business creation to avoid orphan
+        await supabase.from("businesses").delete().eq("id", business.id);
+        throw new AppError(400, memberErr.message);
+      }
 
       res.status(201).json({ business_id: business.id });
     } catch (err) {
