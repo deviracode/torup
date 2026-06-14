@@ -45,7 +45,7 @@ function SubscriptionGuard({ children }: { children: React.ReactNode }) {
           router.replace(`/${locale}/onboarding`);
           return;
         }
-        const subscription = await subRes.json();
+        const { subscription } = await subRes.json();
         if (!subscription || subscription.status !== "active") {
           router.replace(`/${locale}/onboarding`);
           return;

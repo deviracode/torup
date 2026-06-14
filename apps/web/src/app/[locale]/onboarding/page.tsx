@@ -106,18 +106,6 @@ export default function OnboardingPage() {
           address: address.trim() || undefined,
         }),
       });
-      if (res.status === 409) {
-        // User already has a business — fetch it and continue
-        const meRes = await fetch(`${API_URL}/api/businesses/me`, {
-          headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
-        });
-        if (meRes.ok) {
-          const biz = await meRes.json();
-          setBusinessId(biz.id);
-          setStep(2);
-          return;
-        }
-      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.message ?? "Error");
@@ -158,9 +146,11 @@ export default function OnboardingPage() {
         throw new Error(err?.message ?? "Payment failed");
       }
       const data = await res.json();
-      const paymentUrl = data.payment_url ?? data.url ?? data.redirect_url;
+      const paymentUrl = data.paymentPageUrl ?? data.payment_url ?? data.url ?? data.redirect_url;
       if (paymentUrl) {
         window.location.href = paymentUrl;
+      } else {
+        throw new Error("No payment URL returned");
       }
     } catch (err: unknown) {
       setPayError(err instanceof Error ? err.message : "Payment failed");

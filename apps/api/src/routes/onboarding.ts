@@ -28,7 +28,11 @@ router.post(
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (existing) throw new AppError(409, "User already has a business");
+      if (existing) {
+        // User already completed step 1 — return existing business_id so they can continue
+        res.status(200).json({ business_id: existing.business_id });
+        return;
+      }
 
       // Generate slug from business name
       const slug = name

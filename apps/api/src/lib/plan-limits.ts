@@ -37,7 +37,7 @@ export async function getPlanLimits(businessId: string): Promise<PlanLimits | nu
 
   if (!data?.plans) return null;
 
-  const plan = data.plans as Record<string, unknown>;
+  const plan = data.plans as unknown as Record<string, unknown>;
 
   return {
     planId: plan.id as string,

@@ -5,26 +5,23 @@ import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import {
+  cn,
   Card,
   CardHeader,
   CardTitle,
   CardContent,
   CardFooter,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
+  Button,
+  Badge,
+  Input,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@torup/ui";
 
 interface Plan {
   id: string;
@@ -309,22 +306,26 @@ export default function AdminPlansPage() {
             {/* WhatsApp Bot */}
             <div className="flex items-center justify-between">
               <Label htmlFor="whatsapp-bot">WhatsApp Bot</Label>
-              <Switch
+              <input
                 id="whatsapp-bot"
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer"
                 checked={formData.has_whatsapp_bot}
-                onCheckedChange={(v) => set("has_whatsapp_bot", v)}
+                onChange={(e) => set("has_whatsapp_bot", e.target.checked)}
               />
             </div>
 
             {/* AI Bot */}
             <div className="flex items-center justify-between">
               <Label htmlFor="ai-bot">AI Bot</Label>
-              <Switch
+              <input
                 id="ai-bot"
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer"
                 checked={formData.has_ai_bot}
-                onCheckedChange={(v) => {
-                  set("has_ai_bot", v);
-                  set("max_ai_tokens_monthly", v ? DEFAULT_AI_TOKENS : 0);
+                onChange={(e) => {
+                  set("has_ai_bot", e.target.checked);
+                  set("max_ai_tokens_monthly", e.target.checked ? DEFAULT_AI_TOKENS : 0);
                 }}
               />
             </div>
@@ -349,10 +350,12 @@ export default function AdminPlansPage() {
             {/* Active */}
             <div className="flex items-center justify-between">
               <Label htmlFor="plan-active">{t("active")}</Label>
-              <Switch
+              <input
                 id="plan-active"
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer"
                 checked={formData.is_active}
-                onCheckedChange={(v) => set("is_active", v)}
+                onChange={(e) => set("is_active", e.target.checked)}
               />
             </div>
 

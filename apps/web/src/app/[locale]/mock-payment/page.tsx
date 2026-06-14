@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function MockPaymentPage() {
@@ -8,6 +9,27 @@ export default function MockPaymentPage() {
   const failureUrl = params.get("failure_url") || "/";
   const description = params.get("description") || "Subscription";
   const amount = params.get("amount") || "0";
+  const businessId = params.get("business_id") || "";
+  const planId = params.get("plan_id") || "";
+  const billing = params.get("billing") || "monthly";
+  const apiUrl = params.get("api_url") || "http://localhost:3001";
+  const [approving, setApproving] = useState(false);
+
+  async function handleApprove() {
+    setApproving(true);
+    try {
+      await fetch(`${apiUrl}/api/billing/webhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status_code: "000",
+          transaction: { uid: "mock-txn-" + Date.now() },
+          more_info: JSON.stringify({ business_id: businessId, plan_id: planId, billing }),
+        }),
+      });
+    } catch {}
+    window.location.href = successUrl;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "hsl(242 44% 8%)" }}>
@@ -59,13 +81,14 @@ export default function MockPaymentPage() {
 
         {/* Action buttons */}
         <div className="space-y-2">
-          <a
-            href={successUrl}
-            className="block w-full text-center py-3 rounded-xl font-bold text-white text-sm"
+          <button
+            onClick={handleApprove}
+            disabled={approving}
+            className="block w-full text-center py-3 rounded-xl font-bold text-white text-sm disabled:opacity-60"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
           >
-            ✓ Approve Payment (simulate success)
-          </a>
+            {approving ? "Processing..." : "✓ Approve Payment (simulate success)"}
+          </button>
           <a
             href={failureUrl}
             className="block w-full text-center py-3 rounded-xl font-medium text-white/60 text-sm border border-white/10 hover:border-white/20"

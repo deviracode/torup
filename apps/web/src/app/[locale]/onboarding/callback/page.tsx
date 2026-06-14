@@ -16,16 +16,16 @@ export default function OnboardingCallbackPage() {
   useEffect(() => {
     if (status !== "success") return;
     const interval = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          clearInterval(interval);
-          router.replace(`/${locale}/dashboard`);
-        }
-        return c - 1;
-      });
+      setCountdown((c) => Math.max(0, c - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [status, locale, router]);
+  }, [status]);
+
+  useEffect(() => {
+    if (status === "success" && countdown === 0) {
+      router.replace(`/${locale}/dashboard`);
+    }
+  }, [countdown, status, locale, router]);
 
   if (status === "success") {
     return (

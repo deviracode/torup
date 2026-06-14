@@ -121,7 +121,8 @@ export async function requireSubscription(
   // Super admins bypass subscription checks
   if (req.userRole === "super_admin") { next(); return; }
 
-  const businessId = req.params.businessId || req.params.id || req.businessId;
+  const rawId = req.params.businessId || req.params.id || req.businessId;
+  const businessId = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!businessId) { next(); return; }
 
   try {

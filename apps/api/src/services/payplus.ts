@@ -70,6 +70,10 @@ export async function generatePaymentPage(params: {
     mockUrl.searchParams.set("failure_url", params.failureUrl || `${appUrl}/dashboard/billing?status=failed`);
     mockUrl.searchParams.set("description", params.description);
     mockUrl.searchParams.set("amount", String(params.amount));
+    mockUrl.searchParams.set("business_id", params.business_id);
+    mockUrl.searchParams.set("plan_id", params.plan_id);
+    mockUrl.searchParams.set("billing", params.billing || "monthly");
+    mockUrl.searchParams.set("api_url", apiUrl);
     return { paymentPageUrl: mockUrl.toString(), pageRequestUid: "mock-" + Date.now() };
   }
   const response = await payPlusRequest<PaymentPageResponse>(
