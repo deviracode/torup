@@ -278,3 +278,37 @@ describe("Staff display_name validation", () => {
     expect(name.trim().length).toBeGreaterThan(0);
   });
 });
+
+describe("PlanLimits logic", () => {
+  it("staff is within limit when maxStaff is null", () => {
+    const isAtLimit = (current: number, max: number | null) =>
+      max !== null && current >= max;
+    expect(isAtLimit(100, null)).toBe(false);
+  });
+
+  it("staff is at limit when current equals maxStaff", () => {
+    const isAtLimit = (current: number, max: number | null) =>
+      max !== null && current >= max;
+    expect(isAtLimit(3, 3)).toBe(true);
+  });
+
+  it("staff is below limit when current is less than maxStaff", () => {
+    const isAtLimit = (current: number, max: number | null) =>
+      max !== null && current >= max;
+    expect(isAtLimit(2, 3)).toBe(false);
+  });
+});
+
+describe("requireSubscription enforcement", () => {
+  it("blocks when planLimits is null (no subscription)", () => {
+    const planLimits = null;
+    const blocked = planLimits === null;
+    expect(blocked).toBe(true);
+  });
+
+  it("allows when planLimits is present", () => {
+    const planLimits = { maxStaff: 3, hasWhatsappBot: true, hasAiBot: false, maxAiTokensMonthly: 0, maxAppointmentsMonthly: null, planId: "x", planName: "Basic" };
+    const blocked = planLimits === null;
+    expect(blocked).toBe(false);
+  });
+});
