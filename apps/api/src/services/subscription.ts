@@ -28,23 +28,28 @@ export function canTransitionSubscription(
 export async function activateSubscription(
   businessId: string,
   planId: string,
-  payplusSubscriptionId?: string
+  payplusSubscriptionId?: string,
+  billing: "monthly" | "annual" = "monthly"
 ): Promise<void> {
   const supabase = createServiceClient();
 
   const now = new Date();
-  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const daysInPeriod = billing === "annual" ? 365 : 30;
+  const periodEnd = new Date(now.getTime() + daysInPeriod * 24 * 60 * 60 * 1000);
 
   await supabase
     .from("subscriptions")
-    .update({
-      status: "active",
-      plan_id: planId,
-      current_period_start: now.toISOString(),
-      current_period_end: periodEnd.toISOString(),
-      payplus_subscription_id: payplusSubscriptionId || null,
-    })
-    .eq("business_id", businessId);
+    .upsert(
+      {
+        business_id: businessId,
+        plan_id: planId,
+        status: "active",
+        current_period_start: now.toISOString(),
+        current_period_end: periodEnd.toISOString(),
+        payplus_subscription_id: payplusSubscriptionId || null,
+      },
+      { onConflict: "business_id" }
+    );
 }
 
 /**
