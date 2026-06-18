@@ -1005,7 +1005,7 @@ async function handleIncomingMessage(
       const { data: customer } = await supabase
         .from("customers")
         .select("id, language_preference")
-        .eq("phone", from)
+        .eq("phone", normalizePhone(from))
         .single();
 
       if (customer) {
