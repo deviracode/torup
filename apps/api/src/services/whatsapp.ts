@@ -106,6 +106,79 @@ export async function sendManagerApprovalRequest(
   return data.messages?.[0]?.id ?? null;
 }
 
+/**
+ * Send the approved "manager_new_booking" WhatsApp template.
+ * Unlike sendManagerApprovalRequest (a free-form interactive message), templates
+ * are exempt from Meta's 24-hour customer service window — see
+ * https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates
+ * Body params order must match the template as approved: customer name, service, date, time.
+ */
+export async function sendManagerNewBookingTemplate(
+  to: string,
+  params: { customerName: string; serviceName: string; date: string; time: string },
+  appointmentId: string
+): Promise<string | null> {
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.log(`[WhatsApp] (dev mode) Manager template to: ${to}, appointmentId: ${appointmentId}`);
+    return `dev_msg_${Date.now()}`;
+  }
+
+  const res = await fetch(
+    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: normalizePhone(to),
+        type: "template",
+        template: {
+          name: "manager_new_booking",
+          language: { code: "he" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: params.customerName },
+                { type: "text", text: params.serviceName },
+                { type: "text", text: params.date },
+                { type: "text", text: params.time },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "quick_reply",
+              index: "0",
+              parameters: [{ type: "payload", payload: `approve_${appointmentId}` }],
+            },
+            {
+              type: "button",
+              sub_type: "quick_reply",
+              index: "1",
+              parameters: [{ type: "payload", payload: `reject_${appointmentId}` }],
+            },
+          ],
+        },
+      }),
+    }
+  );
+
+  const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (manager template) to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  return data.messages?.[0]?.id ?? null;
+}
+
 export async function sendInteractiveReminder(
   to: string,
   body: string,

@@ -1,5 +1,10 @@
 import { createServiceClient } from "../lib/supabase.js";
-import { sendInteractiveReminder, sendManagerApprovalRequest, sendWhatsAppMessage } from "./whatsapp.js";
+import {
+  sendInteractiveReminder,
+  sendManagerApprovalRequest,
+  sendManagerNewBookingTemplate,
+  sendWhatsAppMessage,
+} from "./whatsapp.js";
 
 /**
  * Notifications Engine
@@ -326,16 +331,28 @@ export async function sendManagerNotification(appointmentId: string) {
 
   const statusLabel = apt.status === "pending_approval" ? "ממתין לאישור" : "אושר";
 
-  const message =
-    `🔔 תור חדש ממתין לאישורך!\n` +
-    `👤 ${apt.customers.name}\n` +
-    `✂️ ${apt.services.name_he}\n` +
-    `📅 ${dateStr} ⏰ ${timeStr}\n` +
-    `📱 ${apt.customers.phone}`;
+  // Quick-reply WhatsApp templates are exempt from Meta's 24h customer-service window
+  // (free-form "interactive" messages below are not — see error 131047). Flip this once
+  // the "manager_new_booking" template is approved in WhatsApp Manager.
+  const useTemplate = process.env.WHATSAPP_MANAGER_TEMPLATE_APPROVED === "true";
 
   let whatsappMessageId: string | null = null;
   try {
-    whatsappMessageId = await sendManagerApprovalRequest(ownerPhone, message, apt.id);
+    if (useTemplate) {
+      whatsappMessageId = await sendManagerNewBookingTemplate(
+        ownerPhone,
+        { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
+        apt.id
+      );
+    } else {
+      const message =
+        `🔔 תור חדש ממתין לאישורך!\n` +
+        `👤 ${apt.customers.name}\n` +
+        `✂️ ${apt.services.name_he}\n` +
+        `📅 ${dateStr} ⏰ ${timeStr}\n` +
+        `📱 ${apt.customers.phone}`;
+      whatsappMessageId = await sendManagerApprovalRequest(ownerPhone, message, apt.id);
+    }
   } catch (err) {
     console.error("Failed to send manager notification:", err);
   }
@@ -499,15 +516,29 @@ export async function updateDeliveryStatus(
   if (status === "read") updateData.read_at = new Date().toISOString();
   if (error) updateData.error = error;
 
-  const { error: updErr } = await supabase
+  const { data: updated, error: updErr } = await supabase
     .from("notifications_log")
     .update(updateData)
-    .eq("whatsapp_message_id", messageId);
+    .eq("whatsapp_message_id", messageId)
+    .select("business_id, type")
+    .maybeSingle();
 
   if (updErr) {
     console.error(`[Delivery Status] Failed to persist status for ${messageId}:`, updErr.message);
-  } else {
-    console.log(`[Delivery Status] Message: ${messageId}, Status: ${status}${error ? ` | ${error}` : ""}`);
+    return;
+  }
+
+  console.log(`[Delivery Status] Message: ${messageId}, Status: ${status}${error ? ` | ${error}` : ""}`);
+
+  // Manager booking alerts have no in-app fallback — if delivery fails, the owner
+  // never learns about the booking unless this is surfaced loudly. The 131047
+  // "outside the 24h window" failure mode silently dropped these for weeks before
+  // anyone noticed (see business 018a5da3..., June 2026).
+  if (status === "failed" && updated?.type === "manager_new_booking") {
+    console.error(
+      `[ALERT] Manager booking notification undelivered — business_id=${updated.business_id} ` +
+      `message=${messageId} error="${error}". Owner did NOT receive this booking alert.`
+    );
   }
 }
 
