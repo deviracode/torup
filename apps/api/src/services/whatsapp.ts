@@ -137,7 +137,10 @@ export async function sendManagerNewBookingTemplate(
         type: "template",
         template: {
           name: "manager_new_booking",
-          language: { code: "he" },
+          // Approved under "en" in WhatsApp Manager even though the body text is Hebrew —
+          // the language code must match the approved template's registered code exactly,
+          // not the actual content language, or Meta rejects with error 132001.
+          language: { code: "en" },
           components: [
             {
               type: "body",
