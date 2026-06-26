@@ -405,21 +405,24 @@ export async function processReminders(): Promise<{ processed: number; sent: num
       .lt("start_time", windowEnd.toISOString());
 
     for (const apt of (appointments || []) as unknown as Array<{ id: string; services: { reminder_confirmation: boolean } | null }>) {
-      const { data: existing } = await supabase
-        .from("notifications_log")
-        .select("id")
-        .eq("appointment_id", apt.id)
-        .eq("template_id", templateId)
-        .eq("status", "sent")
-        .limit(1);
+      // Atomically claim this (appointment, template) pair. If another instance
+      // already claimed it the INSERT will conflict and we skip — this eliminates
+      // the read-before-write race that caused duplicate messages.
+      const { error: claimError } = await supabase
+        .from("appointment_reminders_sent")
+        .insert({ appointment_id: apt.id, template_id: templateId });
 
-      if (!existing || existing.length === 0) {
-        processed += 1;
-        const interactiveReminder = apt.services?.reminder_confirmation !== false;
-        const result = await sendAppointmentNotification(apt.id, templateId, {}, { interactiveReminder });
-        if (result?.sent) sent += 1;
-        if (result?.failed) failed += 1;
+      if (claimError) {
+        // Unique violation (code 23505) = already claimed. Any other error is
+        // unexpected but we still skip to avoid accidental duplicates.
+        continue;
       }
+
+      processed += 1;
+      const interactiveReminder = apt.services?.reminder_confirmation !== false;
+      const result = await sendAppointmentNotification(apt.id, templateId, {}, { interactiveReminder });
+      if (result?.sent) sent += 1;
+      if (result?.failed) failed += 1;
     }
   }
 
