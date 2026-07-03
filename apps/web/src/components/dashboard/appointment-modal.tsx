@@ -16,6 +16,7 @@ interface Appointment {
   status: string;
   notes: string | null;
   created_via: string;
+  customer_confirmed?: boolean | null;
   customers?: { name: string; phone: string };
   services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number };
 }
@@ -246,6 +247,17 @@ export function AppointmentModal({
         {error && (
           <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
             {error}
+          </div>
+        )}
+
+        {appointment.customer_confirmed !== null && appointment.customer_confirmed !== undefined && (
+          <div className={`mx-6 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
+            appointment.customer_confirmed
+              ? "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"
+              : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
+          }`}>
+            <span>{appointment.customer_confirmed ? "✅" : "❌"}</span>
+            <span>{appointment.customer_confirmed ? t("reminderConfirmed") : t("reminderCancelled")}</span>
           </div>
         )}
 
