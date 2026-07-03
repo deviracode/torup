@@ -4,6 +4,7 @@ import {
   sendManagerApprovalRequest,
   sendManagerNewBookingTemplate,
   sendWhatsAppMessage,
+  sendCustomerReminderTemplate,
 } from "./whatsapp.js";
 
 /**
@@ -170,7 +171,7 @@ export async function sendAppointmentNotification(
   const { data: appointment } = await supabase
     .from("appointments")
     .select(
-      "id, business_id, customer_id, start_time, status, " +
+      "id, business_id, customer_id, start_time, status, created_via, " +
       "customers(id, name, phone, language_preference), " +
       "services(name_he, name_ar, name_en), " +
       "businesses(name)"
@@ -186,6 +187,7 @@ export async function sendAppointmentNotification(
     customer_id: string;
     start_time: string;
     status: string;
+    created_via: string;
     customers: { id: string; name: string; phone: string; language_preference: string };
     services: { name_he: string; name_ar: string | null; name_en: string | null };
     businesses: { name: string };
@@ -228,12 +230,25 @@ export async function sendAppointmentNotification(
   const message = renderTemplate(templateId, lang, vars);
 
   const isReminder = templateId.startsWith("reminder_");
-  const useButtons = isReminder && (options.interactiveReminder !== false);
+  const isManual = apt.created_via === "manual";
+  const useTemplate = isReminder && isManual;
+  const useButtons = isReminder && !isManual && (options.interactiveReminder !== false);
   let whatsappMessageId: string | null = null;
   let sendError: string | null = null;
 
   try {
-    if (useButtons) {
+    if (useTemplate) {
+      whatsappMessageId = await sendCustomerReminderTemplate(
+        customer.phone,
+        {
+          customerName: customer.name,
+          serviceName: vars.service_name,
+          date: vars.date,
+          time: vars.time,
+        },
+        lang
+      );
+    } else if (useButtons) {
       whatsappMessageId = await sendInteractiveReminder(customer.phone, message, lang);
     } else {
       whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
