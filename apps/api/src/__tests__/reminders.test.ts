@@ -1,6 +1,100 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { validateTransition } from "@torup/shared";
 import { renderTemplate } from "../services/notifications.js";
+import express from "express";
+import request from "supertest";
+
+// ── Mocks for booking_confirmation suppression tests ──────────────────────────
+
+vi.mock("../middleware/auth.js", () => ({
+  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+const { mockSendAppointmentNotification, mockSendManagerNotification } = vi.hoisted(() => ({
+  mockSendAppointmentNotification: vi.fn().mockResolvedValue(undefined),
+  mockSendManagerNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/notifications.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/notifications.js")>();
+  return {
+    ...actual,
+    sendAppointmentNotification: mockSendAppointmentNotification,
+    sendManagerNotification: mockSendManagerNotification,
+  };
+});
+
+vi.mock("../services/google-calendar.js", () => ({
+  pushAppointmentToGoogle: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../lib/redis.js", () => ({
+  cacheGet: vi.fn().mockResolvedValue(null),
+  cacheSet: vi.fn().mockResolvedValue(undefined),
+  cacheClear: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../services/appointment-actions.js", () => ({
+  approveAppointment: vi.fn(),
+  rejectAppointment: vi.fn(),
+}));
+
+// Supabase stub: services returns a valid service; appointments.insert returns a new row.
+const CREATED_APT_ID = "apt-booking-conf-test-001";
+const BUSINESS_ID_BC = "biz-bc-test";
+
+function makeSupabaseStubForPost(createdVia: string) {
+  return {
+    from(table: string) {
+      if (table === "services") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                single: async () => ({
+                  data: { duration_minutes: 30, buffer_minutes: 0, max_capacity: 10 },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "appointments") {
+        // Chainable builder that resolves to empty data (capacity check passes)
+        const chain: Record<string, unknown> = {};
+        const noop = () => chain;
+        chain.select = noop;
+        chain.eq = noop;
+        chain.neq = noop;
+        chain.gte = noop;
+        chain.lte = noop;
+        chain.gt = noop;
+        chain.lt = noop;
+        chain.not = noop;
+        chain.in = noop;
+        chain.then = (resolve: (v: { data: unknown[]; error: null }) => void) =>
+          Promise.resolve().then(() => resolve({ data: [], error: null }));
+        // insert chain
+        chain.insert = (_row: unknown) => ({
+          select: () => ({
+            single: async () => ({
+              data: { id: CREATED_APT_ID, created_via: createdVia },
+              error: null,
+            }),
+          }),
+        });
+        return chain;
+      }
+      return { select: () => ({ eq: () => ({ single: async () => ({ data: null, error: { message: "not found" } }) }) }) };
+    },
+  };
+}
+
+vi.mock("../lib/supabase.js", () => ({
+  createServiceClient: vi.fn(),
+}));
 
 describe("Reminder System", () => {
   describe("renderTemplate(reminder_*m)", () => {
@@ -119,37 +213,61 @@ describe("Reminder System", () => {
   });
 
   describe("Manual appointment booking_confirmation suppression", () => {
-    it("does NOT call sendAppointmentNotification with booking_confirmation when created_via is manual", () => {
-      const sendAppointmentNotification = vi.fn().mockResolvedValue(undefined);
-      const sendManagerNotification = vi.fn().mockResolvedValue(undefined);
+    async function buildPostApp(createdVia: string) {
+      const { createServiceClient } = await import("../lib/supabase.js");
+      (createServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(
+        makeSupabaseStubForPost(createdVia)
+      );
+      const router = (await import("../routes/appointments.js")).default;
+      const app = express();
+      app.use(express.json());
+      app.use("/api/businesses/:businessId/appointments", router);
+      return app;
+    }
 
-      const created_via = "manual";
-      const appointmentId = "apt-manual-123";
-
-      // Simulate the logic in POST /appointments
-      if (created_via !== "manual") {
-        sendAppointmentNotification(appointmentId, "booking_confirmation");
-        sendManagerNotification(appointmentId);
-      }
-
-      expect(sendAppointmentNotification).not.toHaveBeenCalledWith(appointmentId, "booking_confirmation");
-      expect(sendManagerNotification).not.toHaveBeenCalled();
+    beforeEach(() => {
+      vi.clearAllMocks();
     });
 
-    it("DOES call sendAppointmentNotification with booking_confirmation when created_via is not manual", () => {
-      const sendAppointmentNotification = vi.fn().mockResolvedValue(undefined);
-      const sendManagerNotification = vi.fn().mockResolvedValue(undefined);
+    it("does NOT call sendAppointmentNotification with booking_confirmation when created_via is manual", async () => {
+      const app = await buildPostApp("manual");
+      const res = await request(app)
+        .post(`/api/businesses/${BUSINESS_ID_BC}/appointments`)
+        .send({
+          service_id: "svc-1",
+          customer_id: "cust-1",
+          start_time: "2099-01-01T10:00:00Z",
+          created_via: "manual",
+        });
 
-      const created_via = "web";
-      const appointmentId = "apt-web-456";
+      expect(res.status).toBe(201);
+      // Allow event loop to flush the fire-and-forget .catch chains
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockSendAppointmentNotification).not.toHaveBeenCalledWith(
+        CREATED_APT_ID,
+        "booking_confirmation"
+      );
+      expect(mockSendManagerNotification).not.toHaveBeenCalled();
+    });
 
-      if (created_via !== "manual") {
-        sendAppointmentNotification(appointmentId, "booking_confirmation");
-        sendManagerNotification(appointmentId);
-      }
+    it("DOES call sendAppointmentNotification with booking_confirmation when created_via is web", async () => {
+      const app = await buildPostApp("web");
+      const res = await request(app)
+        .post(`/api/businesses/${BUSINESS_ID_BC}/appointments`)
+        .send({
+          service_id: "svc-1",
+          customer_id: "cust-1",
+          start_time: "2099-01-01T10:00:00Z",
+          created_via: "web",
+        });
 
-      expect(sendAppointmentNotification).toHaveBeenCalledWith(appointmentId, "booking_confirmation");
-      expect(sendManagerNotification).toHaveBeenCalledWith(appointmentId);
+      expect(res.status).toBe(201);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockSendAppointmentNotification).toHaveBeenCalledWith(
+        CREATED_APT_ID,
+        "booking_confirmation"
+      );
+      expect(mockSendManagerNotification).toHaveBeenCalledWith(CREATED_APT_ID);
     });
   });
 
