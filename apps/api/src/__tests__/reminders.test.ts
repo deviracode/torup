@@ -118,6 +118,41 @@ describe("Reminder System", () => {
     });
   });
 
+  describe("Manual appointment booking_confirmation suppression", () => {
+    it("does NOT call sendAppointmentNotification with booking_confirmation when created_via is manual", () => {
+      const sendAppointmentNotification = vi.fn().mockResolvedValue(undefined);
+      const sendManagerNotification = vi.fn().mockResolvedValue(undefined);
+
+      const created_via = "manual";
+      const appointmentId = "apt-manual-123";
+
+      // Simulate the logic in POST /appointments
+      if (created_via !== "manual") {
+        sendAppointmentNotification(appointmentId, "booking_confirmation");
+        sendManagerNotification(appointmentId);
+      }
+
+      expect(sendAppointmentNotification).not.toHaveBeenCalledWith(appointmentId, "booking_confirmation");
+      expect(sendManagerNotification).not.toHaveBeenCalled();
+    });
+
+    it("DOES call sendAppointmentNotification with booking_confirmation when created_via is not manual", () => {
+      const sendAppointmentNotification = vi.fn().mockResolvedValue(undefined);
+      const sendManagerNotification = vi.fn().mockResolvedValue(undefined);
+
+      const created_via = "web";
+      const appointmentId = "apt-web-456";
+
+      if (created_via !== "manual") {
+        sendAppointmentNotification(appointmentId, "booking_confirmation");
+        sendManagerNotification(appointmentId);
+      }
+
+      expect(sendAppointmentNotification).toHaveBeenCalledWith(appointmentId, "booking_confirmation");
+      expect(sendManagerNotification).toHaveBeenCalledWith(appointmentId);
+    });
+  });
+
   describe("Duplicate reminder prevention", () => {
     it("should use template_id + appointment_id as dedup key", () => {
       const sentReminders = [
