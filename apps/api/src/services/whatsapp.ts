@@ -233,3 +233,64 @@ export async function sendInteractiveReminder(
 
   return data.messages?.[0]?.id ?? null;
 }
+
+/**
+ * Send an approved customer reminder template, bypassing Meta's 24h conversation window.
+ * Uses appointment_reminder_ar for Arabic, appointment_reminder_he for all other languages.
+ * Parameter order must match the approved templates: customer_name, service_name, date, time.
+ */
+export async function sendCustomerReminderTemplate(
+  to: string,
+  params: { customerName: string; serviceName: string; date: string; time: string },
+  language: string
+): Promise<string | null> {
+  const templateName = language === "ar" ? "appointment_reminder_ar" : "appointment_reminder_he";
+
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.log(`[WhatsApp] (dev mode) Customer reminder template "${templateName}" to: ${to}`, params);
+    return `dev_msg_${Date.now()}`;
+  }
+
+  const res = await fetch(
+    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: normalizePhone(to),
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: params.customerName },
+                { type: "text", text: params.serviceName },
+                { type: "text", text: params.date },
+                { type: "text", text: params.time },
+              ],
+            },
+          ],
+        },
+      }),
+    }
+  );
+
+  const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (customer reminder template "${templateName}") to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  return data.messages?.[0]?.id ?? null;
+}
