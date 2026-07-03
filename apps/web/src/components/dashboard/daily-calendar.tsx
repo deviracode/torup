@@ -23,6 +23,7 @@ interface Appointment {
   status: string;
   notes: string | null;
   created_via: string;
+  customer_confirmed?: boolean | null;
   customers?: { name: string; phone: string };
   services?: { name_he: string; name_ar: string | null; name_en: string | null; duration_minutes?: number; price?: number; color?: string | null };
 }
@@ -394,7 +395,11 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold truncate">{apt.customers?.name || t("unknownCustomer")}</span>
-                        <span className="shrink-0 opacity-90">{st}–{et}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {apt.customer_confirmed === true && <span title="Customer confirmed">✅</span>}
+                          {apt.customer_confirmed === false && <span title="Customer cancelled">❌</span>}
+                          <span className="opacity-90">{st}–{et}</span>
+                        </div>
                       </div>
                       {height >= 40 && (
                         <div className="opacity-80 truncate mt-0.5">
