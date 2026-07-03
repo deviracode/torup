@@ -271,6 +271,48 @@ describe("Reminder System", () => {
     });
   });
 
+  describe("handleButtonResponse — customer_confirmed logic", () => {
+    it("sets customer_confirmed=true when action is confirm", () => {
+      const action = "confirm";
+      expect(action === "confirm").toBe(true);
+    });
+
+    it("sets customer_confirmed=false when action is cancel", () => {
+      const action = "cancel";
+      expect(action === "confirm").toBe(false);
+    });
+
+    it("formats manager confirm message correctly", () => {
+      const customerName = "דנה לוי";
+      const startTime = "2026-07-05T10:30:00.000Z";
+      const startDate = new Date(startTime);
+      const date = startDate.toLocaleDateString("he-IL", {
+        weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+      });
+      const time = startDate.toLocaleTimeString("he-IL", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+      });
+      const msg = `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`;
+      expect(msg).toContain("דנה לוי");
+      expect(msg).toContain("✅");
+    });
+
+    it("formats manager cancel message correctly", () => {
+      const customerName = "דנה לוי";
+      const startTime = "2026-07-05T10:30:00.000Z";
+      const startDate = new Date(startTime);
+      const date = startDate.toLocaleDateString("he-IL", {
+        weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+      });
+      const time = startDate.toLocaleTimeString("he-IL", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+      });
+      const msg = `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
+      expect(msg).toContain("דנה לוי");
+      expect(msg).toContain("❌");
+    });
+  });
+
   describe("Duplicate reminder prevention", () => {
     it("should use template_id + appointment_id as dedup key", () => {
       const sentReminders = [

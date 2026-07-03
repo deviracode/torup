@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import crypto from "crypto";
 import { createServiceClient } from "../lib/supabase.js";
-import { validateTransition } from "@torup/shared";
+import { validateTransition, type AppointmentStatus } from "@torup/shared";
 import { sendWhatsAppMessage } from "../services/whatsapp.js";
 import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications.js";
 
@@ -158,39 +158,66 @@ async function handleButtonResponse(customerPhone: string, action: "confirm" | "
 
   const { data: appointment } = await supabase
     .from("appointments")
-    .select("id, status")
+    .select("id, status, start_time, customers(name), businesses(phone)")
     .eq("id", entry.appointment_id)
     .single();
 
   if (!appointment) return;
 
+  const apt = appointment as unknown as {
+    id: string;
+    status: string;
+    start_time: string;
+    customers: { name: string };
+    businesses: { phone: string };
+  };
+
   const lang = customer.language_preference || "he";
   const newStatus = action === "confirm" ? "confirmed" : "cancelled";
 
-  if (appointment.status === newStatus) {
+  if (apt.status === newStatus) {
     await sendWhatsAppMessage(customerPhone, responseMessages.already_confirmed[lang]);
     return;
   }
 
-  if (!validateTransition(appointment.status, newStatus)) {
+  if (!validateTransition(apt.status as AppointmentStatus, newStatus as AppointmentStatus)) {
     await sendWhatsAppMessage(customerPhone, responseMessages.invalid_transition[lang]);
     return;
   }
 
   await supabase
     .from("appointments")
-    .update({ status: newStatus })
-    .eq("id", appointment.id);
+    .update({ status: newStatus, customer_confirmed: action === "confirm" })
+    .eq("id", apt.id);
 
   await supabase
     .from("notifications_log")
     .update({ customer_response: newStatus, responded_at: new Date().toISOString() })
-    .eq("appointment_id", appointment.id)
+    .eq("appointment_id", apt.id)
     .like("template_id", "reminder_%")
     .order("sent_at", { ascending: false })
     .limit(1);
 
   await sendWhatsAppMessage(customerPhone, responseMessages[newStatus][lang]);
+
+  // Notify manager
+  const managerPhone = apt.businesses?.phone;
+  if (managerPhone) {
+    const startDate = new Date(apt.start_time);
+    const date = startDate.toLocaleDateString("he-IL", {
+      weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+    });
+    const time = startDate.toLocaleTimeString("he-IL", {
+      hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+    });
+    const customerName = apt.customers?.name || "";
+    const managerMsg = action === "confirm"
+      ? `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`
+      : `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
+    sendWhatsAppMessage(managerPhone, managerMsg).catch((err) =>
+      console.error("[Webhook] Failed to notify manager of customer response:", err)
+    );
+  }
 }
 
 export default router;
