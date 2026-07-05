@@ -121,6 +121,37 @@ describe("Webhook Payload Parsing", () => {
     expect(messages).toHaveLength(2);
   });
 
+  it("should parse template quick-reply button taps (type=button)", () => {
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                metadata: { phone_number_id: "biz-phone-123" },
+                messages: [
+                  {
+                    from: "972501234567",
+                    id: "msg-btn-001",
+                    timestamp: "1680000000",
+                    type: "button",
+                    button: { payload: "approve_abc-123", text: "אשר" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const messages = parseWebhookPayload(payload);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].interactionId).toBe("approve_abc-123");
+    expect(messages[0].text).toBe("אשר");
+    expect(messages[0].from).toBe("972501234567");
+  });
+
   it("should ignore non-text message types", () => {
     const payload = {
       entry: [

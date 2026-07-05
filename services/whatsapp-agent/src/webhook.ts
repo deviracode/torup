@@ -124,6 +124,7 @@ export function parseWebhookPayload(
             id?: string;
             timestamp?: string;
             type?: string;
+            button?: { payload?: string; text?: string };
           }>
         | undefined;
 
@@ -150,6 +151,16 @@ export function parseWebhookPayload(
               interactionId: reply.id,
             });
           }
+        } else if (msg.type === "button" && msg.button?.payload) {
+          // Template quick-reply button tap — payload carries the button identifier
+          messages.push({
+            from: msg.from || "",
+            text: msg.button.text || "",
+            messageId: msg.id || "",
+            timestamp: msg.timestamp || "",
+            businessPhoneNumberId: phoneNumberId,
+            interactionId: msg.button.payload,
+          });
         }
       }
     }
