@@ -48,14 +48,22 @@ export async function approveAppointment(appointmentId: string) {
   }
 
   await cacheClear(`appts:${businessId}:*`);
-  sendApprovalNotification(appointmentId)
-    .catch((err) => console.error("[Notification] approval failed:", err));
+
+  // Must be awaited — on Vercel, fire-and-forget work is killed once the response is sent.
+  await sendApprovalNotification(appointmentId).catch((err) =>
+    console.error("[Notification] approval failed:", err)
+  );
+  await Promise.all(
+    rejectedIds.map((id) =>
+      sendRejectionNotification(id, "slot_taken").catch((err) =>
+        console.error("[Notification] slot_taken rejection failed:", err)
+      )
+    )
+  );
+
+  // Google Calendar sync is optional — keep fire-and-forget.
   pushAppointmentToGoogle(appointmentId).catch(() => {});
-  for (const id of rejectedIds) {
-    sendRejectionNotification(id, "slot_taken")
-      .catch((err) => console.error("[Notification] slot_taken rejection failed:", err));
-    pushAppointmentToGoogle(id).catch(() => {});
-  }
+  for (const id of rejectedIds) pushAppointmentToGoogle(id).catch(() => {});
 
   return { approved: appointmentId, rejected: rejectedIds };
 }
@@ -83,8 +91,11 @@ export async function rejectAppointment(appointmentId: string) {
   if (updErr) throw new AppError(400, updErr.message);
 
   await cacheClear(`appts:${businessId}:*`);
-  sendRejectionNotification(appointmentId, "manual")
-    .catch((err) => console.error("[Notification] manual rejection failed:", err));
+
+  await sendRejectionNotification(appointmentId, "manual").catch((err) =>
+    console.error("[Notification] manual rejection failed:", err)
+  );
+
   pushAppointmentToGoogle(appointmentId).catch(() => {});
 
   return { rejected: appointmentId };
