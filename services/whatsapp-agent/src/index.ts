@@ -220,6 +220,18 @@ function normalizePhone(p: string): string {
   return p.startsWith("972") ? "0" + p.slice(3) : p;
 }
 
+const GREETING_BLOCKLIST = new Set([
+  "مرحبا", "مرحباً", "هلا", "هلو", "أهلا", "أهلاً", "أهلين", "هاي", "هي",
+  "السلام", "سلام", "سلامات", "يسلمو", "ازيك", "شلونك", "كيفك", "كيف",
+  "שלום", "היי", "הי", "אהלן", "אהלו", "שלומות",
+  "hi", "hello", "hey", "hiya", "sup", "yo",
+]);
+
+function isGreetingName(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  return GREETING_BLOCKLIST.has(name.trim()) || GREETING_BLOCKLIST.has(lower);
+}
+
 const ASK_NAME: Record<"he" | "ar" | "en", string> = {
   he: "שמחים שפניתם! 🙂 איך קוראים לכם? (שם מלא יעזור לבעל העסק לזהות אתכם)",
   ar: "أهلاً! 🙂 ما اسمك الكريم؟ (الاسم الكامل يساعد صاحب العمل على التعرف عليك)",
@@ -888,13 +900,14 @@ async function handleIncomingMessage(
   if (!session.customerId) {
     const customer = await loadOrInitCustomer(from, session.language);
     if (customer) {
+      const nameNeedsCapture = !customer.name || isGreetingName(customer.name);
       session.customerId = customer.id;
-      session.customerName = customer.name;
-      if (!customer.name) session.awaitingName = true;
+      session.customerName = nameNeedsCapture ? "" : customer.name;
+      if (nameNeedsCapture) session.awaitingName = true;
       updateSession(from, businessPhoneNumberId, {
         customerId: customer.id,
-        customerName: customer.name,
-        awaitingName: !customer.name,
+        customerName: nameNeedsCapture ? "" : customer.name,
+        awaitingName: nameNeedsCapture,
       });
     }
   }
@@ -965,17 +978,8 @@ async function handleIncomingMessage(
   // --- Name capture: if we previously asked, treat this text as the name ---
   if (session.awaitingName && !interactionId && session.customerId) {
     const candidate = text.trim();
-    // Common greetings that should not be accepted as names
-    const GREETING_BLOCKLIST = new Set([
-      "مرحبا", "مرحباً", "هلا", "هلو", "أهلا", "أهلاً", "أهلين", "هاي", "هي",
-      "السلام", "سلام", "سلامات", "يسلمو", "ازيك", "شلونك", "كيفك", "كيف",
-      "שלום", "היי", "הי", "אהלן", "אהלו", "שלומות",
-      "hi", "hello", "hey", "hiya", "sup", "yo",
-    ]);
-    const candidateLower = candidate.toLowerCase();
-    const isGreeting = GREETING_BLOCKLIST.has(candidate) || GREETING_BLOCKLIST.has(candidateLower);
-    // Reject silly inputs (numbers/emoji-only, greetings); ask once more if invalid.
-    if (candidate.length >= 2 && /[\p{L}]/u.test(candidate) && !isGreeting) {
+    // Reject greetings and non-letter inputs; ask once more if invalid.
+    if (candidate.length >= 2 && /[\p{L}]/u.test(candidate) && !isGreetingName(candidate)) {
       await updateCustomerName(session.customerId, candidate);
       session.customerName = candidate;
       session.awaitingName = false;
