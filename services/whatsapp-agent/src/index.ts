@@ -220,14 +220,14 @@ function normalizePhone(p: string): string {
   return p.startsWith("972") ? "0" + p.slice(3) : p;
 }
 
-const GREETING_BLOCKLIST = new Set([
+export const GREETING_BLOCKLIST = new Set([
   "مرحبا", "مرحباً", "هلا", "هلو", "أهلا", "أهلاً", "أهلين", "هاي", "هي",
   "السلام", "سلام", "سلامات", "يسلمو", "ازيك", "شلونك", "كيفك", "كيف",
   "שלום", "היי", "הי", "אהלן", "אהלו", "שלומות",
   "hi", "hello", "hey", "hiya", "sup", "yo",
 ]);
 
-function isGreetingName(name: string): boolean {
+export function isGreetingName(name: string): boolean {
   const lower = name.toLowerCase().trim();
   return GREETING_BLOCKLIST.has(name.trim()) || GREETING_BLOCKLIST.has(lower);
 }

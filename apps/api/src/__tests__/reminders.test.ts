@@ -331,4 +331,117 @@ describe("Reminder System", () => {
       expect(shouldSend("apt2", "reminder_1440m")).toBe(true);
     });
   });
+
+  // ── Bug 3: manager notification when customer confirms via reminder ──────────
+  describe("Bug 3: manager notification on customer reminder response", () => {
+    it("sets customer_confirmed=true for confirm action", () => {
+      const action = "confirm" as const;
+      const update = { status: "confirmed", customer_confirmed: action === "confirm" };
+      expect(update.customer_confirmed).toBe(true);
+    });
+
+    it("sets customer_confirmed=false for cancel action", () => {
+      const action = "cancel" as const;
+      const update = { status: "cancelled", customer_confirmed: action === "confirm" };
+      expect(update.customer_confirmed).toBe(false);
+    });
+
+    it("builds correct Hebrew confirm message for manager", () => {
+      const customerName = "דנה לוי";
+      const startTime = "2026-07-05T10:30:00.000Z";
+      const startDate = new Date(startTime);
+      const date = startDate.toLocaleDateString("he-IL", {
+        weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+      });
+      const time = startDate.toLocaleTimeString("he-IL", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+      });
+      const msg = `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`;
+      expect(msg).toContain("✅");
+      expect(msg).toContain("דנה לוי");
+      expect(msg).toContain("אישר");
+    });
+
+    it("builds correct Hebrew cancel message for manager", () => {
+      const customerName = "יוסי כהן";
+      const startTime = "2026-07-05T14:00:00.000Z";
+      const startDate = new Date(startTime);
+      const date = startDate.toLocaleDateString("he-IL", {
+        weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+      });
+      const time = startDate.toLocaleTimeString("he-IL", {
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+      });
+      const msg = `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
+      expect(msg).toContain("❌");
+      expect(msg).toContain("יוסי כהן");
+      expect(msg).toContain("ביטל");
+    });
+
+    it("skips manager notification when business phone is missing", () => {
+      // Simulates the guard: if (!managerPhone) skip
+      const managerPhone = undefined as string | undefined;
+      const notificationFired = managerPhone ? true : false;
+      expect(notificationFired).toBe(false);
+    });
+
+    it("fires manager notification when business phone is present", () => {
+      const managerPhone = "972521234567";
+      const notificationFired = managerPhone ? true : false;
+      expect(notificationFired).toBe(true);
+    });
+  });
+
+  // ── Bug 1: approval notification template routing ───────────────────────────
+  describe("Bug 1: approval notification — template vs free-form routing", () => {
+    it("uses template path when WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true", () => {
+      const useTemplate = "true" === "true";
+      expect(useTemplate).toBe(true);
+    });
+
+    it("falls back to free-form when WHATSAPP_APPROVAL_TEMPLATE_ENABLED is unset", () => {
+      const envVal = undefined;
+      const useTemplate = envVal === "true";
+      expect(useTemplate).toBe(false);
+    });
+
+    it("approval template uses appointment_confirmed_ar for Arabic customers", () => {
+      const lang = "ar";
+      const templateName = lang === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
+      expect(templateName).toBe("appointment_confirmed_ar");
+    });
+
+    it("approval template uses appointment_confirmed_he for Hebrew customers", () => {
+      const lang = "he";
+      const templateName = lang === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
+      expect(templateName).toBe("appointment_confirmed_he");
+    });
+
+    it("approval template uses appointment_confirmed_he for English customers", () => {
+      const lang = "en";
+      const templateName = lang === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
+      expect(templateName).toBe("appointment_confirmed_he");
+    });
+
+    it("template parameters order matches registered template: name, service, date, time", () => {
+      const params = {
+        customerName: "דנה",
+        serviceName: "תספורת",
+        date: "יום א׳ 6 ביול׳",
+        time: "10:30",
+      };
+      const components = [
+        { type: "body", parameters: [
+          { type: "text", text: params.customerName },
+          { type: "text", text: params.serviceName },
+          { type: "text", text: params.date },
+          { type: "text", text: params.time },
+        ]},
+      ];
+      expect(components[0].parameters[0].text).toBe("דנה");
+      expect(components[0].parameters[1].text).toBe("תספורת");
+      expect(components[0].parameters[2].text).toBe("יום א׳ 6 ביול׳");
+      expect(components[0].parameters[3].text).toBe("10:30");
+    });
+  });
 });

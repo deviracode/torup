@@ -8,6 +8,7 @@ import {
   addMessage,
   updateSession,
 } from "../session.js";
+import { isGreetingName, GREETING_BLOCKLIST } from "../index.js";
 import { getTemplate } from "../templates.js";
 import { groupTimeSlots } from "../index.js";
 
@@ -333,5 +334,68 @@ describe("groupTimeSlots", () => {
     expect(grouped.morning).toHaveLength(0);
     expect(grouped.noon).toHaveLength(0);
     expect(grouped.evening).toHaveLength(0);
+  });
+});
+
+// ── Bug 2: greeting names ─────────────────────────────────────────────────────
+describe("isGreetingName — Bug 2: greeting names rejected as customer names", () => {
+  it("flags Arabic greetings", () => {
+    expect(isGreetingName("مرحبا")).toBe(true);
+    expect(isGreetingName("مرحباً")).toBe(true);
+    expect(isGreetingName("هلا")).toBe(true);
+    expect(isGreetingName("هلو")).toBe(true);
+    expect(isGreetingName("سلام")).toBe(true);
+    expect(isGreetingName("أهلا")).toBe(true);
+    expect(isGreetingName("أهلاً")).toBe(true);
+    expect(isGreetingName("السلام")).toBe(true);
+  });
+
+  it("flags Hebrew greetings", () => {
+    expect(isGreetingName("שלום")).toBe(true);
+    expect(isGreetingName("היי")).toBe(true);
+    expect(isGreetingName("הי")).toBe(true);
+    expect(isGreetingName("אהלן")).toBe(true);
+  });
+
+  it("flags English greetings case-insensitively", () => {
+    expect(isGreetingName("hi")).toBe(true);
+    expect(isGreetingName("Hi")).toBe(true);
+    expect(isGreetingName("HI")).toBe(true);
+    expect(isGreetingName("hello")).toBe(true);
+    expect(isGreetingName("Hello")).toBe(true);
+    expect(isGreetingName("hey")).toBe(true);
+  });
+
+  it("accepts real names", () => {
+    expect(isGreetingName("דנה לוי")).toBe(false);
+    expect(isGreetingName("محمد علي")).toBe(false);
+    expect(isGreetingName("Sara Cohen")).toBe(false);
+    expect(isGreetingName("יוסי")).toBe(false);
+    expect(isGreetingName("Lior")).toBe(false);
+  });
+
+  it("accepts names that start with a greeting word but are longer", () => {
+    // "שלום כהן" is a real Israeli name — should NOT be blocked
+    expect(isGreetingName("שלום כהן")).toBe(false);
+    expect(isGreetingName("Salam Aboud")).toBe(false);
+  });
+
+  it("returns false for empty string (handled separately upstream)", () => {
+    expect(isGreetingName("")).toBe(false);
+  });
+
+  it("nameNeedsCapture logic: empty OR greeting triggers awaitingName", () => {
+    const nameNeedsCapture = (name: string) => !name || isGreetingName(name);
+    expect(nameNeedsCapture("")).toBe(true);          // empty → ask
+    expect(nameNeedsCapture("مرحبا")).toBe(true);     // greeting → ask
+    expect(nameNeedsCapture("שלום")).toBe(true);      // greeting → ask
+    expect(nameNeedsCapture("דנה לוי")).toBe(false);  // real name → don't ask
+  });
+
+  it("GREETING_BLOCKLIST covers the exact strings reported in production", () => {
+    // These were the names literally saved in the DB
+    expect(GREETING_BLOCKLIST.has("مرحبا")).toBe(true);
+    expect(GREETING_BLOCKLIST.has("הי")).toBe(true);
+    expect(GREETING_BLOCKLIST.has("שלום")).toBe(true);
   });
 });
