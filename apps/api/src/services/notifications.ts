@@ -5,6 +5,7 @@ import {
   sendManagerNewBookingTemplate,
   sendWhatsAppMessage,
   sendCustomerReminderTemplate,
+  sendCustomerApprovalTemplate,
 } from "./whatsapp.js";
 
 /**
@@ -283,6 +284,66 @@ export async function sendAppointmentNotification(
 }
 
 export async function sendApprovalNotification(appointmentId: string) {
+  // If the approved Meta template is enabled, use it to bypass the 24h conversation window.
+  // Templates appointment_confirmed_he / appointment_confirmed_ar must be registered in
+  // WhatsApp Business Manager. Enable with: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
+  const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED === "true";
+  if (useTemplate) {
+    const supabase = createServiceClient();
+    const { data: appointment } = await supabase
+      .from("appointments")
+      .select(
+        "id, business_id, customer_id, start_time, " +
+        "customers(id, name, phone, language_preference), " +
+        "services(name_he, name_ar, name_en), " +
+        "businesses(name)"
+      )
+      .eq("id", appointmentId)
+      .single();
+
+    if (appointment) {
+      const apt = appointment as unknown as {
+        id: string; business_id: string; customer_id: string; start_time: string;
+        customers: { id: string; name: string; phone: string; language_preference: string };
+        services: { name_he: string; name_ar: string | null; name_en: string | null };
+        businesses: { name: string };
+      };
+      const customer = apt.customers;
+      const service = apt.services;
+      if (customer?.phone && service) {
+        const lang = customer.language_preference || "he";
+        const serviceName = lang === "ar" && service.name_ar ? service.name_ar :
+          lang === "en" && service.name_en ? service.name_en : service.name_he;
+        const startDate = new Date(apt.start_time);
+        const date = startDate.toLocaleDateString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
+          weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+        });
+        const time = startDate.toLocaleTimeString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
+          hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+        });
+        const msgId = await sendCustomerApprovalTemplate(
+          customer.phone,
+          { customerName: customer.name, serviceName, date, time },
+          lang
+        );
+        await logNotification({
+          business_id: apt.business_id,
+          customer_id: customer.id,
+          appointment_id: appointmentId,
+          type: "approval",
+          channel: "whatsapp",
+          template_id: "approval",
+          status: msgId ? "sent" : "failed",
+          whatsapp_message_id: msgId,
+          error: msgId ? undefined : "Template send failed — check logs for Meta API error",
+        });
+        if (!msgId) {
+          console.error(`[Notification] FAILED approval template → ${customer.phone} | appointment ${appointmentId}`);
+        }
+        return { sent: !!msgId, failed: !msgId };
+      }
+    }
+  }
   return sendAppointmentNotification(appointmentId, "approval");
 }
 

@@ -965,8 +965,17 @@ async function handleIncomingMessage(
   // --- Name capture: if we previously asked, treat this text as the name ---
   if (session.awaitingName && !interactionId && session.customerId) {
     const candidate = text.trim();
-    // Reject silly inputs (numbers/emoji-only); ask once more if invalid.
-    if (candidate.length >= 2 && /[\p{L}]/u.test(candidate)) {
+    // Common greetings that should not be accepted as names
+    const GREETING_BLOCKLIST = new Set([
+      "مرحبا", "مرحباً", "هلا", "هلو", "أهلا", "أهلاً", "أهلين", "هاي", "هي",
+      "السلام", "سلام", "سلامات", "يسلمو", "ازيك", "شلونك", "كيفك", "كيف",
+      "שלום", "היי", "הי", "אהלן", "אהלו", "שלומות",
+      "hi", "hello", "hey", "hiya", "sup", "yo",
+    ]);
+    const candidateLower = candidate.toLowerCase();
+    const isGreeting = GREETING_BLOCKLIST.has(candidate) || GREETING_BLOCKLIST.has(candidateLower);
+    // Reject silly inputs (numbers/emoji-only, greetings); ask once more if invalid.
+    if (candidate.length >= 2 && /[\p{L}]/u.test(candidate) && !isGreeting) {
       await updateCustomerName(session.customerId, candidate);
       session.customerName = candidate;
       session.awaitingName = false;
@@ -1022,22 +1031,26 @@ async function handleIncomingMessage(
           const aptId = logEntry[0].appointment_id;
           const { data: apt } = await supabase
             .from("appointments")
-            .select("id, status")
+            .select("id, status, start_time, customers(name), businesses(phone)")
             .eq("id", aptId)
             .single();
 
           if (apt) {
+            const aptData = apt as unknown as {
+              id: string; status: string; start_time: string;
+              customers: { name: string } | null;
+              businesses: { phone: string } | null;
+            };
             const newStatus = interactionId === "confirm" ? "confirmed" : "cancelled";
-            if (apt.status === newStatus) {
+            if (aptData.status === newStatus) {
               const msg = interactionId === "confirm"
                 ? "התור שלך כבר מאושר! נתראה 😊"
                 : "התור שלך כבר בוטל.";
               await sendTextMessage(businessPhoneNumberId, from, msg);
-            } else if (
-              (interactionId === "confirm" && ["pending", "confirmed"].includes(apt.status)) ||
-              (interactionId === "cancel" && ["pending", "confirmed"].includes(apt.status))
-            ) {
-              await supabase.from("appointments").update({ status: newStatus }).eq("id", aptId);
+            } else if (["pending", "confirmed"].includes(aptData.status)) {
+              await supabase.from("appointments")
+                .update({ status: newStatus, customer_confirmed: interactionId === "confirm" })
+                .eq("id", aptId);
               await supabase.from("notifications_log")
                 .update({ customer_response: newStatus, responded_at: new Date().toISOString() })
                 .eq("appointment_id", aptId)
@@ -1047,6 +1060,25 @@ async function handleIncomingMessage(
                 await sendTextMessage(businessPhoneNumberId, from, "התור שלך אושר! נתראה 😊");
               } else {
                 await sendTextMessage(businessPhoneNumberId, from, "התור שלך בוטל. תוכל לקבוע תור חדש בכל עת 👋");
+              }
+
+              // Notify manager
+              const managerPhone = aptData.businesses?.phone;
+              if (managerPhone) {
+                const startDate = new Date(aptData.start_time);
+                const date = startDate.toLocaleDateString("he-IL", {
+                  weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+                });
+                const time = startDate.toLocaleTimeString("he-IL", {
+                  hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+                });
+                const customerName = aptData.customers?.name || "";
+                const managerMsg = interactionId === "confirm"
+                  ? `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`
+                  : `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
+                sendTextMessage(businessPhoneNumberId, managerPhone, managerMsg).catch((err: unknown) =>
+                  console.error("[agent] Failed to notify manager of customer response:", err)
+                );
               }
             } else {
               await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].cantChangeStatus);

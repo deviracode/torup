@@ -294,3 +294,67 @@ export async function sendCustomerReminderTemplate(
 
   return data.messages?.[0]?.id ?? null;
 }
+
+/**
+ * Send an approved appointment-confirmed template to the customer, bypassing Meta's 24h window.
+ * Uses appointment_confirmed_ar for Arabic, appointment_confirmed_he for all other languages.
+ * Parameter order must match the approved templates: customer_name, service_name, date, time.
+ *
+ * Templates must be registered and approved in WhatsApp Business Manager before this works.
+ * Enable via env var: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
+ */
+export async function sendCustomerApprovalTemplate(
+  to: string,
+  params: { customerName: string; serviceName: string; date: string; time: string },
+  language: string
+): Promise<string | null> {
+  const templateName = language === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
+
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.log(`[WhatsApp] (dev mode) Customer approval template "${templateName}" to: ${to}`, params);
+    return `dev_msg_${Date.now()}`;
+  }
+
+  const res = await fetch(
+    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: normalizePhone(to),
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: params.customerName },
+                { type: "text", text: params.serviceName },
+                { type: "text", text: params.date },
+                { type: "text", text: params.time },
+              ],
+            },
+          ],
+        },
+      }),
+    }
+  );
+
+  const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (customer approval template "${templateName}") to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  return data.messages?.[0]?.id ?? null;
+}
