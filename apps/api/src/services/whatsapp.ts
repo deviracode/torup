@@ -245,6 +245,7 @@ export async function sendCustomerReminderTemplate(
   language: string
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_reminder_ar" : "appointment_reminder_he";
+  const languageCode = language === "ar" ? "ar" : "he";
 
   if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
     console.log(`[WhatsApp] (dev mode) Customer reminder template "${templateName}" to: ${to}`, params);
@@ -265,7 +266,7 @@ export async function sendCustomerReminderTemplate(
         type: "template",
         template: {
           name: templateName,
-          language: { code: "en" },
+          language: { code: languageCode },
           components: [
             {
               type: "body",

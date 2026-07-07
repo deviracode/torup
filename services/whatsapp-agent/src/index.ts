@@ -1428,8 +1428,8 @@ async function handleIncomingMessage(
 
   addMessage(from, businessPhoneNumberId, "user", text);
 
-  // If Claude signals booking intent, redirect to structured service list
-  if (response.trim() === "SHOW_BOOKING_MENU") {
+  // If Claude signals booking intent (anywhere in its response), redirect to structured service list
+  if (response.includes("SHOW_BOOKING_MENU")) {
     const lang = session.language ?? "he";
     if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
       const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
