@@ -241,7 +241,7 @@ export async function sendInteractiveReminder(
  */
 export async function sendCustomerReminderTemplate(
   to: string,
-  params: { customerName: string; serviceName: string; date: string; time: string },
+  params: { businessName: string; serviceName: string; date: string; time: string },
   language: string
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_reminder_ar" : "appointment_reminder_he";
@@ -271,7 +271,7 @@ export async function sendCustomerReminderTemplate(
             {
               type: "body",
               parameters: [
-                { type: "text", text: params.customerName },
+                { type: "text", text: params.businessName },
                 { type: "text", text: params.date },
                 { type: "text", text: params.time },
               ],

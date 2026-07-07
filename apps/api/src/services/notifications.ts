@@ -242,7 +242,7 @@ export async function sendAppointmentNotification(
       whatsappMessageId = await sendCustomerReminderTemplate(
         customer.phone,
         {
-          customerName: customer.name,
+          businessName: business.name,
           serviceName: vars.service_name,
           date: vars.date,
           time: vars.time,
