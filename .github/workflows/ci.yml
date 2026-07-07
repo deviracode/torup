@@ -34,36 +34,6 @@ jobs:
       - name: Test
         run: pnpm turbo test
 
-  deploy-api:
-    needs: lint-typecheck-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy API to Railway
-        run: |
-          npm install -g @railway/cli@4.68.0
-          railway up --service torup-api --project 512fcf4f-ec26-4abe-9cdc-92ef410d434d --environment production --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-  deploy-whatsapp:
-    needs: lint-typecheck-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy WhatsApp to Railway
-        run: |
-          npm install -g @railway/cli@4.68.0
-          railway up --service torup-whatsapp --project 512fcf4f-ec26-4abe-9cdc-92ef410d434d --environment production --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
   deploy-web:
     needs: lint-typecheck-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
