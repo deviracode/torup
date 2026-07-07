@@ -25,20 +25,18 @@ router.post(
   requireAuth,
   async (req: AuthenticatedRequest, res, next) => {
     try {
-      const { business_id, plan_id } = req.body;
+      const { business_id, plan_id, billing = "monthly", success_url, failure_url } = req.body;
 
       const supabase = createServiceClient();
 
-      // Get plan details
       const { data: plan } = await supabase
         .from("plans")
-        .select("name, monthly_price")
+        .select("name, monthly_price, yearly_price")
         .eq("id", plan_id)
         .single();
 
       if (!plan) throw new AppError(404, "Plan not found");
 
-      // Get business info
       const { data: business } = await supabase
         .from("businesses")
         .select("name, email")
@@ -47,14 +45,26 @@ router.post(
 
       if (!business) throw new AppError(404, "Business not found");
 
+      let amount: number;
+      if (billing === "annual") {
+        amount = plan.yearly_price != null
+          ? plan.yearly_price * 12
+          : Math.round(plan.monthly_price * 0.9 * 12);
+      } else {
+        amount = plan.monthly_price;
+      }
+
       const result = await generatePaymentPage({
-        amount: plan.monthly_price,
-        description: `${plan.name} - ${business.name}`,
+        amount,
+        description: `${plan.name} - ${business.name} (${billing})`,
         customer_name: business.name,
         customer_email: business.email || req.userEmail || "",
         business_id,
         plan_id,
+        billing,
         recurring: true,
+        successUrl: success_url,
+        failureUrl: failure_url,
       });
 
       res.json(result);
@@ -70,7 +80,7 @@ router.post("/webhook", async (req, res, next) => {
     const { transaction, more_info, status_code } = req.body;
 
     // Parse business context from more_info
-    let context: { business_id?: string; plan_id?: string } = {};
+    let context: { business_id?: string; plan_id?: string; billing?: string } = {};
     try {
       context = JSON.parse(more_info || "{}");
     } catch {}
@@ -85,7 +95,8 @@ router.post("/webhook", async (req, res, next) => {
       await activateSubscription(
         context.business_id,
         context.plan_id || "",
-        transaction?.uid
+        transaction?.uid,
+        context.billing === "annual" ? "annual" : "monthly"
       );
     } else {
       // Failed payment — mark as past_due handled by subscription service

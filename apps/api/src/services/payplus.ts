@@ -55,8 +55,27 @@ export async function generatePaymentPage(params: {
   customer_phone?: string;
   business_id: string;
   plan_id: string;
+  billing?: "monthly" | "annual";
   recurring?: boolean;
+  successUrl?: string;
+  failureUrl?: string;
 }): Promise<{ paymentPageUrl: string; pageRequestUid: string }> {
+  const appUrl = process.env.APP_URL || "http://localhost:3000";
+  const apiUrl = process.env.API_URL || "http://localhost:3001";
+
+  // Mock mode: skip PayPlus API, return local mock payment page
+  if (process.env.PAYPLUS_MOCK === "true" || process.env.PAYPLUS_API_KEY === "sandbox_key_placeholder") {
+    const mockUrl = new URL(`${appUrl}/mock-payment`);
+    mockUrl.searchParams.set("success_url", params.successUrl || `${appUrl}/dashboard/billing?status=success`);
+    mockUrl.searchParams.set("failure_url", params.failureUrl || `${appUrl}/dashboard/billing?status=failed`);
+    mockUrl.searchParams.set("description", params.description);
+    mockUrl.searchParams.set("amount", String(params.amount));
+    mockUrl.searchParams.set("business_id", params.business_id);
+    mockUrl.searchParams.set("plan_id", params.plan_id);
+    mockUrl.searchParams.set("billing", params.billing || "monthly");
+    mockUrl.searchParams.set("api_url", apiUrl);
+    return { paymentPageUrl: mockUrl.toString(), pageRequestUid: "mock-" + Date.now() };
+  }
   const response = await payPlusRequest<PaymentPageResponse>(
     "/PaymentPages/generateLink",
     "POST",
@@ -74,11 +93,12 @@ export async function generatePaymentPage(params: {
       more_info: JSON.stringify({
         business_id: params.business_id,
         plan_id: params.plan_id,
+        billing: params.billing || "monthly",
       }),
       sendEmailApproval: true,
-      refURL_success: `${process.env.APP_URL || "http://localhost:3000"}/dashboard/billing?status=success`,
-      refURL_failure: `${process.env.APP_URL || "http://localhost:3000"}/dashboard/billing?status=failed`,
-      refURL_callback: `${process.env.API_URL || "http://localhost:3001"}/api/billing/webhook`,
+      refURL_success: params.successUrl || `${appUrl}/dashboard/billing?status=success`,
+      refURL_failure: params.failureUrl || `${appUrl}/dashboard/billing?status=failed`,
+      refURL_callback: `${apiUrl}/api/billing/webhook`,
     }
   );
 

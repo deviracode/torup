@@ -1,12 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
 import { createClient } from "@torup/db";
 import { createServiceClient } from "../lib/supabase.js";
+import { getPlanLimits, type PlanLimits } from "../lib/plan-limits.js";
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   userEmail?: string;
   userRole?: "super_admin" | "business_owner" | "staff";
   businessId?: string;
+  planLimits?: PlanLimits | null;
 }
 
 /**
@@ -104,4 +106,34 @@ export function requireBusinessAccess(
   }
 
   next();
+}
+
+/**
+ * Middleware: Require an active subscription for the business.
+ * Attaches planLimits to req for downstream enforcement.
+ * Must be used after requireBusinessAccess.
+ */
+export async function requireSubscription(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  // Super admins bypass subscription checks
+  if (req.userRole === "super_admin") { next(); return; }
+
+  const rawId = req.params.businessId || req.params.id || req.businessId;
+  const businessId = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!businessId) { next(); return; }
+
+  try {
+    const limits = await getPlanLimits(businessId);
+    if (!limits) {
+      res.status(403).json({ error: "no_active_subscription" });
+      return;
+    }
+    req.planLimits = limits;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }

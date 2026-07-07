@@ -309,9 +309,19 @@ router.post(
   async (req: AuthenticatedRequest, res, next) => {
     try {
       const supabase = createServiceClient();
+      const body = { ...req.body };
+
+      // Auto-set AI token limit when AI bot is enabled
+      if (body.has_ai_bot && !body.max_ai_tokens_monthly) {
+        body.max_ai_tokens_monthly = 2400000;
+      }
+      if (!body.has_ai_bot) {
+        body.max_ai_tokens_monthly = 0;
+      }
+
       const { data, error } = await supabase
         .from("plans")
-        .insert(req.body)
+        .insert(body)
         .select()
         .single();
 
@@ -329,9 +339,18 @@ router.patch(
   async (req: AuthenticatedRequest, res, next) => {
     try {
       const supabase = createServiceClient();
+      const body = { ...req.body };
+
+      if (body.has_ai_bot && !body.max_ai_tokens_monthly) {
+        body.max_ai_tokens_monthly = 2400000;
+      }
+      if (body.has_ai_bot === false) {
+        body.max_ai_tokens_monthly = 0;
+      }
+
       const { data, error } = await supabase
         .from("plans")
-        .update(req.body)
+        .update(body)
         .eq("id", req.params.id)
         .select()
         .single();
