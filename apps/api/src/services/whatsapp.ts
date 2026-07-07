@@ -272,7 +272,6 @@ export async function sendCustomerReminderTemplate(
               type: "body",
               parameters: [
                 { type: "text", text: params.customerName },
-                { type: "text", text: params.serviceName },
                 { type: "text", text: params.date },
                 { type: "text", text: params.time },
               ],
