@@ -1,6 +1,6 @@
 import { Router, type Router as RouterType, type Response, type NextFunction } from "express";
 import { createServiceClient } from "../lib/supabase.js";
-import { getBusinessId, getParam } from "../lib/params.js";
+import { getBusinessId, getParam, getUserClient } from "../lib/params.js";
 import {
   requireAuth,
   requireBusinessAccess,
@@ -57,7 +57,7 @@ router.get(
   requireBusinessAccess,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const supabase = createServiceClient();
+      const supabase = getUserClient(req);
       const { date, status, staffId } = req.query;
       const businessId = getBusinessId(req);
 
@@ -169,7 +169,7 @@ router.patch(
   requireBusinessAccess,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const supabase = createServiceClient();
+      const supabase = getUserClient(req);
       const { status: newStatus } = req.body;
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
@@ -235,7 +235,7 @@ router.patch(
   requireBusinessAccess,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const supabase = createServiceClient();
+      const supabase = getUserClient(req);
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
       const { start_time } = req.body;
@@ -296,7 +296,7 @@ router.post(
   requireBusinessAccess,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const supabase = createServiceClient();
+      const supabase = getUserClient(req);
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
 
@@ -323,7 +323,7 @@ router.post(
   requireBusinessAccess,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const supabase = createServiceClient();
+      const supabase = getUserClient(req);
       const businessId = getBusinessId(req);
       const appointmentId = getParam(req, "appointmentId");
 

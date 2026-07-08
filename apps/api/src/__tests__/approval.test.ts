@@ -4,7 +4,11 @@ import request from "supertest";
 
 // Bypass auth for these route-level tests.
 vi.mock("../middleware/auth.js", () => ({
-  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireAuth: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    // Provide a minimal ctx so getUserClient(req) succeeds.
+    req.ctx = { userClient: makeSupabaseStub() };
+    next();
+  },
   requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
