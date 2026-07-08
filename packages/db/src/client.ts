@@ -11,3 +11,18 @@ export function createClient(url?: string, key?: string) {
 
   return supabaseCreateClient<Database>(supabaseUrl, supabaseKey);
 }
+
+export function createUserClient(accessToken: string) {
+  if (!accessToken) {
+    throw new Error("createUserClient requires a non-empty access token");
+  }
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
+  }
+  return supabaseCreateClient<Database>(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
