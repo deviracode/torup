@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createUserClient } from "../client.js";
 
 describe("createUserClient", () => {
@@ -7,15 +7,18 @@ describe("createUserClient", () => {
     process.env.SUPABASE_ANON_KEY = "anon-key";
   });
 
+  afterEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_ANON_KEY;
+  });
+
   it("attaches the access token as an Authorization header", () => {
     const client = createUserClient("jwt-123");
     // supabase-js stores global headers on the rest client
     const headers = (client as unknown as {
-      rest: { headers: Record<string, string> };
+      rest: { headers: Headers };
     }).rest.headers;
-    // Headers API normalizes keys to lowercase, but also provides .get() method
-    const authHeader = (headers as any).get?.("Authorization") || headers.Authorization;
-    expect(authHeader).toBe("Bearer jwt-123");
+    expect(headers.get("authorization")).toBe("Bearer jwt-123");
   });
 
   it("throws when access token is empty", () => {
