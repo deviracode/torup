@@ -1,2 +1,2 @@
-export { createClient } from "./client.js";
+export { createClient, createUserClient } from "./client.js";
 export type { Database } from "./types.js";
