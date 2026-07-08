@@ -41,10 +41,13 @@ export async function requireAuth(
 
     // Fetch ALL memberships (fixes the .single() crash for 0/many rows)
     const serviceClient = createServiceClient();
-    const { data: membershipRows } = await serviceClient
+    const { data: membershipRows, error: membershipError } = await serviceClient
       .from("business_members")
       .select("business_id, role")
       .eq("user_id", user.id);
+    if (membershipError) {
+      console.error("[auth middleware] membership fetch failed:", membershipError);
+    }
 
     const memberships = (membershipRows ?? []).map((m) => ({
       businessId: m.business_id as string,
