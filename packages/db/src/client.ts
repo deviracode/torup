@@ -1,5 +1,6 @@
 import { createClient as supabaseCreateClient } from "@supabase/supabase-js";
 import type { Database } from "./types.js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export function createClient(url?: string, key?: string) {
   const supabaseUrl = url || process.env.SUPABASE_URL;
@@ -12,7 +13,7 @@ export function createClient(url?: string, key?: string) {
   return supabaseCreateClient<Database>(supabaseUrl, supabaseKey);
 }
 
-export function createUserClient(accessToken: string) {
+export function createUserClient(accessToken: string): SupabaseClient<Database> {
   if (!accessToken) {
     throw new Error("createUserClient requires a non-empty access token");
   }
