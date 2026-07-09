@@ -832,9 +832,6 @@ async function resumeFromIntent(
 
     // Same period empty — slots is guaranteed non-empty here (checked above),
     // so there must be slots in other periods. Show period selection buttons.
-    updateSession(from, businessPhoneNumberId, {
-      booking: { step: "select_date", serviceId: intent.service_id, serviceName, date: intent.date },
-    });
     const updatedSessionForPeriods = { ...session, booking: { step: "select_date" as const, serviceId: intent.service_id, serviceName, date: intent.date } };
     await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSessionForPeriods, slots);
     return;
