@@ -265,6 +265,12 @@ const CHAIN_BOOKING_MSG: Record<"he" | "ar" | "en", (remaining: number) => strin
   en: (n) => `Want to book for ${n} more ${n === 1 ? "person" : "people"}?`,
 };
 
+const CANCEL_REDIRECT_MSG: Record<"he" | "ar" | "en", (phone: string) => string> = {
+  he: (p) => `כדי לבטל תור, שלחו הודעה ישירות למנהל/ת:\nhttps://wa.me/${p}`,
+  ar: (p) => `لإلغاء موعد، تواصل مباشرة مع المدير:\nhttps://wa.me/${p}`,
+  en: (p) => `To cancel an appointment, message the manager directly:\nhttps://wa.me/${p}`,
+};
+
 const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   he: "יש לך כבר תור פעיל אצלנו 📌\nניתן לקבוע תור חדש רק לאחר שהתור הקיים יסתיים או יבוטל. אפשר לראות את התור ב\"התורים שלי\".",
   ar: "لديك موعد نشط حالياً 📌\nيمكنك حجز موعد جديد فقط بعد انتهاء الموعد الحالي أو إلغائه. يمكنك الاطلاع عليه من \"مواعيدي\".",
@@ -1130,28 +1136,30 @@ async function handleIncomingMessage(
       return;
     }
 
-    if (interactionId === "menu_my_appointments" || interactionId === "menu_cancel") {
+    if (interactionId === "menu_cancel") {
+      const lang = session.language ?? "he";
+      const managerPhone = ctx.biz.phone.replace(/[^0-9]/g, "");
+      await sendTextMessage(businessPhoneNumberId, from, CANCEL_REDIRECT_MSG[lang](managerPhone));
+      return;
+    }
+
+    if (interactionId === "menu_my_appointments") {
       const lang = session.language ?? "he";
       const myApptsPrompt: Record<"he" | "ar" | "en", string> = {
         he: "הראה לי את התורים שלי",
         ar: "أرني مواعيدي",
         en: "Show me my appointments",
       };
-      const cancelPrompt: Record<"he" | "ar" | "en", string> = {
-        he: "אני רוצה לבטל תור",
-        ar: "أريد إلغاء موعد",
-        en: "I want to cancel an appointment",
-      };
-      const prompt = interactionId === "menu_my_appointments" ? myApptsPrompt[lang] : cancelPrompt[lang];
-      const response = await processMessage(session, prompt, {
+      const response = await processMessage(session, myApptsPrompt[lang], {
         businessId: ctx.biz.businessId,
         businessName: ctx.biz.businessName,
         services: ctx.services as any,
         language: session.language,
         customerPhone: from,
         botContext: ctx.biz.botContext,
+        managerPhone: ctx.biz.phone.replace(/[^0-9]/g, ""),
       });
-      addMessage(from, businessPhoneNumberId, "user", prompt);
+      addMessage(from, businessPhoneNumberId, "user", myApptsPrompt[lang]);
       addMessage(from, businessPhoneNumberId, "assistant", response);
       await sendTextMessage(businessPhoneNumberId, from, response);
       return;
@@ -1448,6 +1456,7 @@ async function handleIncomingMessage(
     language: session.language,
     customerPhone: from,
     botContext: ctx.biz.botContext,
+    managerPhone: ctx.biz.phone.replace(/[^0-9]/g, ""),
   });
 
   addMessage(from, businessPhoneNumberId, "user", text);
