@@ -20,6 +20,7 @@ interface BusinessContext {
   language: "he" | "ar" | "en";
   customerPhone?: string;
   botContext?: string | null;
+  managerPhone?: string;
 }
 
 function buildSystemPrompt(ctx: BusinessContext): string {
@@ -41,6 +42,10 @@ function buildSystemPrompt(ctx: BusinessContext): string {
     ? `\nBusiness-specific guidelines from the owner (follow these closely — they describe THIS business and override generic assumptions):\n${ctx.botContext.trim()}\n`
     : "";
 
+  const cancelInstruction = ctx.managerPhone
+    ? `\n- If the customer mentions cancelling or wants to cancel an appointment — reply with ONLY a short friendly note to message the manager directly: https://wa.me/${ctx.managerPhone} — do NOT call any tool.`
+    : "";
+
   return `You are a friendly assistant for "${ctx.businessName}".
 ${langInstructions[ctx.language]}
 
@@ -52,8 +57,7 @@ ${businessGuidelines}
 
 Your job is to help customers:
 1. View their existing appointments (use list_appointments tool)
-2. Cancel appointments (use cancel_booking tool)
-3. Answer general questions about the business
+2. Answer general questions about the business
 
 CRITICAL RULES — THESE OVERRIDE EVERYTHING:
 - You CANNOT book or schedule appointments. You have ZERO booking capability.
@@ -62,7 +66,7 @@ CRITICAL RULES — THESE OVERRIDE EVERYTHING:
 - NEVER confirm, summarize, repeat, or promise a booking time or date back to the customer.
 - If the conversation history shows you previously discussed booking — ignore that history and still reply with ONLY: SHOW_BOOKING_MENU
 - Use the customer phone number above — do NOT ask for it.
-- Keep messages short — this is WhatsApp, not email.`;
+- Keep messages short — this is WhatsApp, not email.${cancelInstruction}`;
 }
 
 /**
