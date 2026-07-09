@@ -806,13 +806,31 @@ async function resumeFromIntent(
   if (!exactSlot) {
     const timeLabel = `${String(intent.time_hour).padStart(2, "0")}:00`;
     await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](timeLabel));
-    const bf = BOOKING_FLOW_I18N[lang];
-    const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
-    if (dates.length > 0) {
-      await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
-        dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
-      );
+
+    const requestedPeriod: "morning" | "noon" | "evening" =
+      intent.time_hour! >= 6 && intent.time_hour! < 12 ? "morning"
+      : intent.time_hour! >= 12 && intent.time_hour! < 16 ? "noon"
+      : "evening";
+
+    const grouped = groupTimeSlots(slots);
+    const samePeriodSlots = grouped[requestedPeriod] || [];
+
+    if (samePeriodSlots.length > 0) {
+      // Show slots in same time period
+      updateSession(from, businessPhoneNumberId, {
+        booking: { step: "select_time", serviceId: intent.service_id, serviceName, date: intent.date },
+      });
+      await sendTimeSlotsGrouped(businessPhoneNumberId, from, serviceName, intent.date, samePeriodSlots, lang);
+      return;
     }
+
+    // Same period empty — slots is guaranteed non-empty here (checked above),
+    // so there must be slots in other periods. Show period selection buttons.
+    updateSession(from, businessPhoneNumberId, {
+      booking: { step: "select_date", serviceId: intent.service_id, serviceName, date: intent.date },
+    });
+    const updatedSessionForPeriods = { ...session, booking: { step: "select_date" as const, serviceId: intent.service_id, serviceName, date: intent.date } };
+    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSessionForPeriods, slots);
     return;
   }
 

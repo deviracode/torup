@@ -368,6 +368,32 @@ describe("groupTimeSlots", () => {
   });
 });
 
+describe("groupTimeSlots period detection", () => {
+  it("puts 08:00 in morning", () => {
+    const slots = [
+      { time: "2026-07-10T06:00:00.000Z", label: "08:00" },
+      { time: "2026-07-10T07:00:00.000Z", label: "09:00" },
+    ];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.morning).toHaveLength(2);
+    expect(grouped.noon).toHaveLength(0);
+    expect(grouped.evening).toHaveLength(0);
+  });
+
+  it("puts 17:00 in evening", () => {
+    const slots = [{ time: "2026-07-10T14:00:00.000Z", label: "17:00" }];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.evening).toHaveLength(1);
+    expect(grouped.morning).toHaveLength(0);
+  });
+
+  it("puts 13:00 in noon", () => {
+    const slots = [{ time: "2026-07-10T10:00:00.000Z", label: "13:00" }];
+    const grouped = groupTimeSlots(slots);
+    expect(grouped.noon).toHaveLength(1);
+  });
+});
+
 // ── Bug 2: greeting names ─────────────────────────────────────────────────────
 describe("isGreetingName — Bug 2: greeting names rejected as customer names", () => {
   it("flags Arabic greetings", () => {
