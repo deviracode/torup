@@ -188,15 +188,21 @@ const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
   book: string; myAppts: string; cancel: string;
 }> = {
   he: {
-    greeting: (n, b) => n ? `שלום ${n}! 👋\nברוכים הבאים ל${b}.\nאיך אפשר לעזור?` : `ברוכים הבאים ל${b}! 👋\nאיך אפשר לעזור?`,
+    greeting: (n, b) => n
+      ? `היי ${n} 🤍\n\nאיזה כיף שפנית לבוט של ${b}!\n\nאני כאן כדי לעזור לך 🌺\n\nאפשר לבחור אחת מהאפשרויות:`
+      : `ברוכים הבאים ל${b}! 👋\nאיך אפשר לעזור?`,
     book: "קביעת תור", myAppts: "התורים שלי", cancel: "ביטול תור",
   },
   ar: {
-    greeting: (n, b) => n ? `مرحباً ${n}! 👋\nأهلاً بك في ${b}.\nكيف يمكنني مساعدتك؟` : `أهلاً بك في ${b}! 👋\nكيف يمكنني مساعدتك؟`,
+    greeting: (n, b) => n
+      ? `أهلاً ${n} 🤍\n\nيسعدنا تواصلك مع ${b}!\n\nأنا هنا لمساعدتك 🌺\n\nاختر من الخيارات:`
+      : `أهلاً بك في ${b}! 👋\nكيف يمكنني مساعدتك؟`,
     book: "حجز موعد", myAppts: "مواعيدي", cancel: "إلغاء موعد",
   },
   en: {
-    greeting: (n, b) => n ? `Hi ${n}! 👋\nWelcome to ${b}.\nHow can I help?` : `Welcome to ${b}! 👋\nHow can I help?`,
+    greeting: (n, b) => n
+      ? `Hi ${n} 🤍\n\nSo glad you reached out to ${b}!\n\nI'm here to help 🌺\n\nChoose an option:`
+      : `Welcome to ${b}! 👋\nHow can I help?`,
     book: "Book Appointment", myAppts: "My Appointments", cancel: "Cancel Appointment",
   },
 };
@@ -233,9 +239,9 @@ export function isGreetingName(name: string): boolean {
 }
 
 const ASK_NAME: Record<"he" | "ar" | "en", string> = {
-  he: "שמחים שפניתם! 🙂 איך קוראים לכם? (שם מלא יעזור לבעל העסק לזהות אתכם)",
-  ar: "أهلاً! 🙂 ما اسمك الكريم؟ (الاسم الكامل يساعد صاحب العمل على التعرف عليك)",
-  en: "Welcome! 🙂 What's your name? (Full name helps the business owner identify you)",
+  he: "היי! איזה כיף שפנית אלינו 💕\n\nלפני שנתחיל, אשמח לדעת איך קוראים לך? 🌷",
+  ar: "أهلاً! يسعدنا تواصلك معنا 💕\n\nقبل ما نبدأ، شو اسمك؟ 🌷",
+  en: "Hey! So glad you reached out 💕\n\nBefore we start, what's your name? 🌷",
 };
 
 const NAME_THANKS: Record<"he" | "ar" | "en", (n: string) => string> = {
@@ -265,10 +271,10 @@ const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
 };
 
-const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) => string> = {
-  he: (t, d) => `⚠️ השעה ${t}:00 ב-${d} תפוסה. בחרו תאריך אחר:`,
-  ar: (t, d) => `⚠️ الساعة ${t}:00 بتاريخ ${d} محجوزة. اختر تاريخاً آخر:`,
-  en: (t, d) => `⚠️ ${t}:00 on ${d} is taken. Choose another date:`,
+const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string) => string> = {
+  he: (t) => `השעה ${t} תפוסה אצלנו 🙈 אבל אל תדאגו, יש לנו עוד אפשרויות!`,
+  ar: (t) => `للأسف الساعة ${t} محجوزة 🙈 بس عنا خيارات ثانية!`,
+  en: (t) => `${t} is taken 🙈 but we have other options!`,
 };
 
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
@@ -798,8 +804,8 @@ async function resumeFromIntent(
   });
 
   if (!exactSlot) {
-    const dateDisplay = intent.date.slice(5).replace("-", "/");
-    await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](String(intent.time_hour), dateDisplay));
+    const timeLabel = `${String(intent.time_hour).padStart(2, "0")}:00`;
+    await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](timeLabel));
     const bf = BOOKING_FLOW_I18N[lang];
     const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
