@@ -779,13 +779,18 @@ async function resumeFromIntent(
   const slots = await getAvailableTimeSlots(ctx.biz.businessId, intent.service_id, intent.date);
 
   if (slots.length === 0) {
+    if (intent.time_hour !== null) {
+      const timeLabel = `${String(intent.time_hour).padStart(2, "0")}:00`;
+      await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](timeLabel));
+    }
     const bf = BOOKING_FLOW_I18N[lang];
-    await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
     const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
       await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
+    } else {
+      await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
     }
     return;
   }
