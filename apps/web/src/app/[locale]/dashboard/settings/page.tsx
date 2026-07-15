@@ -58,6 +58,7 @@ interface BusinessProfile {
   slug: string;
   description: string | null;
   phone: string | null;
+  contact_phone: string | null;
   email: string | null;
   address: string | null;
   bot_context: string | null;
@@ -346,7 +347,7 @@ function SettingsPageInner() {
     try {
       await apiFetch(`/api/businesses/${businessId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: profile.name, description: profile.description, phone: profile.phone, email: profile.email, address: profile.address, bot_context: profile.bot_context }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, phone: profile.phone, contact_phone: profile.contact_phone, email: profile.email, address: profile.address, bot_context: profile.bot_context }),
       }, token);
       showSaved();
     } catch {} finally { setSaving(false); }
@@ -876,6 +877,12 @@ function SettingsPageInner() {
             <div>
               <label className="block text-sm font-medium mb-1">{t("phone")}</label>
               <input value={profile.phone || ""} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} dir="ltr"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">{t("contactPhone")}</label>
+              <p className="text-xs text-muted-foreground mb-1">{t("contactPhoneDesc")}</p>
+              <input value={profile.contact_phone || ""} onChange={(e) => setProfile({ ...profile, contact_phone: e.target.value })} dir="ltr"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
             </div>
             <div>

@@ -144,6 +144,8 @@
     "businessName": "Business Name",
     "description": "Description",
     "phone": "Phone",
+    "contactPhone": "Contact Phone",
+    "contactPhoneDesc": "Customers who want to cancel will be directed to this number. Falls back to main phone if empty.",
     "address": "Address",
     "botContext": "WhatsApp Bot Context",
     "botContextDesc": "Give the WhatsApp bot extra background about your business (e.g. specialties, policies, common questions) so its replies are more relevant and accurate.",
