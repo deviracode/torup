@@ -10,6 +10,7 @@ export const businessSchema = z.object({
   cover_url: z.string().url().nullable(),
   category: z.string().min(1).max(100),
   phone: z.string().min(9).max(20),
+  contact_phone: z.string().min(9).max(20).nullable(),
   email: z.string().email(),
   address: z.string().max(500).nullable(),
   social_links: z.record(z.string()).nullable(),
