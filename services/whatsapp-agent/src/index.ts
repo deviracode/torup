@@ -100,13 +100,13 @@ app.post("/webhook", async (req, res) => {
  * Map business WhatsApp phone number IDs to business IDs.
  * In production, this would be a database lookup.
  */
-async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null } | null> {
+async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; contactPhone: string | null; allowMultipleBookings: boolean; botContext: string | null } | null> {
   // Try to find from environment mapping
   const mapping = process.env.PHONE_BUSINESS_MAP;
   if (mapping) {
     try {
       const map = JSON.parse(mapping);
-      if (map[phoneNumberId]) return map[phoneNumberId];
+      if (map[phoneNumberId]) return { contactPhone: null, ...map[phoneNumberId] };
     } catch {}
   }
 
@@ -118,12 +118,12 @@ async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: s
 
   const { data } = await supabase
     .from("businesses")
-    .select("id, name, phone, allow_multiple_bookings, bot_context")
+    .select("id, name, phone, contact_phone, allow_multiple_bookings, bot_context")
     .eq("is_active", true)
     .limit(1)
     .single();
 
-  if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, allowMultipleBookings: data.allow_multiple_bookings, botContext: data.bot_context ?? null };
+  if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, contactPhone: data.contact_phone ?? null, allowMultipleBookings: data.allow_multiple_bookings, botContext: data.bot_context ?? null };
   return null;
 }
 
@@ -144,7 +144,7 @@ async function getBusinessServices(businessId: string) {
 }
 
 // Cache business info + services + booking rules (5 min TTL)
-const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
+const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; contactPhone: string | null; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
 
 async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const cached = bizCache.get(businessPhoneNumberId);
@@ -740,7 +740,7 @@ async function resumeFromIntent(
   from: string,
   businessPhoneNumberId: string,
   session: ConversationSession,
-  ctx: { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; maxFutureDays: number },
+  ctx: { biz: { businessId: string; businessName: string; phone: string; contactPhone: string | null; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; maxFutureDays: number },
   intent: BookingIntent
 ) {
   const lang = session.language ?? "he";
@@ -1140,7 +1140,7 @@ async function handleIncomingMessage(
 
     if (interactionId === "menu_cancel") {
       const lang = session.language ?? "he";
-      const managerPhone = ctx.biz.phone.replace(/[^0-9]/g, "");
+      const managerPhone = (ctx.biz.contactPhone ?? ctx.biz.phone).replace(/[^0-9]/g, "");
       await sendTextMessage(businessPhoneNumberId, from, CANCEL_REDIRECT_MSG[lang](managerPhone));
       return;
     }
@@ -1159,7 +1159,7 @@ async function handleIncomingMessage(
         language: session.language,
         customerPhone: from,
         botContext: ctx.biz.botContext,
-        managerPhone: ctx.biz.phone.replace(/[^0-9]/g, ""),
+        managerPhone: (ctx.biz.contactPhone ?? ctx.biz.phone).replace(/[^0-9]/g, ""),
       });
       addMessage(from, businessPhoneNumberId, "user", myApptsPrompt[lang]);
       addMessage(from, businessPhoneNumberId, "assistant", response);
@@ -1458,7 +1458,7 @@ async function handleIncomingMessage(
     language: session.language,
     customerPhone: from,
     botContext: ctx.biz.botContext,
-    managerPhone: ctx.biz.phone.replace(/[^0-9]/g, ""),
+    managerPhone: (ctx.biz.contactPhone ?? ctx.biz.phone).replace(/[^0-9]/g, ""),
   });
 
   addMessage(from, businessPhoneNumberId, "user", text);
