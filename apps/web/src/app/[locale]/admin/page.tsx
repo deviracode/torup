@@ -19,6 +19,7 @@ interface Business {
   slug: string;
   category: string | null;
   phone: string | null;
+  contact_phone: string | null;
   email: string | null;
   is_active: boolean;
   created_at: string;
@@ -105,7 +106,7 @@ export default function AdminBusinessesPage() {
     try {
       const result = await apiFetch<{ temp_password?: string | null }>("/api/admin/businesses", {
         method: "POST",
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, contact_phone: formData.contact_phone || null }),
       }, token);
       if (result?.temp_password) {
         await navigator.clipboard.writeText(result.temp_password).catch(() => {});
@@ -174,7 +175,7 @@ export default function AdminBusinessesPage() {
           slug: editBusiness.slug,
           category: editBusiness.category,
           phone: editBusiness.phone,
-          contact_phone: (editBusiness as any).contact_phone || null,
+          contact_phone: editBusiness.contact_phone || null,
           email: editBusiness.email,
           address: editBusiness.address,
         }),
@@ -431,7 +432,7 @@ export default function AdminBusinessesPage() {
             </div>
             <div className="space-y-2">
               <Label>Contact Phone</Label>
-              <Input value={(editBusiness as any)?.contact_phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, contact_phone: e.target.value } as any)} dir="ltr" placeholder="Optional" />
+              <Input value={editBusiness?.contact_phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, contact_phone: e.target.value })} dir="ltr" placeholder="Optional" />
             </div>
           </div>
           <DialogFooter className="pt-2">
