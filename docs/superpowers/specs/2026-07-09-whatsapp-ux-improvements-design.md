@@ -87,10 +87,10 @@ Run extractBookingIntent(message)
 
 ### Fallback Message (unavailable time)
 
-- **Hebrew:** "{time} לא פנוי 😔"
-- **Arabic:** "{time} مش متاح 😔"
+- **Hebrew:** "השעה {time} תפוסה אצלנו 🙈 אבל אל תדאגו, יש לנו עוד אפשרויות!"
+- **Arabic:** "للأسف الساعة {time} محجوزة 🙈 بس عنا خيارات ثانية!"
 
-Just the unavailability notice — no additional explanation. The available options follow immediately as WhatsApp buttons/list.
+Warm and friendly — no mention of other customers or reason for unavailability. The available alternatives follow immediately as WhatsApp buttons/list.
 
 ### Time Period Grouping (unchanged)
 

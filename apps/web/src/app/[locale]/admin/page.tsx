@@ -65,7 +65,7 @@ export default function AdminBusinessesPage() {
   const [impersonating, setImpersonating] = useState<Business | null>(null);
 
   const [formData, setFormData] = useState({
-    name: "", slug: "", category: "", phone: "", email: "", address: "", plan_id: "", owner_email: "",
+    name: "", slug: "", category: "", phone: "", contact_phone: "", email: "", address: "", plan_id: "", owner_email: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -114,7 +114,7 @@ export default function AdminBusinessesPage() {
         );
       }
       setShowOnboard(false);
-      setFormData({ name: "", slug: "", category: "", phone: "", email: "", address: "", plan_id: "", owner_email: "" });
+      setFormData({ name: "", slug: "", category: "", phone: "", contact_phone: "", email: "", address: "", plan_id: "", owner_email: "" });
       fetchBusinesses();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -174,6 +174,7 @@ export default function AdminBusinessesPage() {
           slug: editBusiness.slug,
           category: editBusiness.category,
           phone: editBusiness.phone,
+          contact_phone: (editBusiness as any).contact_phone || null,
           email: editBusiness.email,
           address: editBusiness.address,
         }),
@@ -361,6 +362,10 @@ export default function AdminBusinessesPage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Contact Phone</Label>
+              <Input value={formData.contact_phone} onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })} dir="ltr" placeholder="Optional" />
+            </div>
+            <div className="space-y-2">
               <Label>{t("selectPlan")}</Label>
               <select value={formData.plan_id} onChange={(e) => setFormData({ ...formData, plan_id: e.target.value })}
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -423,6 +428,10 @@ export default function AdminBusinessesPage() {
                 <Label>Email</Label>
                 <Input value={editBusiness?.email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, email: e.target.value })} dir="ltr" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Phone</Label>
+              <Input value={(editBusiness as any)?.contact_phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, contact_phone: e.target.value } as any)} dir="ltr" placeholder="Optional" />
             </div>
           </div>
           <DialogFooter className="pt-2">

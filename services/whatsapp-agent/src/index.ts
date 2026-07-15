@@ -1185,7 +1185,7 @@ async function handleIncomingMessage(
       // Discuss-type services: redirect to business WhatsApp, no appointment created
       const service = ctx.services.find((s: any) => s.id === serviceId);
       if (service?.price_type === "discuss") {
-        const bizWhatsApp = ctx.biz.phone.replace(/[^0-9]/g, "");
+        const bizWhatsApp = (ctx.biz.contactPhone ?? ctx.biz.phone).replace(/[^0-9]/g, "");
         const bf0 = BOOKING_FLOW_I18N[session.language ?? "he"];
         await sendTextMessage(businessPhoneNumberId, from, bf0.discussService(bizWhatsApp));
         await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
