@@ -7,7 +7,7 @@ import request from "supertest";
 let userClientFromSpy: ReturnType<typeof vi.fn>;
 
 // Bypass auth for these route-level tests.
-vi.mock("../middleware/auth.js", () => ({
+vi.mock("../middleware/auth", () => ({
   requireAuth: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
     // NOTE: This stub is a functional mock — it does NOT model RLS.
     // RLS correctness is covered by the Task 5 integration test.
@@ -24,7 +24,7 @@ vi.mock("../middleware/auth.js", () => ({
 }));
 
 // Stub WhatsApp + notification dispatch (fire-and-forget, irrelevant to assertions).
-vi.mock("../services/whatsapp.js", () => ({
+vi.mock("../services/whatsapp", () => ({
   sendInteractiveReminder: vi.fn(async () => null),
   sendWhatsAppMessage: vi.fn(async () => null),
 }));
@@ -157,7 +157,7 @@ function makeSupabaseStub() {
   };
 }
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: () => makeSupabaseStub(),
 }));
 
@@ -170,7 +170,7 @@ describe("POST /appointments/:id/approve and /reject", () => {
   });
 
   async function buildApp() {
-    const router = (await import("../routes/appointments.js")).default;
+    const router = (await import("../routes/appointments")).default;
     const app = express();
     app.use(express.json());
     app.use("/api/businesses/:businessId/appointments", (req, _res, next) => {

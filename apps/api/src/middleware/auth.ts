@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { createClient } from "@torup/db";
-import { createServiceClient } from "../lib/supabase.js";
-import { buildRequestContext, type RequestContext } from "../lib/request-context.js";
+import { createServiceClient } from "../lib/supabase";
+import { buildRequestContext, type RequestContext } from "../lib/request-context";
 
 export interface AuthenticatedRequest extends Request {
   ctx?: RequestContext;

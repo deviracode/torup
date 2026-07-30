@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import request from "supertest";
 
-vi.mock("../services/whatsapp.js", () => ({
+vi.mock("../services/whatsapp", () => ({
   sendInteractiveReminder: vi.fn(async () => null),
   sendWhatsAppMessage: vi.fn(async () => null),
 }));
@@ -20,7 +20,7 @@ const appointmentRow = {
   businesses: { name: "Studio" },
 };
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
     from: (_table: string) => ({
       select: () => ({
@@ -42,7 +42,7 @@ describe("sendAppointmentNotification — failure path", () => {
   });
 
   it("logs status='failed' with error when WhatsApp returns null", async () => {
-    const { sendAppointmentNotification } = await import("../services/notifications.js");
+    const { sendAppointmentNotification } = await import("../services/notifications");
     const result = await sendAppointmentNotification("apt-1", "reminder_60m");
 
     expect(result?.failed).toBe(true);
@@ -58,7 +58,7 @@ describe("POST /api/internal/reminders/tick", () => {
 
   async function buildApp() {
     process.env.INTERNAL_SECRET = SECRET;
-    const internalRouter = (await import("../routes/internal.js")).default;
+    const internalRouter = (await import("../routes/internal")).default;
     const app = express();
     app.use("/api/internal", internalRouter);
     return app;
@@ -79,7 +79,7 @@ describe("POST /api/internal/reminders/tick", () => {
   });
 
   it("returns 200 with counts when header matches", async () => {
-    const notifications = await import("../services/notifications.js");
+    const notifications = await import("../services/notifications");
     const spy = vi
       .spyOn(notifications, "processReminders")
       .mockResolvedValue({ processed: 3, sent: 2, failed: 1 });

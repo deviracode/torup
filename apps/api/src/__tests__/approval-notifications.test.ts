@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Stub WhatsApp so no real messages fire.
-vi.mock("../services/whatsapp.js", () => ({
+vi.mock("../services/whatsapp", () => ({
   sendInteractiveReminder: vi.fn(async () => null),
   sendWhatsAppMessage: vi.fn(async () => "msg-id-123"),
 }));
@@ -20,7 +20,7 @@ const appointmentRow = {
   businesses: { name: "Studio" },
 };
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
     from: (_table: string) => ({
       select: () => ({
@@ -42,7 +42,7 @@ describe("sendApprovalNotification", () => {
   });
 
   it("sends approval notification and logs status='sent' when WhatsApp succeeds", async () => {
-    const { sendApprovalNotification } = await import("../services/notifications.js");
+    const { sendApprovalNotification } = await import("../services/notifications");
     const result = await sendApprovalNotification("apt-1");
 
     expect(result?.sent).toBe(true);
@@ -54,7 +54,7 @@ describe("sendApprovalNotification", () => {
 
   it("is a thin wrapper that delegates to sendAppointmentNotification with template 'approval'", async () => {
     // Ensure the function exists and can be called.
-    const mod = await import("../services/notifications.js");
+    const mod = await import("../services/notifications");
     expect(typeof mod.sendApprovalNotification).toBe("function");
   });
 });
@@ -65,7 +65,7 @@ describe("sendRejectionNotification", () => {
   });
 
   it("sends slot_taken rejection with rebook_url in vars", async () => {
-    const { sendRejectionNotification } = await import("../services/notifications.js");
+    const { sendRejectionNotification } = await import("../services/notifications");
     const result = await sendRejectionNotification("apt-1", "slot_taken");
 
     expect(result?.sent).toBe(true);
@@ -74,7 +74,7 @@ describe("sendRejectionNotification", () => {
   });
 
   it("sends manual rejection with correct template", async () => {
-    const { sendRejectionNotification } = await import("../services/notifications.js");
+    const { sendRejectionNotification } = await import("../services/notifications");
     const result = await sendRejectionNotification("apt-1", "manual");
 
     expect(result?.sent).toBe(true);
@@ -85,7 +85,7 @@ describe("sendRejectionNotification", () => {
   it("constructs rebook_url from appointment's business and service ids", async () => {
     // The mock returns a row with service_id=svc-1 and business_id=biz-1.
     // sendRejectionNotification queries the appointment to build the URL.
-    const { sendRejectionNotification } = await import("../services/notifications.js");
+    const { sendRejectionNotification } = await import("../services/notifications");
     const result = await sendRejectionNotification("apt-1", "slot_taken");
 
     expect(result?.sent).toBe(true);

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { buildRequestContext } from "../lib/request-context.js";
+import { buildRequestContext } from "../lib/request-context";
 
 describe("buildRequestContext", () => {
   beforeEach(() => {

@@ -1,8 +1,8 @@
 import type { Request } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@torup/db";
-import type { AuthenticatedRequest } from "../middleware/auth.js";
-import { AppError } from "../middleware/error-handler.js";
+import type { AuthenticatedRequest } from "../middleware/auth";
+import { AppError } from "../middleware/error-handler";
 
 /**
  * Extract businessId from route params (works with mergeParams)
