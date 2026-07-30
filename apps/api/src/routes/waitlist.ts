@@ -1,63 +1,24 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase.js";
-import { getBusinessId } from "../lib/params.js";
-import {
-  requireAuth,
-  requireBusinessAccess,
-  type AuthenticatedRequest,
-} from "../middleware/auth.js";
-import { AppError } from "../middleware/error-handler.js";
+import { createServiceClient } from "../lib/supabase";
+import { getBusinessId, getUserClient } from "../lib/params";
+import { requireAuth, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
+import { createWaitlistRepo } from "../modules/waitlist/waitlist.repository";
+import { createWaitlistService } from "../modules/waitlist/waitlist.service";
 
 const router: RouterType = Router({ mergeParams: true });
 
-// GET /businesses/:businessId/waitlist
-router.get(
-  "/",
-  requireAuth,
-  requireBusinessAccess,
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("waitlist")
-        .select("*, services(name_he, name_ar, name_en), customers(name, phone)")
-        .eq("business_id", getBusinessId(req))
-        .eq("status", "waiting")
-        .order("created_at");
+router.get("/", requireAuth, requireBusinessAccess, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const svc = createWaitlistService(createWaitlistRepo(getUserClient(req)));
+    res.json(await svc.list(getBusinessId(req)));
+  } catch (err) { next(err); }
+});
 
-      if (error) throw new AppError(500, error.message);
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// POST /businesses/:businessId/waitlist
 router.post("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const supabase = createServiceClient();
-    const businessId = getBusinessId(req);
-    const { service_id, customer_id, requested_date, requested_time } = req.body;
-
-    const { data, error } = await supabase
-      .from("waitlist")
-      .insert({
-        business_id: businessId,
-        service_id,
-        customer_id,
-        requested_date,
-        requested_time,
-        status: "waiting",
-      })
-      .select()
-      .single();
-
-    if (error) throw new AppError(400, error.message);
-    res.status(201).json(data);
-  } catch (err) {
-    next(err);
-  }
+    const svc = createWaitlistService(createWaitlistRepo(createServiceClient()));
+    res.status(201).json(await svc.join({ business_id: getBusinessId(req), ...req.body }));
+  } catch (err) { next(err); }
 });
 
 export default router;

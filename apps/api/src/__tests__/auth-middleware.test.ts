@@ -1,7 +1,7 @@
 // apps/api/src/__tests__/auth-middleware.test.ts
 import { describe, it, expect, vi } from "vitest";
 import type { Response, NextFunction } from "express";
-import { requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 
 function mockRes() {
   const res = {} as Response;

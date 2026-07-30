@@ -1,43 +1,26 @@
 import { Router, type Router as RouterType } from "express";
-import { createServiceClient } from "../lib/supabase.js";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { getBusinessId } from "../lib/params.js";
-import { AppError } from "../middleware/error-handler.js";
+import { getUserClient, getBusinessId } from "../lib/params";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { createNotificationRepo } from "../modules/notifications/notifications.repository";
+import { createNotificationService } from "../modules/notifications/notifications.service";
 
 const router: RouterType = Router({ mergeParams: true });
 
-// GET /businesses/:businessId/notifications — List notification log
-router.get(
-  "/",
-  requireAuth,
-  async (req: AuthenticatedRequest, res, next) => {
-    try {
-      const businessId = getBusinessId(req);
-      const supabase = createServiceClient();
+router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const repo = createNotificationRepo(getUserClient(req));
+    const svc = createNotificationService(repo);
+    const { limit, offset, type, appointment_id } = req.query;
 
-      const { limit = "50", offset = "0", type, appointment_id } = req.query;
+    const data = await svc.list(getBusinessId(req), {
+      limit: Number(limit) || undefined,
+      offset: Number(offset) || undefined,
+      type: type as string | undefined,
+      appointmentId: appointment_id as string | undefined,
+    });
 
-      let query = supabase
-        .from("notifications_log")
-        .select("*, customers(name, phone)")
-        .eq("business_id", businessId)
-        .order("sent_at", { ascending: false })
-        .range(Number(offset), Number(offset) + Number(limit) - 1);
-
-      if (type) {
-        query = query.like("type", `${type}%`);
-      }
-      if (appointment_id) {
-        query = query.eq("appointment_id", appointment_id as string);
-      }
-
-      const { data, error } = await query;
-      if (error) throw new AppError(500, error.message);
-      res.json({ notifications: data });
-    } catch (err) {
-      next(err);
-    }
-  }
-);
+    res.json({ notifications: data });
+  } catch (err) { next(err); }
+});
 
 export default router;

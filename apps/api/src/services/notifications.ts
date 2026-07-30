@@ -1,4 +1,4 @@
-import { createServiceClient } from "../lib/supabase.js";
+import { createServiceClient } from "../lib/supabase";
 import {
   sendInteractiveReminder,
   sendManagerApprovalRequest,
@@ -6,7 +6,7 @@ import {
   sendWhatsAppMessage,
   sendCustomerReminderTemplate,
   sendCustomerApprovalTemplate,
-} from "./whatsapp.js";
+} from "./whatsapp";
 
 /**
  * Notifications Engine

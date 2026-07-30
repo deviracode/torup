@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
     from: (_table: string) => ({
       select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) }),
@@ -11,20 +11,32 @@ vi.mock("../lib/supabase.js", () => ({
   }),
 }));
 
-vi.mock("../middleware/auth.js", () => ({
+function makeUserStub() {
+  return {
+    from: (_table: string) => ({
+      select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) }),
+      insert: () => ({ select: () => ({ single: () => ({ data: { id: "cat-1", name_he: "תסרוקות", name_ar: null, name_en: null, sort_order: 0, business_id: "biz-1" }, error: null }) }) }),
+      update: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }),
+      delete: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }),
+    }),
+  };
+}
+
+vi.mock("../middleware/auth", () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireRole: (..._roles: string[]) => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock("../lib/params.js", () => ({
+vi.mock("../lib/params", () => ({
   getBusinessId: () => "biz-1",
   getParam: (_req: unknown, key: string) => key === "categoryId" ? "cat-1" : "",
+  getUserClient: () => makeUserStub(),
 }));
 
 import express from "express";
 import request from "supertest";
-import categoriesRouter from "../routes/categories.js";
+import categoriesRouter from "../routes/categories";
 
 const app = express();
 app.use(express.json());

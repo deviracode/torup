@@ -1,9 +1,9 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import crypto from "crypto";
-import { createServiceClient } from "../lib/supabase.js";
+import { createServiceClient } from "../lib/supabase";
 import { validateTransition, type AppointmentStatus } from "@torup/shared";
-import { sendWhatsAppMessage } from "../services/whatsapp.js";
-import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications.js";
+import { sendWhatsAppMessage } from "../services/whatsapp";
+import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications";
 
 const router: ReturnType<typeof Router> = Router();
 

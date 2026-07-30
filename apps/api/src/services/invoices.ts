@@ -1,4 +1,4 @@
-import { createServiceClient } from "../lib/supabase.js";
+import { createServiceClient } from "../lib/supabase";
 
 /**
  * Invoice generation and storage.
