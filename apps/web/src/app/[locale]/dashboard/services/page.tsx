@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import {
   Card, CardContent, Button, Badge, Input, Label, Skeleton,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -40,10 +40,10 @@ export default function ServicesPage() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const { session } = useAuth();
+  const { businessId } = useBusiness();
+  const api = useApi();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -56,28 +56,21 @@ export default function ServicesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!session?.access_token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [session?.access_token]);
-
   const fetchServices = useCallback(async () => {
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     setLoading(true);
     try {
       const [svcResult, catResult] = await Promise.all([
-        apiFetch<Service[] | { categories: ServiceCategory[]; services: Service[] }>(
-          `/api/businesses/${businessId}/services`, {}, session.access_token
+        api<Service[] | { categories: ServiceCategory[]; services: Service[] }>(
+          `/api/businesses/${businessId}/services`
         ),
-        apiFetch<ServiceCategory[]>(`/api/businesses/${businessId}/categories`, {}, session.access_token),
+        api<ServiceCategory[]>(`/api/businesses/${businessId}/categories`),
       ]);
-      setServices(Array.isArray(svcResult) ? svcResult : (svcResult.services || []));
+      setServices(svcResult ? (Array.isArray(svcResult) ? svcResult : (svcResult.services || [])) : []);
       setCategories(catResult || []);
     } catch { setServices([]); }
     finally { setLoading(false); }
-  }, [businessId, session?.access_token]);
+  }, [businessId]);
 
   useEffect(() => { if (businessId) fetchServices(); }, [businessId, fetchServices]);
 
@@ -110,9 +103,9 @@ export default function ServicesPage() {
     try {
       const body = { ...formData, name_ar: formData.name_ar || null, name_en: formData.name_en || null, description_he: formData.description_he || null, category_id: formData.category_id || null };
       if (editingService) {
-        await apiFetch(`/api/businesses/${businessId}/services/${editingService.id}`, { method: "PATCH", body: JSON.stringify(body) }, session?.access_token || "");
+        await api(`/api/businesses/${businessId}/services/${editingService.id}`, { method: "PATCH", body: JSON.stringify(body) });
       } else {
-        await apiFetch(`/api/businesses/${businessId}/services`, { method: "POST", body: JSON.stringify(body) }, session?.access_token || "");
+        await api(`/api/businesses/${businessId}/services`, { method: "POST", body: JSON.stringify(body) });
       }
       setShowForm(false);
       fetchServices();
@@ -124,14 +117,14 @@ export default function ServicesPage() {
   const handleDelete = async (serviceId: string) => {
     if (!businessId || !confirm(t("deleteServiceConfirm"))) return;
     try {
-      await apiFetch(`/api/businesses/${businessId}/services/${serviceId}`, { method: "DELETE" }, session?.access_token || "");
+      await api(`/api/businesses/${businessId}/services/${serviceId}`, { method: "DELETE" });
       fetchServices();
     } catch {}
   };
 
   const handleToggleActive = async (service: Service) => {
     if (!businessId) return;
-    await apiFetch(`/api/businesses/${businessId}/services/${service.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !service.is_active }) }, session?.access_token || "").catch(() => {});
+    await api(`/api/businesses/${businessId}/services/${service.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !service.is_active }) }).catch(() => {});
     fetchServices();
   };
 
