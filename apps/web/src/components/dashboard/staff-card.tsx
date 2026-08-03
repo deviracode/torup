@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetch } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 interface Service {
   id: string;
@@ -33,19 +33,18 @@ export function StaffCard({
   member,
   services,
   businessId,
-  token,
   onUpdate,
   onRemove,
 }: {
   member: StaffMember;
   services: Service[];
   businessId: string;
-  token: string;
   onUpdate: (updated: StaffMember) => void;
   onRemove: (id: string) => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const api = useApi();
 
   const [expanded, setExpanded] = useState(false);
   const [displayName, setDisplayName] = useState(
@@ -65,10 +64,9 @@ export function StaffCard({
     setSaving(true);
     setError("");
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}`,
-        { method: "PATCH", body: JSON.stringify({ display_name: displayName.trim() }) },
-        token
+        { method: "PATCH", body: JSON.stringify({ display_name: displayName.trim() }) }
       );
       onUpdate({ ...member, display_name: displayName.trim(), service_ids: serviceIds, time_off_ranges: timeOffRanges });
     } catch {
@@ -84,10 +82,9 @@ export function StaffCard({
       : [...serviceIds, serviceId];
     setServiceIds(next);
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/services`,
-        { method: "PUT", body: JSON.stringify({ service_ids: next }) },
-        token
+        { method: "PUT", body: JSON.stringify({ service_ids: next }) }
       );
       onUpdate({ ...member, service_ids: next, time_off_ranges: timeOffRanges });
     } catch {
@@ -105,16 +102,14 @@ export function StaffCard({
     setSaving(true);
     setError("");
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        { method: "POST", body: JSON.stringify({ start_date: timeOffStart, end_date: timeOffEnd }) },
-        token
+        { method: "POST", body: JSON.stringify({ start_date: timeOffStart, end_date: timeOffEnd }) }
       );
-      const result = await apiFetch<{ ranges: TimeOffRange[] }>(
-        `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        {},
-        token
+      const result = await api<{ ranges: TimeOffRange[] }>(
+        `/api/businesses/${businessId}/staff/${member.id}/time-off`
       );
+      if (!result) return;
       setTimeOffRanges(result.ranges);
       setTimeOffStart("");
       setTimeOffEnd("");
@@ -128,10 +123,9 @@ export function StaffCard({
 
   const removeTimeOff = async (range: TimeOffRange) => {
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        { method: "DELETE", body: JSON.stringify({ break_ids: range.break_ids }) },
-        token
+        { method: "DELETE", body: JSON.stringify({ break_ids: range.break_ids }) }
       );
       const next = timeOffRanges.filter((r) => r.id !== range.id);
       setTimeOffRanges(next);

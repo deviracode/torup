@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import { Card, CardContent, Button, Input, Label } from "@torup/ui";
 import { StaffCard, type StaffMember } from "@/components/dashboard/staff-card";
 
@@ -105,8 +105,8 @@ function SettingsPageInner() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const { session } = useAuth();
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const { businessId } = useBusiness();
+  const api = useApi();
   const [tab, setTab] = useState<Tab>("hours");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -153,8 +153,6 @@ function SettingsPageInner() {
 
   const searchParams = useSearchParams();
 
-  const token = session?.access_token || "";
-
   // Auto-handle OAuth redirect: if ?code= is in the URL, connect and clean
   useEffect(() => {
     const code = searchParams.get("code");
@@ -163,10 +161,10 @@ function SettingsPageInner() {
     }
     if (code && businessId) {
       setGcalConnecting(true);
-      apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, {
+      api(`/api/businesses/${businessId}/google-calendar/connect`, {
         method: "POST",
         body: JSON.stringify({ code }),
-      }, token)
+      })
         .then(() => {
           setGcalCode("");
           // Remove code from URL without full reload
@@ -178,67 +176,59 @@ function SettingsPageInner() {
           // Refresh gcal tab
           if (tab === "gcal") fetchTab();
         })
-        .catch(() => {})
         .finally(() => setGcalConnecting(false));
     }
-  }, [searchParams, businessId, token]);
-
-  useEffect(() => {
-    if (!token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [token]);
+  }, [searchParams, businessId]);
 
   const fetchTab = useCallback(async () => {
-    if (!businessId || !token) return;
+    if (!businessId) return;
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     setMessage("");
     try {
       if (tab === "hours") {
-        const r = await apiFetch<WorkingHour[]>(`/api/businesses/${businessId}/working-hours`, {}, token);
+        const r = await api<WorkingHour[]>(`/api/businesses/${businessId}/working-hours`);
         setHours(Array.isArray(r) && r.length ? r : DAYS.map((_, i) => ({ day_of_week: i, start_time: "09:00", end_time: "18:00", is_closed: i === 6 })));
       } else if (tab === "breaks") {
-        const r = await apiFetch<Break[]>(`/api/businesses/${businessId}/breaks`, {}, token);
+        const r = await api<Break[]>(`/api/businesses/${businessId}/breaks`);
         setBreaks(Array.isArray(r) ? r : []);
       } else if (tab === "reminders") {
-        const r = await apiFetch<ReminderSetting[]>(`/api/businesses/${businessId}/reminder-settings`, {}, token);
+        const r = await api<ReminderSetting[]>(`/api/businesses/${businessId}/reminder-settings`);
         setReminders(Array.isArray(r) ? r : []);
       } else if (tab === "rules") {
-        const r = await apiFetch<BookingRules>(`/api/businesses/${businessId}/booking-rules`, {}, token);
+        const r = await api<BookingRules>(`/api/businesses/${businessId}/booking-rules`);
         if (r) setRules(r);
       } else if (tab === "staff") {
         const [r, svcResult] = await Promise.all([
-          apiFetch<StaffMember[]>(`/api/businesses/${businessId}/staff`, {}, token),
-          apiFetch<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
-            `/api/businesses/${businessId}/services`, {}, token
+          api<StaffMember[]>(`/api/businesses/${businessId}/staff`),
+          api<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
+            `/api/businesses/${businessId}/services`
           ),
         ]);
         setStaff(Array.isArray(r) ? r : []);
         const svcList = Array.isArray(svcResult) ? svcResult : (svcResult as { services: ServiceItem[] }).services;
         setServices(svcList || []);
       } else if (tab === "profile") {
-        const r = await apiFetch<BusinessProfile>(`/api/businesses/${businessId}`, {}, token);
+        const r = await api<BusinessProfile>(`/api/businesses/${businessId}`);
         if (r) setProfile(r);
       } else if (tab === "booking") {
-        const r = await apiFetch<{ allow_multiple_bookings: boolean }>(`/api/businesses/${businessId}`, {}, token);
+        const r = await api<{ allow_multiple_bookings: boolean }>(`/api/businesses/${businessId}`);
         if (r) setAllowMultipleBookings(r.allow_multiple_bookings ?? false);
       } else if (tab === "services") {
         const [svcResult, catResult] = await Promise.all([
-          apiFetch<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
-            `/api/businesses/${businessId}/services`, {}, token
+          api<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
+            `/api/businesses/${businessId}/services`
           ),
-          apiFetch<ServiceCategory[]>(`/api/businesses/${businessId}/categories`, {}, token),
+          api<ServiceCategory[]>(`/api/businesses/${businessId}/categories`),
         ]);
         const svcList = Array.isArray(svcResult) ? svcResult : (svcResult as { services: ServiceItem[] }).services;
         setServices(svcList || []);
         setCategories(catResult || []);
       } else if (tab === "gcal") {
-        const status = await apiFetch<GCalStatus>(`/api/businesses/${businessId}/google-calendar/status`, {}, token);
+        const status = await api<GCalStatus>(`/api/businesses/${businessId}/google-calendar/status`);
         if (status) setGcalStatus(status);
         if (status?.connected) {
-          const calRes = await apiFetch<{ calendars: GCalCalendar[] }>(`/api/businesses/${businessId}/google-calendar/calendars`, {}, token);
+          const calRes = await api<{ calendars: GCalCalendar[] }>(`/api/businesses/${businessId}/google-calendar/calendars`);
           if (calRes?.calendars) setGcalCalendars(calRes.calendars);
         }
       }
@@ -247,7 +237,7 @@ function SettingsPageInner() {
     } finally {
       fetchingRef.current = false;
     }
-  }, [businessId, tab, token]);
+  }, [businessId, tab]);
 
   useEffect(() => {
     if (businessId) fetchTab();
@@ -264,7 +254,7 @@ function SettingsPageInner() {
         end_time: h.end_time,
         is_closed: h.is_closed,
       }));
-      await apiFetch(`/api/businesses/${businessId}/working-hours`, { method: "PUT", body: JSON.stringify(payload) }, token);
+      await api(`/api/businesses/${businessId}/working-hours`, { method: "PUT", body: JSON.stringify(payload) });
       showSaved();
     } catch {} finally { setSaving(false); }
   };
@@ -272,7 +262,7 @@ function SettingsPageInner() {
   const addBreak = async () => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/breaks`, {
+      await api(`/api/businesses/${businessId}/breaks`, {
         method: "POST",
         body: JSON.stringify({
           type: newBreak.type,
@@ -282,46 +272,46 @@ function SettingsPageInner() {
           end_time: newBreak.end_time,
           label: newBreak.label || null,
         }),
-      }, token);
+      });
       fetchTab();
     } catch {} finally { setSaving(false); }
   };
 
   const deleteBreak = async (id: string) => {
-    await apiFetch(`/api/businesses/${businessId}/breaks/${id}`, { method: "DELETE" }, token).catch(() => {});
+    await api(`/api/businesses/${businessId}/breaks/${id}`, { method: "DELETE" });
     fetchTab();
   };
 
   const addReminder = async (minutesBefore: number) => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/reminder-settings`, {
+      await api(`/api/businesses/${businessId}/reminder-settings`, {
         method: "POST",
         body: JSON.stringify({ minutes_before: minutesBefore }),
-      }, token);
+      });
       fetchTab();
     } catch {} finally { setSaving(false); }
   };
 
   const toggleReminder = async (id: string, isActive: boolean) => {
     try {
-      await apiFetch(`/api/businesses/${businessId}/reminder-settings/${id}`, {
+      await api(`/api/businesses/${businessId}/reminder-settings/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ is_active: isActive }),
-      }, token);
+      });
       setReminders((prev) => prev.map((r) => r.id === id ? { ...r, is_active: isActive } : r));
     } catch {}
   };
 
   const deleteReminder = async (id: string) => {
-    await apiFetch(`/api/businesses/${businessId}/reminder-settings/${id}`, { method: "DELETE" }, token).catch(() => {});
+    await api(`/api/businesses/${businessId}/reminder-settings/${id}`, { method: "DELETE" });
     fetchTab();
   };
 
   const saveRules = async () => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/booking-rules`, { method: "PUT", body: JSON.stringify(rules) }, token);
+      await api(`/api/businesses/${businessId}/booking-rules`, { method: "PUT", body: JSON.stringify(rules) });
       showSaved();
     } catch {} finally { setSaving(false); }
   };
@@ -330,14 +320,14 @@ function SettingsPageInner() {
     if (!newStaffEmail) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/staff`, { method: "POST", body: JSON.stringify({ email: newStaffEmail, role: "staff" }) }, token);
+      await api(`/api/businesses/${businessId}/staff`, { method: "POST", body: JSON.stringify({ email: newStaffEmail, role: "staff" }) });
       setNewStaffEmail("");
       fetchTab();
     } catch {} finally { setSaving(false); }
   };
 
   const removeStaff = async (memberId: string) => {
-    await apiFetch(`/api/businesses/${businessId}/staff/${memberId}`, { method: "DELETE" }, token).catch(() => {});
+    await api(`/api/businesses/${businessId}/staff/${memberId}`, { method: "DELETE" });
     fetchTab();
   };
 
@@ -345,10 +335,10 @@ function SettingsPageInner() {
     if (!profile) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}`, {
+      await api(`/api/businesses/${businessId}`, {
         method: "PATCH",
         body: JSON.stringify({ name: profile.name, description: profile.description, phone: profile.phone, contact_phone: profile.contact_phone, email: profile.email, address: profile.address, bot_context: profile.bot_context }),
-      }, token);
+      });
       showSaved();
     } catch {} finally { setSaving(false); }
   };
@@ -356,10 +346,10 @@ function SettingsPageInner() {
   const saveBooking = async () => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}`, {
+      await api(`/api/businesses/${businessId}`, {
         method: "PATCH",
         body: JSON.stringify({ allow_multiple_bookings: allowMultipleBookings }),
-      }, token);
+      });
       showSaved();
     } catch {} finally { setSaving(false); }
   };
@@ -368,7 +358,7 @@ function SettingsPageInner() {
   const connectGCal = async () => {
     setGcalConnecting(true);
     try {
-      const res = await apiFetch<{ url: string }>(`/api/businesses/${businessId}/google-calendar/auth-url`, {}, token);
+      const res = await api<{ url: string }>(`/api/businesses/${businessId}/google-calendar/auth-url`);
       if (res?.url) {
         setGcalAuthUrl(res.url);
         window.open(res.url, "_blank");
@@ -379,10 +369,10 @@ function SettingsPageInner() {
   const handleGCalCode = async (code: string) => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, {
+      await api(`/api/businesses/${businessId}/google-calendar/connect`, {
         method: "POST",
         body: JSON.stringify({ code }),
-      }, token);
+      });
       fetchTab();
       showSaved();
     } catch {} finally { setSaving(false); }
@@ -391,7 +381,7 @@ function SettingsPageInner() {
   const disconnectGCal = async () => {
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/google-calendar/connect`, { method: "DELETE" }, token);
+      await api(`/api/businesses/${businessId}/google-calendar/connect`, { method: "DELETE" });
       setGcalStatus({ connected: false, calendarId: null, syncEnabled: false, pushEnabled: false, tokenExpiresAt: null, lastSyncAt: null });
       setGcalCalendars([]);
       showSaved();
@@ -402,19 +392,19 @@ function SettingsPageInner() {
     if (!gcalStatus) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/businesses/${businessId}/google-calendar/settings`, {
+      await api(`/api/businesses/${businessId}/google-calendar/settings`, {
         method: "PATCH",
         body: JSON.stringify({
           google_calendar_id: gcalStatus.calendarId,
           sync_enabled: gcalStatus.syncEnabled,
           push_enabled: gcalStatus.pushEnabled,
         }),
-      }, token);
+      });
       // Immediately sync so calendar events block slots without waiting for scheduler
       if (gcalStatus.calendarId) {
-        const syncRes = await apiFetch<{ imported: number; deleted: number; error?: string }>(
-          `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token
-        ).catch(() => null);
+        const syncRes = await api<{ imported: number; deleted: number; error?: string }>(
+          `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }
+        );
         setGcalSyncResult(syncRes);
       }
       showSaved();
@@ -672,7 +662,6 @@ function SettingsPageInner() {
                     member={m}
                     services={services}
                     businessId={businessId!}
-                    token={token}
                     onUpdate={(updated) => setStaff((prev) => prev.map((s) => s.id === updated.id ? updated : s))}
                     onRemove={(id) => removeStaff(id)}
                   />
@@ -836,9 +825,9 @@ function SettingsPageInner() {
                   <button
                     onClick={async () => {
                       setSaving(true);
-                      const res = await apiFetch<{ imported: number; deleted: number; error?: string }>(
-                        `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }, token
-                      ).catch(() => null);
+                      const res = await api<{ imported: number; deleted: number; error?: string }>(
+                        `/api/businesses/${businessId}/google-calendar/sync`, { method: "POST" }
+                      );
                       setGcalSyncResult(res);
                       fetchTab();
                       setSaving(false);
@@ -939,9 +928,9 @@ function SettingsPageInner() {
                             const cat = categories.find((c) => c.id === group.catId);
                             if (!cat) return;
                             const newOrder = Math.max(0, cat.sort_order - 1);
-                            await apiFetch(`/api/businesses/${businessId}/categories/${cat.id}`, {
+                            await api(`/api/businesses/${businessId}/categories/${cat.id}`, {
                               method: "PATCH", body: JSON.stringify({ sort_order: newOrder }),
-                            }, session?.access_token);
+                            });
                             setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, sort_order: newOrder } : c).sort((a, b) => a.sort_order - b.sort_order));
                           }}
                         >▲</Button>
@@ -953,9 +942,9 @@ function SettingsPageInner() {
                             const cat = categories.find((c) => c.id === group.catId);
                             if (!cat) return;
                             const newOrder = cat.sort_order + 1;
-                            await apiFetch(`/api/businesses/${businessId}/categories/${cat.id}`, {
+                            await api(`/api/businesses/${businessId}/categories/${cat.id}`, {
                               method: "PATCH", body: JSON.stringify({ sort_order: newOrder }),
-                            }, session?.access_token);
+                            });
                             setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, sort_order: newOrder } : c).sort((a, b) => a.sort_order - b.sort_order));
                           }}
                         >▼</Button>
@@ -1019,11 +1008,11 @@ function SettingsPageInner() {
                                       size="sm"
                                       onClick={async () => {
                                         if (!newCategoryName.trim()) return;
-                                        const created = await apiFetch<ServiceCategory>(
+                                        const created = await api<ServiceCategory>(
                                           `/api/businesses/${businessId}/categories`,
                                           { method: "POST", body: JSON.stringify({ name_he: newCategoryName, sort_order: categories.length }) },
-                                          session?.access_token
                                         );
+                                        if (!created) return;
                                         setCategories((prev) => [...prev, created]);
                                         setServiceForm((f) => ({ ...f, category_id: created.id }));
                                         setNewCategoryName("");
@@ -1038,11 +1027,11 @@ function SettingsPageInner() {
                                 <Button
                                   size="sm"
                                   onClick={async () => {
-                                    const updated = await apiFetch<ServiceItem>(
+                                    const updated = await api<ServiceItem>(
                                       `/api/businesses/${businessId}/services/${svc.id}`,
                                       { method: "PATCH", body: JSON.stringify(serviceForm) },
-                                      session?.access_token
                                     );
+                                    if (!updated) return;
                                     setServices((prev) => prev.map((s) => s.id === updated.id ? updated : s));
                                     setEditingService(null);
                                     setServiceForm({});
