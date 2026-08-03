@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@torup/ui";
 import { CalendarDays, CheckCircle2, UserX, TrendingDown, Banknote } from "lucide-react";
 
@@ -22,26 +22,19 @@ export default function AnalyticsPage() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const { session } = useAuth();
+  const { businessId } = useBusiness();
+  const api = useApi();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [period, setPeriod] = useState("30d");
-  const [businessId, setBusinessId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session?.access_token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    if (!businessId || !session?.access_token) return;
-    apiFetch<Analytics>(
-      `/api/businesses/${businessId}/analytics?period=${period}`, {}, session.access_token
+    if (!businessId) return;
+    api<Analytics>(
+      `/api/businesses/${businessId}/analytics?period=${period}`
     )
-      .then((r) => setAnalytics(r))
+      .then((r) => { if (r) setAnalytics(r); })
       .catch(() => {});
-  }, [businessId, period, session?.access_token]);
+  }, [businessId, period]);
 
   const statCards = analytics
     ? [
