@@ -22,6 +22,7 @@ import webhooksRouter from "./routes/webhooks";
 import internalRouter from "./routes/internal";
 import googleCalendarRouter from "./routes/google-calendar";
 import categoriesRouter from "./routes/categories";
+import whatsappCredentialsRouter from "./routes/whatsapp-credentials";
 import { startReminderScheduler } from "./services/notifications";
 import { startGCalSyncScheduler } from "./services/google-calendar";
 
@@ -90,6 +91,7 @@ app.use("/api/businesses/:businessId/waitlist", waitlistRouter);
 app.use("/api/businesses/:businessId/analytics", analyticsRouter);
 app.use("/api/businesses/:businessId/notifications", notificationsRouter);
 app.use("/api/businesses/:businessId/google-calendar", googleCalendarRouter);
+app.use("/api/businesses/:businessId/whatsapp", whatsappCredentialsRouter);
 
 // Admin routes
 app.use("/api/admin", adminRouter);
