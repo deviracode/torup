@@ -20,12 +20,24 @@ const appointmentRow = {
   businesses: { name: "Studio" },
 };
 
+const credentialRow = {
+  id: "cred-1",
+  business_id: "biz-1",
+  phone_number_id: "PN123",
+  access_token: "TOK456",
+  display_phone: "+972500000000",
+  verified_at: "2026-01-01T00:00:00Z",
+  is_active: true,
+};
+
 vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
-    from: (_table: string) => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          single: async () => ({ data: appointmentRow }),
+          single: async () => ({
+            data: table === "whatsapp_credentials" ? credentialRow : appointmentRow,
+          }),
         }),
       }),
       insert: (row: Record<string, unknown>) => {
