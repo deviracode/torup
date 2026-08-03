@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase";
+import { createAnonClient } from "../lib/supabase";
 import { getBusinessId, getParam, getUserClient } from "../lib/params";
 import { requireAuth, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { createCustomerRepo } from "../modules/customers/customers.repository";
@@ -12,7 +12,7 @@ router.get("/", requireAuth, requireBusinessAccess, async (req: AuthenticatedReq
 });
 
 router.post("/", async (req: Request, res: Response, next: NextFunction) => {
-  try { res.status(201).json(await createCustomerService(createCustomerRepo(createServiceClient())).findOrCreate(req.body)); } catch (err) { next(err); }
+  try { res.status(201).json(await createCustomerService(createCustomerRepo(createAnonClient())).findOrCreate(req.body)); } catch (err) { next(err); }
 });
 
 router.patch("/:customerId", requireAuth, requireBusinessAccess, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {

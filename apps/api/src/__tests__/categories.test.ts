@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../lib/supabase", () => ({
-  createServiceClient: () => ({
+vi.mock("../lib/supabase", () => {
+  const stub = {
     from: (_table: string) => ({
       select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) }),
       insert: () => ({ select: () => ({ single: () => ({ data: { id: "cat-1", name_he: "תסרוקות", name_ar: null, name_en: null, sort_order: 0, business_id: "biz-1" }, error: null }) }) }),
       update: () => ({ eq: () => ({ eq: () => ({ select: () => ({ single: () => ({ data: { id: "cat-1", name_he: "תסרוקות חדש", sort_order: 1, business_id: "biz-1" }, error: null }) }) }) }) }),
       delete: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }),
     }),
-  }),
-}));
+  };
+  return { createServiceClient: () => stub, createAnonClient: () => stub };
+});
 
 function makeUserStub() {
   return {

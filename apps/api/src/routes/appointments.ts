@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase";
+import { createServiceClient, createAnonClient } from "../lib/supabase";
 import { getBusinessId, getParam, getUserClient } from "../lib/params";
 import {
   requireAuth,
@@ -34,7 +34,7 @@ function service(req: AuthenticatedRequest) {
 }
 
 function publicService() {
-  const repo = createAppointmentRepo(createServiceClient());
+  const repo = createAppointmentRepo(createAnonClient());
   return createAppointmentService(repo, deps);
 }
 

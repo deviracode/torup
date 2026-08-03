@@ -98,6 +98,7 @@ function makeSupabaseStubForPost(createdVia: string) {
 
 vi.mock("../lib/supabase", () => ({
   createServiceClient: vi.fn(),
+  createAnonClient: vi.fn(),
 }));
 
 describe("Reminder System", () => {
@@ -218,10 +219,10 @@ describe("Reminder System", () => {
 
   describe("Manual appointment booking_confirmation suppression", () => {
     async function buildPostApp(createdVia: string) {
-      const { createServiceClient } = await import("../lib/supabase");
-      (createServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeSupabaseStubForPost(createdVia)
-      );
+      const { createServiceClient, createAnonClient } = await import("../lib/supabase");
+      const stub = makeSupabaseStubForPost(createdVia);
+      (createServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(stub);
+      (createAnonClient as ReturnType<typeof vi.fn>).mockReturnValue(stub);
       const router = (await import("../routes/appointments")).default;
       const app = express();
       app.use(express.json());
