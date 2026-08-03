@@ -1,6 +1,10 @@
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WHATSAPP_API_URL = "https://graph.facebook.com/v21.0";
+
+export type WhatsAppCredential = { phoneNumberId: string; accessToken: string };
+
+function hasCredential(c: WhatsAppCredential | null | undefined): c is WhatsAppCredential {
+  return Boolean(c && c.accessToken && c.phoneNumberId);
+}
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/[^0-9]/g, "");
@@ -15,20 +19,21 @@ interface WhatsAppResponse {
 }
 
 export async function sendWhatsAppMessage(
+  credential: WhatsAppCredential,
   to: string,
   body: string
 ): Promise<string | null> {
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) To: ${to}, Message: ${body}`);
     return null;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -58,21 +63,22 @@ export async function sendWhatsAppMessage(
 }
 
 export async function sendManagerApprovalRequest(
+  credential: WhatsAppCredential,
   to: string,
   body: string,
   appointmentId: string
 ): Promise<string | null> {
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Manager approval request to: ${to}, appointmentId: ${appointmentId}`);
     return `dev_msg_${Date.now()}`;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -114,21 +120,22 @@ export async function sendManagerApprovalRequest(
  * Body params order must match the template as approved: customer name, service, date, time.
  */
 export async function sendManagerNewBookingTemplate(
+  credential: WhatsAppCredential,
   to: string,
   params: { customerName: string; serviceName: string; date: string; time: string },
   appointmentId: string
 ): Promise<string | null> {
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Manager template to: ${to}, appointmentId: ${appointmentId}`);
     return `dev_msg_${Date.now()}`;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -183,6 +190,7 @@ export async function sendManagerNewBookingTemplate(
 }
 
 export async function sendInteractiveReminder(
+  credential: WhatsAppCredential,
   to: string,
   body: string,
   language: string
@@ -190,17 +198,17 @@ export async function sendInteractiveReminder(
   const confirmLabel = language === "ar" ? "تأكيد ✓" : language === "en" ? "Confirm ✓" : "אישור ✓";
   const cancelLabel = language === "ar" ? "إلغاء ✗" : language === "en" ? "Cancel ✗" : "ביטול ✗";
 
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Interactive reminder to: ${to}, Message: ${body}, Buttons: [${confirmLabel}, ${cancelLabel}]`);
     return `dev_msg_${Date.now()}`;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -240,6 +248,7 @@ export async function sendInteractiveReminder(
  * Parameter order must match the approved templates: customer_name, service_name, date, time.
  */
 export async function sendCustomerReminderTemplate(
+  credential: WhatsAppCredential,
   to: string,
   params: { businessName: string; serviceName: string; date: string; time: string },
   language: string
@@ -247,17 +256,17 @@ export async function sendCustomerReminderTemplate(
   const templateName = language === "ar" ? "appointment_reminder_ar" : "appointment_reminder_he";
   const languageCode = language === "ar" ? "ar" : "he";
 
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Customer reminder template "${templateName}" to: ${to}`, params);
     return `dev_msg_${Date.now()}`;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -304,23 +313,24 @@ export async function sendCustomerReminderTemplate(
  * Enable via env var: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
  */
 export async function sendCustomerApprovalTemplate(
+  credential: WhatsAppCredential,
   to: string,
   params: { customerName: string; serviceName: string; date: string; time: string },
   language: string
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
 
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+  if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Customer approval template "${templateName}" to: ${to}`, params);
     return `dev_msg_${Date.now()}`;
   }
 
   const res = await fetch(
-    `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${credential.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
