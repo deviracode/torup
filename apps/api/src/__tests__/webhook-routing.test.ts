@@ -22,11 +22,17 @@ describe("extractPhoneNumberId", () => {
 //
 // These mock the Supabase service client with a tiny in-memory table store
 // (same pattern as approval.test.ts) plus the WhatsApp send adapter, so the
-// three security-critical properties can be asserted without a real DB:
+// following properties can be asserted without a real DB:
 //   1. Unknown phone_number_id -> 200 + silent drop, no mutation, no send.
-//   2. Cross-tenant: a manager reply resolved from Business A's number can't
-//      touch an appointment that actually belongs to Business B.
-//   3. The credential passed to the send adapter is the one resolved from
+//   2. READ-guard isolation: the appointment lookup in handleManagerResponse
+//      is scoped by business_id, so a mismatched business_id means the read
+//      finds nothing and the handler returns early (before any update runs).
+//   3. UPDATE-scoping (defense-in-depth): the two appointments.update(...)
+//      calls in handleManagerResponse are themselves issued with BOTH
+//      .eq("id", ...) and .eq("business_id", businessId) — verified by
+//      recording the exact update-chain calls the mock receives, independent
+//      of whether the read guard would also have blocked the request.
+//   4. The credential passed to the send adapter is the one resolved from
 //      the matched business's whatsapp_credentials row.
 // ---------------------------------------------------------------------------
 
@@ -56,8 +62,14 @@ type AptRow = {
 
 let credentials: CredRow[];
 let appointments: Record<string, AptRow>;
+// Records every appointments.update(...) call's patch + the field/value pairs
+// chained via .eq(...), in call order — lets tests assert the exact scoping
+// clauses a given update call site issued, independent of whether the read
+// guard earlier in the handler would also have blocked the request.
+let appointmentUpdateCalls: { patch: Record<string, unknown>; eqCalls: [string, unknown][] }[];
 
 function freshFixtures() {
+  appointmentUpdateCalls = [];
   credentials = [
     {
       id: "cred-a",
@@ -123,9 +135,15 @@ function makeSupabaseStub() {
       };
       builder.update = (patch: Record<string, unknown>) => {
         const updFilters: { field: string; value: unknown }[] = [];
+        const callRecord: { patch: Record<string, unknown>; eqCalls: [string, unknown][] } = {
+          patch,
+          eqCalls: [],
+        };
+        appointmentUpdateCalls.push(callRecord);
         const updBuilder: Record<string, unknown> = {
           eq(field: string, value: unknown) {
             updFilters.push({ field, value });
+            callRecord.eqCalls.push([field, value]);
             return updBuilder;
           },
           then(resolve: (v: { error: null }) => void) {
@@ -231,7 +249,13 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
     expect(sendWhatsAppMessageMock).not.toHaveBeenCalled();
   });
 
-  it("does not mutate an appointment belonging to a different business than the resolved credential", async () => {
+  it("READ guard: does not mutate an appointment belonging to a different business than the resolved credential", async () => {
+    // NOTE: this proves the appointment READ lookup in handleManagerResponse
+    // is scoped by business_id (id matches APPOINTMENT_B, business_id does
+    // not match BUSINESS_A) — the mismatch means the read finds nothing and
+    // the handler returns early, before either update call runs. It does
+    // NOT exercise the update-call scoping itself; see the dedicated
+    // "UPDATE scoping" test below for that.
     const app = await buildApp();
 
     // Manager phone from Business A's WhatsApp number tries to approve an
@@ -247,6 +271,34 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
     // so the appointment is never touched.
     expect(appointments[APPOINTMENT_B].status).toBe("pending_approval");
     expect(sendWhatsAppMessageMock).not.toHaveBeenCalled();
+    expect(appointmentUpdateCalls).toHaveLength(0);
+  });
+
+  it("UPDATE scoping: the approve/reject appointments.update() calls include both id and business_id clauses", async () => {
+    // Make the READ guard pass (appointment's business_id matches the
+    // resolved businessId, manager-identity phone also matches) so execution
+    // reaches the update calls Finding 1 actually touched. This test's
+    // assertion is entirely about the exact .eq(...) clauses recorded on the
+    // update call — independent of whether the read guard would separately
+    // have blocked a cross-tenant request.
+    appointments[APPOINTMENT_B].business_id = BUSINESS_A;
+    appointments[APPOINTMENT_B].businesses.phone = MANAGER_PHONE_A;
+    appointments[APPOINTMENT_B].status = "pending_approval";
+
+    const app = await buildApp();
+
+    const res = await request(app)
+      .post("/api/webhooks/whatsapp")
+      .send(buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`));
+
+    expect(res.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(appointmentUpdateCalls).toHaveLength(1);
+    const [call] = appointmentUpdateCalls;
+    expect(call.patch).toEqual({ status: "confirmed" });
+    expect(call.eqCalls).toContainEqual(["id", APPOINTMENT_B]);
+    expect(call.eqCalls).toContainEqual(["business_id", BUSINESS_A]);
   });
 
   it("passes the credential resolved from the matched business's whatsapp_credentials row to the send adapter", async () => {
