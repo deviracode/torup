@@ -3,9 +3,11 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useBusiness } from "@/components/auth/business-provider";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut } from "lucide-react";
+import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut, Building2, ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 const navItems = [
   { key: "calendar",   href: "/dashboard",            icon: Calendar   },
@@ -30,7 +32,22 @@ export function Sidebar() {
   const router = useRouter();
   const locale = useLocale();
   const { signOut } = useAuth();
+  const { businessId, businesses, switchBusiness } = useBusiness();
   const isRtl = locale === "he" || locale === "ar";
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setSwitcherOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const currentBusiness = businesses.find((b) => b.businessId === businessId);
 
   function isActive(href: string) {
     return href === "/dashboard"
@@ -90,6 +107,40 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Business switcher — only show when user has multiple businesses */}
+        {businesses.length > 1 && (
+          <div className="px-3 pb-2" ref={switcherRef}>
+            <div className="relative">
+              <button
+                onClick={() => setSwitcherOpen(!switcherOpen)}
+                className="w-full flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/5 transition-colors"
+              >
+                <Building2 className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1 truncate text-start">{currentBusiness?.name ?? "..."}</span>
+                <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${switcherOpen ? "rotate-180" : ""}`} />
+              </button>
+              {switcherOpen && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 rounded-[10px] border border-white/8 bg-[hsl(242_44%_10%)] shadow-lg overflow-hidden z-50">
+                  {businesses.map((b) => (
+                    <button
+                      key={b.businessId}
+                      onClick={() => { switchBusiness(b.businessId); setSwitcherOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                        b.businessId === businessId
+                          ? "text-[#a78bfa] bg-white/5"
+                          : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                      }`}
+                    >
+                      <span className="flex-1 truncate text-start">{b.name}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-white/25">{b.role}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Logout */}
         <div className="px-3 pt-2 border-t border-white/6">
