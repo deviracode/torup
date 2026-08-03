@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "./auth-provider";
 import { apiFetch } from "@/lib/api";
 
@@ -8,7 +8,8 @@ interface BusinessContextType {
   businessId: string | null;
   hasNoBusiness: boolean;
   loading: boolean;
-  businesses: Array<{ businessId: string; role: "owner" | "staff" }>;
+  businesses: Array<{ businessId: string; role: "owner" | "staff"; name: string }>;
+  switchBusiness: (businessId: string) => void;
 }
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
@@ -30,7 +31,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true);
-    apiFetch<{ id: string; memberships?: Array<{ businessId: string; role: "owner" | "staff" }> }>(
+    apiFetch<{ id: string; memberships?: Array<{ businessId: string; role: "owner" | "staff"; name: string }> }>(
       "/api/businesses/me", {}, session.access_token
     )
       .then((data) => {
@@ -52,8 +53,14 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, [session?.access_token]);
 
+  const switchBusiness = useCallback((newBusinessId: string) => {
+    if (businesses.some((b) => b.businessId === newBusinessId)) {
+      setBusinessId(newBusinessId);
+    }
+  }, [businesses]);
+
   return (
-    <BusinessContext.Provider value={{ businessId, hasNoBusiness, loading, businesses }}>
+    <BusinessContext.Provider value={{ businessId, hasNoBusiness, loading, businesses, switchBusiness }}>
       {children}
     </BusinessContext.Provider>
   );

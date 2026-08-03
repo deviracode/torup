@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createAnonClient } from "../lib/supabase";
+import { createAnonClient, createServiceClient } from "../lib/supabase";
 import { getUserClient } from "../lib/params";
 import { requireAuth, requireRole, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { AppError } from "../middleware/error-handler";
@@ -10,8 +10,21 @@ const router: RouterType = Router();
 
 router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    if (!req.businessId) throw new AppError(404, "No business found for this user");
-    res.json(await createBusinessService(createBusinessRepo(getUserClient(req))).getCurrent(req.businessId));
+    const memberships = req.ctx?.memberships ?? [];
+    const primaryBusinessId = req.businessId || req.query.business_id as string || memberships[0]?.businessId;
+
+    if (!primaryBusinessId) throw new AppError(404, "No business found for this user");
+
+    const business = await createBusinessService(createBusinessRepo(getUserClient(req))).getCurrent(primaryBusinessId);
+
+    const enrichedMemberships = await Promise.all(
+      memberships.map(async (m) => {
+        const { data } = await createBusinessRepo(createServiceClient()).findById(m.businessId);
+        return { businessId: m.businessId, role: m.role, name: (data as any)?.name ?? m.businessId };
+      })
+    );
+
+    res.json({ ...business, memberships: enrichedMemberships });
   } catch (err) { next(err); }
 });
 
