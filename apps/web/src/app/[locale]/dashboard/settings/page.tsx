@@ -7,6 +7,7 @@ import { useBusiness } from "@/components/auth/business-provider";
 import { useApi } from "@/lib/use-api";
 import { Card, CardContent, Button, Input, Label } from "@torup/ui";
 import { StaffCard, type StaffMember } from "@/components/dashboard/staff-card";
+import WhatsAppSettings from "@/components/dashboard/whatsapp-settings";
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
@@ -83,7 +84,7 @@ interface ServiceCategory {
   sort_order: number;
 }
 
-type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking" | "gcal" | "services";
+type Tab = "hours" | "breaks" | "reminders" | "rules" | "staff" | "profile" | "booking" | "gcal" | "services" | "whatsapp";
 
 interface GCalStatus {
   connected: boolean;
@@ -421,6 +422,7 @@ function SettingsPageInner() {
     { key: "booking", label: t("booking") },
     { key: "gcal", label: "Google Calendar" },
     { key: "services", label: t("services") },
+    { key: "whatsapp", label: t("whatsapp") },
   ];
 
   return (
@@ -1054,6 +1056,8 @@ function SettingsPageInner() {
               ))}
           </div>
         )}
+
+        {tab === "whatsapp" && <WhatsAppSettings />}
 
         </CardContent>
       </Card>
