@@ -2,8 +2,9 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import crypto from "crypto";
 import { createServiceClient } from "../lib/supabase";
 import { validateTransition, type AppointmentStatus } from "@torup/shared";
-import { sendWhatsAppMessage } from "../services/whatsapp";
+import { sendWhatsAppMessage, type WhatsAppCredential } from "../services/whatsapp";
 import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications";
+import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -54,6 +55,12 @@ router.get("/whatsapp", (req: Request, res: Response) => {
   }
 });
 
+// Extract the phone_number_id Meta includes in every webhook payload — this
+// identifies which of our tenants' WhatsApp numbers received the message.
+export function extractPhoneNumberId(body: any): string | null {
+  return body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id ?? null;
+}
+
 // POST /api/webhooks/whatsapp - Incoming messages & status updates
 router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -70,6 +77,21 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
 
     if (!value?.messages) return;
 
+    const phoneNumberId = extractPhoneNumberId(req.body);
+    if (!phoneNumberId) return;
+
+    const credRepo = createWhatsAppCredentialsRepo(createServiceClient());
+    const { data: credRow } = await credRepo.getByPhoneNumberId(phoneNumberId);
+    if (!credRow) {
+      // Unknown number — ack (200 already sent above) and silently drop.
+      return;
+    }
+    const credential: WhatsAppCredential = {
+      phoneNumberId: credRow.phone_number_id,
+      accessToken: credRow.access_token,
+    };
+    const businessId = credRow.business_id;
+
     for (const message of value.messages) {
       if (message.type !== "interactive" || !message.interactive?.button_reply) continue;
 
@@ -79,9 +101,9 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
       if (buttonId.startsWith("approve_") || buttonId.startsWith("reject_")) {
         const appointmentId = buttonId.replace(/^(approve|reject)_/, "");
         const action = buttonId.startsWith("approve_") ? "approve" : "reject";
-        await handleManagerResponse(from, appointmentId, action);
+        await handleManagerResponse(credential, businessId, from, appointmentId, action);
       } else if (buttonId === "confirm" || buttonId === "cancel") {
-        await handleButtonResponse(from, buttonId);
+        await handleButtonResponse(credential, businessId, from, buttonId);
       }
     }
   } catch (err) {
@@ -90,6 +112,8 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
 });
 
 async function handleManagerResponse(
+  credential: WhatsAppCredential,
+  businessId: string,
   managerPhone: string,
   appointmentId: string,
   action: "approve" | "reject"
@@ -101,6 +125,7 @@ async function handleManagerResponse(
     .from("appointments")
     .select("id, status, business_id, businesses(phone)")
     .eq("id", appointmentId)
+    .eq("business_id", businessId)
     .single();
 
   if (!appointment) return;
@@ -116,27 +141,33 @@ async function handleManagerResponse(
   if (normalizedManagerPhone !== normalizedOwnerPhone) return;
 
   if (apt.status !== "pending_approval") {
-    await sendWhatsAppMessage(managerPhone, "התור כבר טופל.");
+    await sendWhatsAppMessage(credential, managerPhone, "התור כבר טופל.");
     return;
   }
 
   if (action === "approve") {
     await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId);
-    await sendWhatsAppMessage(managerPhone, "✅ התור אושר! הלקוח יקבל הודעה.");
+    await sendWhatsAppMessage(credential, managerPhone, "✅ התור אושר! הלקוח יקבל הודעה.");
     await sendApprovalNotification(appointmentId);
   } else {
     await supabase.from("appointments").update({ status: "cancelled" }).eq("id", appointmentId);
-    await sendWhatsAppMessage(managerPhone, "❌ התור נדחה. הלקוח יקבל הודעה.");
+    await sendWhatsAppMessage(credential, managerPhone, "❌ התור נדחה. הלקוח יקבל הודעה.");
     await sendRejectionNotification(appointmentId, "manual");
   }
 }
 
-async function handleButtonResponse(customerPhone: string, action: "confirm" | "cancel") {
+async function handleButtonResponse(
+  credential: WhatsAppCredential,
+  businessId: string,
+  customerPhone: string,
+  action: "confirm" | "cancel"
+) {
   const supabase = createServiceClient();
 
   const { data: logEntry } = await supabase
     .from("notifications_log")
     .select("appointment_id, business_id, customer_id")
+    .eq("business_id", businessId)
     .eq("channel", "whatsapp")
     .like("template_id", "reminder_%")
     .not("whatsapp_message_id", "is", null)
@@ -145,6 +176,10 @@ async function handleButtonResponse(customerPhone: string, action: "confirm" | "
 
   if (!logEntry || logEntry.length === 0) return;
 
+  // customers is a global table keyed by phone (no business_id column) — the
+  // notifications_log lookup above is already scoped to this business, and the
+  // .find() below cross-checks customer_id against that scoped log entry, so
+  // tenant isolation holds without needing to scope this query too.
   const { data: customer } = await supabase
     .from("customers")
     .select("id, language_preference")
@@ -160,6 +195,7 @@ async function handleButtonResponse(customerPhone: string, action: "confirm" | "
     .from("appointments")
     .select("id, status, start_time, customers(name), businesses(phone)")
     .eq("id", entry.appointment_id)
+    .eq("business_id", businessId)
     .single();
 
   if (!appointment) return;
@@ -176,29 +212,31 @@ async function handleButtonResponse(customerPhone: string, action: "confirm" | "
   const newStatus = action === "confirm" ? "confirmed" : "cancelled";
 
   if (apt.status === newStatus) {
-    await sendWhatsAppMessage(customerPhone, responseMessages.already_confirmed[lang]);
+    await sendWhatsAppMessage(credential, customerPhone, responseMessages.already_confirmed[lang]);
     return;
   }
 
   if (!validateTransition(apt.status as AppointmentStatus, newStatus as AppointmentStatus)) {
-    await sendWhatsAppMessage(customerPhone, responseMessages.invalid_transition[lang]);
+    await sendWhatsAppMessage(credential, customerPhone, responseMessages.invalid_transition[lang]);
     return;
   }
 
   await supabase
     .from("appointments")
     .update({ status: newStatus, customer_confirmed: action === "confirm" })
-    .eq("id", apt.id);
+    .eq("id", apt.id)
+    .eq("business_id", businessId);
 
   await supabase
     .from("notifications_log")
     .update({ customer_response: newStatus, responded_at: new Date().toISOString() })
     .eq("appointment_id", apt.id)
+    .eq("business_id", businessId)
     .like("template_id", "reminder_%")
     .order("sent_at", { ascending: false })
     .limit(1);
 
-  await sendWhatsAppMessage(customerPhone, responseMessages[newStatus][lang]);
+  await sendWhatsAppMessage(credential, customerPhone, responseMessages[newStatus][lang]);
 
   // Notify manager
   const managerPhone = apt.businesses?.phone;
@@ -214,7 +252,7 @@ async function handleButtonResponse(customerPhone: string, action: "confirm" | "
     const managerMsg = action === "confirm"
       ? `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`
       : `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
-    sendWhatsAppMessage(managerPhone, managerMsg).catch((err) =>
+    sendWhatsAppMessage(credential, managerPhone, managerMsg).catch((err) =>
       console.error("[Webhook] Failed to notify manager of customer response:", err)
     );
   }
