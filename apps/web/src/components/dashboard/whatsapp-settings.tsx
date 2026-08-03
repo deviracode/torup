@@ -36,7 +36,7 @@ export default function WhatsAppSettings() {
     const res = await api<WhatsAppStatus>(`/api/businesses/${businessId}/whatsapp`);
     if (res) setStatus(res);
     setLoading(false);
-  }, [api, businessId]);
+  }, [businessId]);
 
   useEffect(() => {
     if (businessId) fetchStatus();
