@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase";
+import { createAnonClient } from "../lib/supabase";
 import { getBusinessId, getUserClient } from "../lib/params";
 import { requireAuth, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { createWaitlistRepo } from "../modules/waitlist/waitlist.repository";
@@ -16,7 +16,7 @@ router.get("/", requireAuth, requireBusinessAccess, async (req: AuthenticatedReq
 
 router.post("/", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const svc = createWaitlistService(createWaitlistRepo(createServiceClient()));
+    const svc = createWaitlistService(createWaitlistRepo(createAnonClient()));
     res.status(201).json(await svc.join({ business_id: getBusinessId(req), ...req.body }));
   } catch (err) { next(err); }
 });

@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase";
+import { createAnonClient } from "../lib/supabase";
 import { getUserClient } from "../lib/params";
 import { requireAuth, requireRole, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { AppError } from "../middleware/error-handler";
@@ -16,7 +16,7 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response, 
 });
 
 router.get("/:slugOrId", async (req: Request, res: Response, next: NextFunction) => {
-  try { res.json(await createBusinessService(createBusinessRepo(createServiceClient())).getBySlugOrId(req.params.slugOrId as string)); } catch (err) { next(err); }
+  try { res.json(await createBusinessService(createBusinessRepo(createAnonClient())).getBySlugOrId(req.params.slugOrId as string)); } catch (err) { next(err); }
 });
 
 router.patch("/:id", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
