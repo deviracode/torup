@@ -21,6 +21,19 @@ describe("whatsapp-credentials repository", () => {
     expect(res.data).toEqual({ id: "c1", business_id: "b1", phone_number_id: "pn1" });
   });
 
+  it("getByBusinessId queries by business_id and returns the row", async () => {
+    const single = vi.fn().mockResolvedValue({ data: { id: "c1", business_id: "b1", phone_number_id: "pn1" }, error: null });
+    const eq = vi.fn(() => ({ single }));
+    const select = vi.fn(() => ({ eq }));
+    const repo = createWhatsAppCredentialsRepo(fakeClient({ whatsapp_credentials: { select } }));
+
+    const res = await repo.getByBusinessId("b1");
+
+    expect(select).toHaveBeenCalled();
+    expect(eq).toHaveBeenCalledWith("business_id", "b1");
+    expect(res.data).toEqual({ id: "c1", business_id: "b1", phone_number_id: "pn1" });
+  });
+
   it("upsert writes business_id + credential fields with onConflict business_id", async () => {
     const single = vi.fn().mockResolvedValue({ data: { id: "c1" }, error: null });
     const select = vi.fn(() => ({ single }));
@@ -38,5 +51,17 @@ describe("whatsapp-credentials repository", () => {
       }),
       { onConflict: "business_id" },
     );
+  });
+
+  it("markVerified updates verified_at timestamp for business_id", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const repo = createWhatsAppCredentialsRepo(fakeClient({ whatsapp_credentials: { update } }));
+
+    const res = await repo.markVerified("b1");
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ verified_at: expect.any(String) }));
+    expect(eq).toHaveBeenCalledWith("business_id", "b1");
+    expect(res.error).toBe(null);
   });
 });
