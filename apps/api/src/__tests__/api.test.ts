@@ -179,16 +179,16 @@ describe("Availability Calculation", () => {
 
     const existing = [
       {
-        startTime: new Date("2026-04-01T10:00:00"),
-        endTime: new Date("2026-04-01T11:00:00"),
+        startTime: new Date("2026-04-01T10:00:00Z"),
+        endTime: new Date("2026-04-01T11:00:00Z"),
         staffId: null,
       },
     ];
 
-    const slots = getAvailableSlots("2026-04-01", serviceConfig, workingHours, [], existing);
-    // Should have 09:00 and 11:00, but not 10:00
+    const slots = getAvailableSlots("2026-04-01", serviceConfig, workingHours, [], existing, undefined, 60);
+    // Should have 09:00 and 11:00 (UTC, matching createDateTime's UTC-based slot generation), but not 10:00
     expect(slots).toHaveLength(2);
-    expect(slots.some((s) => s.start.getHours() === 10)).toBe(false);
+    expect(slots.some((s) => s.start.getUTCHours() === 10)).toBe(false);
   });
 
   it("should respect buffer times between appointments", async () => {
