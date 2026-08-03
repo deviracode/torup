@@ -87,8 +87,9 @@ export default function WhatsAppSettings() {
         .
       </p>
       <div>
-        <label className="block text-sm font-medium mb-1">Phone Number ID</label>
+        <label htmlFor="wa-phone-number-id" className="block text-sm font-medium mb-1">Phone Number ID</label>
         <input
+          id="wa-phone-number-id"
           type="text"
           value={phoneNumberId}
           onChange={(e) => setPhoneNumberId(e.target.value)}
@@ -97,9 +98,10 @@ export default function WhatsAppSettings() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">Access Token</label>
+        <label htmlFor="wa-access-token" className="block text-sm font-medium mb-1">Access Token</label>
         <div className="flex gap-2">
           <input
+            id="wa-access-token"
             type={showToken ? "text" : "password"}
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
@@ -108,6 +110,7 @@ export default function WhatsAppSettings() {
           />
           <button
             type="button"
+            aria-label={showToken ? "הסתר טוקן" : "הצג טוקן"}
             onClick={() => setShowToken((v) => !v)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
@@ -116,8 +119,9 @@ export default function WhatsAppSettings() {
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1">מספר לתצוגה (אופציונלי)</label>
+        <label htmlFor="wa-display-phone" className="block text-sm font-medium mb-1">מספר לתצוגה (אופציונלי)</label>
         <input
+          id="wa-display-phone"
           type="text"
           value={displayPhone}
           onChange={(e) => setDisplayPhone(e.target.value)}
@@ -137,9 +141,10 @@ export default function WhatsAppSettings() {
 
   const testRow = (
     <div className="border-t border-gray-200 pt-4 space-y-2">
-      <p className="text-xs text-muted-foreground">שלח הודעת בדיקה לאימות החיבור:</p>
+      <label htmlFor="wa-test-to" className="text-xs text-muted-foreground">שלח הודעת בדיקה לאימות החיבור:</label>
       <div className="flex gap-2">
         <input
+          id="wa-test-to"
           type="text"
           value={testTo}
           onChange={(e) => setTestTo(e.target.value)}
