@@ -30,13 +30,18 @@ const credentialRow = {
   is_active: true,
 };
 
+// Mutable so individual tests can simulate "business has no WhatsApp credential
+// configured" by setting this to null before importing/calling the notification
+// function — resolveBusinessCredential's default path queries this same table.
+let credentialData: typeof credentialRow | null = credentialRow;
+
 vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
           single: async () => ({
-            data: table === "whatsapp_credentials" ? credentialRow : appointmentRow,
+            data: table === "whatsapp_credentials" ? credentialData : appointmentRow,
           }),
         }),
       }),
@@ -51,6 +56,7 @@ vi.mock("../lib/supabase", () => ({
 describe("sendApprovalNotification", () => {
   beforeEach(() => {
     insertedRows.length = 0;
+    credentialData = credentialRow;
   });
 
   it("sends approval notification and logs status='sent' when WhatsApp succeeds", async () => {
@@ -69,11 +75,28 @@ describe("sendApprovalNotification", () => {
     const mod = await import("../services/notifications");
     expect(typeof mod.sendApprovalNotification).toBe("function");
   });
+
+  it("skips the send and logs failed when the business has no WhatsApp credential", async () => {
+    credentialData = null;
+    const whatsapp = await import("../services/whatsapp");
+    (whatsapp.sendWhatsAppMessage as ReturnType<typeof vi.fn>).mockClear();
+
+    const { sendApprovalNotification } = await import("../services/notifications");
+    const result = await sendApprovalNotification("apt-1");
+
+    expect(result?.sent).toBe(false);
+    expect(result?.failed).toBe(true);
+    expect(whatsapp.sendWhatsAppMessage).not.toHaveBeenCalled();
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0].status).toBe("failed");
+    expect(insertedRows[0].whatsapp_message_id).toBeNull();
+  });
 });
 
 describe("sendRejectionNotification", () => {
   beforeEach(() => {
     insertedRows.length = 0;
+    credentialData = credentialRow;
   });
 
   it("sends slot_taken rejection with rebook_url in vars", async () => {
