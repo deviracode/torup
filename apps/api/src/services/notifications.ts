@@ -6,12 +6,40 @@ import {
   sendWhatsAppMessage,
   sendCustomerReminderTemplate,
   sendCustomerApprovalTemplate,
+  type WhatsAppCredential,
 } from "./whatsapp";
+import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
+import { createWhatsAppCredentialsService } from "../modules/whatsapp/whatsapp-credentials.service";
 
 /**
  * Notifications Engine
  * Handles scheduling and sending reminders, confirmations, cancellations.
  */
+
+type CredentialService = Pick<
+  ReturnType<typeof createWhatsAppCredentialsService>,
+  "resolveForBusiness"
+>;
+
+/**
+ * Resolve the WhatsApp credential for a business. Per-tenant WhatsApp is
+ * "no fallback" — a business with no connected number simply can't send
+ * until it connects one; we log and skip rather than erroring the caller.
+ */
+export async function resolveBusinessCredential(
+  businessId: string,
+  service?: CredentialService,
+): Promise<WhatsAppCredential | null> {
+  const svc =
+    service ??
+    createWhatsAppCredentialsService(createWhatsAppCredentialsRepo(createServiceClient()));
+  const cred = await svc.resolveForBusiness(businessId);
+  if (!cred) {
+    console.log(`[WhatsApp] not configured for business ${businessId} — skipping send`);
+    return null;
+  }
+  return cred;
+}
 
 // Template variable substitution
 interface TemplateVars {
@@ -238,8 +266,12 @@ export async function sendAppointmentNotification(
   let sendError: string | null = null;
 
   try {
-    if (useTemplate) {
+    const credential = await resolveBusinessCredential(apt.business_id);
+    if (!credential) {
+      sendError = `WhatsApp not configured for business ${apt.business_id}`;
+    } else if (useTemplate) {
       whatsappMessageId = await sendCustomerReminderTemplate(
+        credential,
         customer.phone,
         {
           businessName: business.name,
@@ -250,11 +282,11 @@ export async function sendAppointmentNotification(
         lang
       );
     } else if (useButtons) {
-      whatsappMessageId = await sendInteractiveReminder(customer.phone, message, lang);
+      whatsappMessageId = await sendInteractiveReminder(credential, customer.phone, message, lang);
     } else {
-      whatsappMessageId = await sendWhatsAppMessage(customer.phone, message);
+      whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
     }
-    if (!whatsappMessageId) {
+    if (!whatsappMessageId && !sendError) {
       // The error detail was already logged inside sendWhatsAppMessage
       sendError = "WhatsApp send returned null (see [WhatsApp] log above for API error)";
     }
@@ -321,11 +353,15 @@ export async function sendApprovalNotification(appointmentId: string) {
         const time = startDate.toLocaleTimeString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
           hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
         });
-        const msgId = await sendCustomerApprovalTemplate(
-          customer.phone,
-          { customerName: customer.name, serviceName, date, time },
-          lang
-        );
+        const credential = await resolveBusinessCredential(apt.business_id);
+        const msgId = credential
+          ? await sendCustomerApprovalTemplate(
+              credential,
+              customer.phone,
+              { customerName: customer.name, serviceName, date, time },
+              lang
+            )
+          : null;
         await logNotification({
           business_id: apt.business_id,
           customer_id: customer.id,
@@ -335,7 +371,11 @@ export async function sendApprovalNotification(appointmentId: string) {
           template_id: "approval",
           status: msgId ? "sent" : "failed",
           whatsapp_message_id: msgId,
-          error: msgId ? undefined : "Template send failed — check logs for Meta API error",
+          error: msgId
+            ? undefined
+            : credential
+            ? "Template send failed — check logs for Meta API error"
+            : `WhatsApp not configured for business ${apt.business_id}`,
         });
         if (!msgId) {
           console.error(`[Notification] FAILED approval template → ${customer.phone} | appointment ${appointmentId}`);
@@ -413,9 +453,14 @@ export async function sendManagerNotification(appointmentId: string) {
   const useTemplate = process.env.WHATSAPP_MANAGER_TEMPLATE_APPROVED === "true";
 
   let whatsappMessageId: string | null = null;
+  let sendError: string | null = null;
   try {
-    if (useTemplate) {
+    const credential = await resolveBusinessCredential(apt.business_id);
+    if (!credential) {
+      sendError = `WhatsApp not configured for business ${apt.business_id}`;
+    } else if (useTemplate) {
       whatsappMessageId = await sendManagerNewBookingTemplate(
+        credential,
         ownerPhone,
         { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
         apt.id
@@ -427,7 +472,7 @@ export async function sendManagerNotification(appointmentId: string) {
         `✂️ ${apt.services.name_he}\n` +
         `📅 ${dateStr} ⏰ ${timeStr}\n` +
         `📱 ${apt.customers.phone}`;
-      whatsappMessageId = await sendManagerApprovalRequest(ownerPhone, message, apt.id);
+      whatsappMessageId = await sendManagerApprovalRequest(credential, ownerPhone, message, apt.id);
     }
   } catch (err) {
     console.error("Failed to send manager notification:", err);
@@ -442,7 +487,7 @@ export async function sendManagerNotification(appointmentId: string) {
     template_id: "manager_new_booking",
     status: whatsappMessageId ? "sent" : "failed",
     whatsapp_message_id: whatsappMessageId,
-    error: whatsappMessageId ? undefined : "WhatsApp send failed",
+    error: whatsappMessageId ? undefined : (sendError ?? "WhatsApp send failed"),
   });
 }
 
