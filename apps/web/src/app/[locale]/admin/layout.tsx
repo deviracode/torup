@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { BusinessProvider } from "@/components/auth/business-provider";
 import { Building2, BarChart3, CreditCard, FileText, ArrowLeft } from "lucide-react";
 
 const adminNavItems = [
@@ -72,10 +73,12 @@ export default function AdminLayout({
   return (
     <AuthProvider>
       <AuthGuard requiredRole="super_admin">
-        <div className="flex h-screen">
-          <AdminSidebar />
-          <main className="flex-1 overflow-auto bg-background p-6">{children}</main>
-        </div>
+        <BusinessProvider>
+          <div className="flex h-screen">
+            <AdminSidebar />
+            <main className="flex-1 overflow-auto bg-background p-6">{children}</main>
+          </div>
+        </BusinessProvider>
       </AuthGuard>
     </AuthProvider>
   );

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useLocale } from "next-intl";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { BusinessProvider } from "@/components/auth/business-provider";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopBarProvider, useTopBar } from "@/components/dashboard/top-bar-context";
 import { AnimatePresence, motion } from "framer-motion";
@@ -84,9 +85,11 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <AuthGuard>
-        <TopBarProvider>
-          <DashboardShell>{children}</DashboardShell>
-        </TopBarProvider>
+        <BusinessProvider>
+          <TopBarProvider>
+            <DashboardShell>{children}</DashboardShell>
+          </TopBarProvider>
+        </BusinessProvider>
       </AuthGuard>
     </AuthProvider>
   );
