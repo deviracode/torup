@@ -146,11 +146,11 @@ async function handleManagerResponse(
   }
 
   if (action === "approve") {
-    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId);
+    await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId).eq("business_id", businessId);
     await sendWhatsAppMessage(credential, managerPhone, "✅ התור אושר! הלקוח יקבל הודעה.");
     await sendApprovalNotification(appointmentId);
   } else {
-    await supabase.from("appointments").update({ status: "cancelled" }).eq("id", appointmentId);
+    await supabase.from("appointments").update({ status: "cancelled" }).eq("id", appointmentId).eq("business_id", businessId);
     await sendWhatsAppMessage(credential, managerPhone, "❌ התור נדחה. הלקוח יקבל הודעה.");
     await sendRejectionNotification(appointmentId, "manual");
   }
