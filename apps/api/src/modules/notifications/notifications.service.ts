@@ -7,7 +7,7 @@ export function createNotificationService(repo: Repo) {
   return {
     async list(
       businessId: string,
-      opts?: { limit?: number; offset?: number; type?: string; appointmentId?: string },
+      opts?: { limit?: number; offset?: number; type?: string; appointmentId?: string }
     ) {
       const { data, error } = await repo.findLog(businessId, opts);
       if (error) throw new AppError(500, error.message);

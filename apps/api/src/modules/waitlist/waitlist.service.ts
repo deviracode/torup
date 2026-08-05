@@ -11,8 +11,11 @@ export function createWaitlistService(repo: Repo) {
       return data;
     },
     async join(data: {
-      business_id: string; service_id: string; customer_id: string;
-      requested_date: string; requested_time: string;
+      business_id: string;
+      service_id: string;
+      customer_id: string;
+      requested_date: string;
+      requested_time: string;
     }) {
       const { data: entry, error } = await repo.create({ ...data, status: "waiting" });
       if (error) throw new AppError(400, error.message);

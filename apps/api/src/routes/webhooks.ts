@@ -5,6 +5,16 @@ import { validateTransition, type AppointmentStatus } from "@torup/shared";
 import { sendWhatsAppMessage, type WhatsAppCredential } from "../services/whatsapp";
 import { sendApprovalNotification, sendRejectionNotification } from "../services/notifications";
 import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
+import type { Database } from "@torup/db";
+
+interface WebhookAppointment {
+  id: string;
+  status: string;
+  business_id: string;
+  start_time: string;
+  customers: { name: string } | null;
+  businesses: { phone: string } | null;
+}
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -136,10 +146,7 @@ async function handleManagerResponse(
 
   if (!appointment) return;
 
-  const apt = appointment as unknown as {
-    id: string; status: string; business_id: string;
-    businesses: { phone: string };
-  };
+  const apt = appointment as unknown as WebhookAppointment;
 
   const normalizedManagerPhone = managerPhone.replace(/[^0-9]/g, "");
   const normalizedOwnerPhone = (apt.businesses?.phone || "").replace(/[^0-9]/g, "");
@@ -206,13 +213,7 @@ async function handleButtonResponse(
 
   if (!appointment) return;
 
-  const apt = appointment as unknown as {
-    id: string;
-    status: string;
-    start_time: string;
-    customers: { name: string };
-    businesses: { phone: string };
-  };
+  const apt = appointment as unknown as WebhookAppointment;
 
   const lang = customer.language_preference || "he";
   const newStatus = action === "confirm" ? "confirmed" : "cancelled";

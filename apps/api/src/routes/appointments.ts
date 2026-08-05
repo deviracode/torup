@@ -17,7 +17,7 @@ import {
 } from "../services/notifications";
 import { cacheGet, cacheSet, cacheClear } from "../lib/redis";
 
-const deps: AppointmentDeps = {
+  const deps: AppointmentDeps = {
   cache: { get: cacheGet, set: cacheSet, clear: cacheClear },
   notify: {
     sendAppointment: sendAppointmentNotification,

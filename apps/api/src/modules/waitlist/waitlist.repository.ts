@@ -12,7 +12,11 @@ export function createWaitlistRepo(client: SupabaseClient<Database>) {
         .order("created_at");
     },
     async create(data: Record<string, unknown>) {
-      return client.from("waitlist").insert(data as never).select().single();
+      return client
+        .from("waitlist")
+        .insert(data as never)
+        .select()
+        .single();
     },
   };
 }

@@ -6,7 +6,7 @@ const APPOINTMENT_JOIN_SELECT =
 
 export function createAppointmentRepo(
   primary: SupabaseClient<Database>,
-  serviceRole?: SupabaseClient<Database>,
+  serviceRole?: SupabaseClient<Database>
 ) {
   const svc = serviceRole ?? primary;
 
@@ -18,7 +18,7 @@ export function createAppointmentRepo(
         timeZone: "Asia/Jerusalem",
         hour: "numeric",
         hour12: false,
-      }).format(ref),
+      }).format(ref)
     );
     let diff = ilH - utcH;
     if (diff < 0) diff += 24;
@@ -29,7 +29,7 @@ export function createAppointmentRepo(
   return {
     async findByDate(
       businessId: string,
-      filters?: { date?: string; status?: string; staffId?: string },
+      filters?: { date?: string; status?: string; staffId?: string }
     ) {
       const base = primary
         .from("appointments")
@@ -50,11 +50,7 @@ export function createAppointmentRepo(
       return query;
     },
 
-    async findById(
-      appointmentId: string,
-      businessId?: string,
-      columns = "*",
-    ) {
+    async findById(appointmentId: string, businessId?: string, columns = "*") {
       const base = primary.from("appointments").select(columns).eq("id", appointmentId);
       const query = businessId ? base.eq("business_id", businessId) : base;
       return query.single();
@@ -72,7 +68,7 @@ export function createAppointmentRepo(
       appointmentId: string,
       businessId: string,
       patch: Record<string, unknown>,
-      select = "*",
+      select = "*"
     ) {
       return primary
         .from("appointments")
@@ -88,7 +84,7 @@ export function createAppointmentRepo(
       serviceId: string,
       startTime: string,
       endWithBuffer: string,
-      excludeId?: string,
+      excludeId?: string
     ) {
       let query = primary
         .from("appointments")
@@ -104,10 +100,7 @@ export function createAppointmentRepo(
       return query;
     },
 
-    async findServiceById(
-      businessId: string,
-      serviceId: string,
-    ) {
+    async findServiceById(businessId: string, serviceId: string) {
       return primary
         .from("services")
         .select("duration_minutes, buffer_minutes, max_capacity")
@@ -124,27 +117,27 @@ export function createAppointmentRepo(
         .single();
     },
 
-    async updateWhere(
-      column: string,
-      value: unknown,
-      patch: Record<string, unknown>,
-    ) {
-      return svc.from("appointments").update(patch as never).eq(column, value as never);
+    // ── Internal operations (use serviceRole client when available) ──
+
+    async updateWhere(column: string, value: unknown, patch: Record<string, unknown>) {
+      return svc
+        .from("appointments")
+        .update(patch as never)
+        .eq(column, value as never);
     },
 
-    async updateIn(
-      column: string,
-      values: string[],
-      patch: Record<string, unknown>,
-    ) {
-      return svc.from("appointments").update(patch as never).in(column, values);
+    async updateIn(column: string, values: string[], patch: Record<string, unknown>) {
+      return svc
+        .from("appointments")
+        .update(patch as never)
+        .in(column, values);
     },
 
     async findOverlappingPendingApproval(
       businessId: string,
       targetStartTime: string,
       targetEndTime: string,
-      excludeId: string,
+      excludeId: string
     ) {
       return svc
         .from("appointments")

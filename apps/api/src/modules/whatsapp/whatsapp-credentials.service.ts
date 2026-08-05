@@ -1,8 +1,5 @@
 import { AppError } from "../../middleware/error-handler";
-import {
-  sendWhatsAppMessage,
-  type WhatsAppCredential,
-} from "../../services/whatsapp";
+import { sendWhatsAppMessage, type WhatsAppCredential } from "../../services/whatsapp";
 import type { createWhatsAppCredentialsRepo } from "./whatsapp-credentials.repository";
 
 type Repo = ReturnType<typeof createWhatsAppCredentialsRepo>;
@@ -12,7 +9,7 @@ const TEST_MESSAGE = "בדיקת חיבור WhatsApp — ההגדרה תקינה
 
 export function createWhatsAppCredentialsService(
   repo: Repo,
-  deps: Deps = { sendMessage: sendWhatsAppMessage },
+  deps: Deps = { sendMessage: sendWhatsAppMessage }
 ) {
   async function resolveForBusiness(businessId: string): Promise<WhatsAppCredential | null> {
     const { data } = await repo.getByBusinessId(businessId);
@@ -33,7 +30,7 @@ export function createWhatsAppCredentialsService(
 
   async function save(
     businessId: string,
-    input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null },
+    input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null }
   ) {
     const { data, error } = await repo.upsert(businessId, input);
     if (error) throw new AppError(500, "Failed to save WhatsApp credentials");

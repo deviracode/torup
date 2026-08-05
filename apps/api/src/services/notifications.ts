@@ -11,6 +11,30 @@ import {
 import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
 import { createWhatsAppCredentialsService } from "../modules/whatsapp/whatsapp-credentials.service";
 
+interface AppointmentWithDetails {
+  id: string;
+  business_id: string;
+  customer_id: string;
+  start_time: string;
+  status: string;
+  created_via: string;
+  customers: { id: string; name: string; phone: string; language_preference: string };
+  services: { name_he: string; name_ar: string | null; name_en: string | null };
+  businesses: { name: string };
+}
+
+interface AppointmentForManager {
+  id: string; business_id: string; start_time: string; status: string;
+  customers: { id: string; name: string; phone: string };
+  services: { name_he: string };
+  businesses: { name: string; phone: string };
+}
+
+interface AppointmentForReminder {
+  id: string;
+  services: { reminder_confirmation: boolean } | null;
+}
+
 /**
  * Notifications Engine
  * Handles scheduling and sending reminders, confirmations, cancellations.
@@ -210,17 +234,7 @@ export async function sendAppointmentNotification(
 
   if (!appointment) return;
 
-  const apt = appointment as unknown as {
-    id: string;
-    business_id: string;
-    customer_id: string;
-    start_time: string;
-    status: string;
-    created_via: string;
-    customers: { id: string; name: string; phone: string; language_preference: string };
-    services: { name_he: string; name_ar: string | null; name_en: string | null };
-    businesses: { name: string };
-  };
+  const apt = appointment as unknown as AppointmentWithDetails;
 
   const customer = apt.customers;
   const service = apt.services;
@@ -334,12 +348,7 @@ export async function sendApprovalNotification(appointmentId: string) {
       .single();
 
     if (appointment) {
-      const apt = appointment as unknown as {
-        id: string; business_id: string; customer_id: string; start_time: string;
-        customers: { id: string; name: string; phone: string; language_preference: string };
-        services: { name_he: string; name_ar: string | null; name_en: string | null };
-        businesses: { name: string };
-      };
+      const apt = appointment as unknown as AppointmentWithDetails;
       const customer = apt.customers;
       const service = apt.services;
       if (customer?.phone && service) {
@@ -427,12 +436,7 @@ export async function sendManagerNotification(appointmentId: string) {
 
   if (!appointment) return;
 
-  const apt = appointment as unknown as {
-    id: string; business_id: string; start_time: string; status: string;
-    customers: { id: string; name: string; phone: string };
-    services: { name_he: string };
-    businesses: { name: string; phone: string };
-  };
+  const apt = appointment as unknown as AppointmentForManager;
 
   const ownerPhone = apt.businesses.phone;
   if (!ownerPhone) return;
@@ -525,7 +529,7 @@ export async function processReminders(): Promise<{ processed: number; sent: num
       .gte("start_time", windowStart.toISOString())
       .lt("start_time", windowEnd.toISOString());
 
-    for (const apt of (appointments || []) as unknown as Array<{ id: string; services: { reminder_confirmation: boolean } | null }>) {
+    for (const apt of (appointments || []) as unknown as AppointmentForReminder[]) {
       // Atomically claim this (appointment, template) pair. If another instance
       // already claimed it the INSERT will conflict and we skip — this eliminates
       // the read-before-write race that caused duplicate messages.

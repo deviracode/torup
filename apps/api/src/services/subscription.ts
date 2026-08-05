@@ -146,7 +146,14 @@ export async function checkPlanLimits(
 
   if (!sub) return { withinLimits: false, reason: "No active subscription" };
 
-  const plan = (sub as unknown as { plans: { max_staff: number; max_appointments_monthly: number } }).plans;
+interface SubscriptionWithPlan {
+  status: string;
+  plans: { max_staff: number; max_appointments_monthly: number };
+}
+
+// ... (previous code context retained by the surrounding lines)
+
+  const plan = (sub as unknown as SubscriptionWithPlan).plans;
 
   // Check staff count
   const { count: staffCount } = await supabase

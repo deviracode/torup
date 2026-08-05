@@ -34,7 +34,7 @@ export function createWhatsAppCredentialsRepo(client: SupabaseClient<Database>) 
 
     async upsert(
       businessId: string,
-      input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null },
+      input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null }
     ) {
       return client
         .from("whatsapp_credentials")
@@ -46,7 +46,7 @@ export function createWhatsAppCredentialsRepo(client: SupabaseClient<Database>) 
             display_phone: input.displayPhone ?? null,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "business_id" },
+          { onConflict: "business_id" }
         )
         .select(COLUMNS)
         .single();
