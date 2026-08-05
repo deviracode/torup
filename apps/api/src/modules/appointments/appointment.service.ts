@@ -1,25 +1,37 @@
-import { validateTransition, canCancel } from "@torup/shared";
+import { validateTransition, canCancel, type AppointmentStatus } from "@torup/shared";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { AppError } from "../../middleware/error-handler";
 import { type createAppointmentRepo } from "./appointment.repository";
 
 type AppointmentRepo = ReturnType<typeof createAppointmentRepo>;
 
-interface AppointmentDeps {
+export interface AppointmentDeps {
   cache: {
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string, ttl: number) => Promise<void>;
     clear: (pattern: string) => Promise<void>;
   };
   notify: {
-    sendAppointment: (...args: any[]) => Promise<any>;
-    sendManager: (...args: any[]) => Promise<any>;
-    sendApproval: (...args: any[]) => Promise<any>;
-    sendRejection: (...args: any[]) => Promise<any>;
+    sendAppointment: (appointmentId: string, templateId: string, extraVars?: Record<string, unknown>, options?: Record<string, unknown>) => Promise<unknown>;
+    sendManager: (appointmentId: string) => Promise<unknown>;
+    sendApproval: (appointmentId: string) => Promise<unknown>;
+    sendRejection: (appointmentId: string, reason: string) => Promise<unknown>;
   };
   gcal: {
-    pushAppointment: (...args: any[]) => Promise<any>;
+    pushAppointment: (appointmentId: string) => Promise<void>;
   };
 }
+
+interface ServiceConfig {
+  duration_minutes: number;
+  buffer_minutes: number;
+  max_capacity: number;
+}
+
+type FindByIdResult<T extends string = "*"> = {
+  data: Record<string, unknown> | null;
+  error: PostgrestError | null;
+};
 
 export function createAppointmentService(
   repo: AppointmentRepo,
@@ -29,7 +41,7 @@ export function createAppointmentService(
     businessId: string,
     serviceId: string,
     startDate: Date,
-    service: { duration_minutes: number; buffer_minutes: number; max_capacity: number },
+    service: ServiceConfig,
     excludeAppointmentId?: string,
   ): Promise<void> {
     const endWithBuffer = new Date(
@@ -38,13 +50,13 @@ export function createAppointmentService(
         service.buffer_minutes * 60 * 1000,
     );
 
-    const { data: overlapping } = await repo.findOverlapping(
+    const { data: overlapping } = (await repo.findOverlapping(
       businessId,
       serviceId,
       startDate.toISOString(),
       endWithBuffer.toISOString(),
       excludeAppointmentId,
-    );
+    )) as { data: { id: string }[] | null; error: PostgrestError | null };
 
     if (overlapping && overlapping.length >= service.max_capacity) {
       throw new AppError(409, "Time slot is fully booked");
@@ -81,18 +93,13 @@ export function createAppointmentService(
     ) {
       const { service_id, customer_id, staff_id, start_time, notes, created_via, status } = input;
 
-      const { data: serviceRow, error: serviceErr } = await repo.findServiceById(
+      const { data: serviceRow, error: serviceErr } = (await repo.findServiceById(
         businessId,
         service_id,
-      );
+      )) as { data: ServiceConfig | null; error: PostgrestError | null };
       if (serviceErr || !serviceRow) throw new AppError(404, "Service not found");
 
-      const service = serviceRow as {
-        duration_minutes: number;
-        buffer_minutes: number;
-        max_capacity: number;
-      };
-
+      const service = serviceRow;
       const startDate = new Date(start_time);
       const endDate = new Date(
         startDate.getTime() + service.duration_minutes * 60 * 1000,
@@ -124,7 +131,9 @@ export function createAppointmentService(
             console.error("[Notification] manager failed:", err),
           );
         }
-        deps.gcal.pushAppointment(data.id).catch(() => {});
+        deps.gcal.pushAppointment(data.id).catch((err) =>
+          console.error("[gcal] pushAppointment failed:", err),
+        );
       }
 
       return data;
@@ -136,18 +145,18 @@ export function createAppointmentService(
       newStatus: string,
       userRole: string,
     ) {
-      const { data: appointment, error: fetchErr } = await repo.findById(
+      const { data: appointment, error: fetchErr } = (await repo.findById(
         appointmentId,
         businessId,
-      );
+      )) as { data: { id: string; status: string; start_time: string; business_id: string } | null; error: PostgrestError | null };
 
       if (fetchErr || !appointment) throw new AppError(404, "Appointment not found");
 
-      const validation = validateTransition(appointment.status, newStatus as any);
+      const validation = validateTransition(appointment.status as AppointmentStatus, newStatus as AppointmentStatus);
       if (!validation.valid) throw new AppError(400, validation.error!);
 
       if (newStatus === "cancelled") {
-        const { data: rules } = await repo.findBookingRules(businessId);
+        const { data: rules } = (await repo.findBookingRules(businessId)) as { data: { cancellation_window_minutes: number } | null; error: PostgrestError | null };
 
         if (rules && userRole === "staff") {
           const cancelCheck = canCancel(
@@ -158,11 +167,11 @@ export function createAppointmentService(
         }
       }
 
-      const { data, error } = await repo.update(
+      const { data, error } = (await repo.update(
         appointmentId,
         businessId,
         { status: newStatus },
-      );
+      )) as { data: { id: string } | null; error: PostgrestError | null };
 
       if (error) throw new AppError(400, error.message);
 
@@ -174,7 +183,9 @@ export function createAppointmentService(
             console.error("[Notification] status change failed:", err),
           );
         }
-        deps.gcal.pushAppointment(data.id).catch(() => {});
+        deps.gcal.pushAppointment(data.id).catch((err) =>
+          console.error("[gcal] pushAppointment failed:", err),
+        );
       }
 
       return data;
@@ -185,11 +196,11 @@ export function createAppointmentService(
       appointmentId: string,
       startTime: string,
     ) {
-      const { data: apt } = await repo.findById(
+      const { data: apt } = (await repo.findById(
         appointmentId,
         businessId,
         "id, status, service_id",
-      );
+      )) as { data: { id: string; status: string; service_id: string } | null; error: PostgrestError | null };
 
       if (!apt) throw new AppError(404, "Appointment not found");
       if (["completed", "cancelled", "no_show"].includes(apt.status)) {
@@ -199,18 +210,13 @@ export function createAppointmentService(
         );
       }
 
-      const { data: serviceRow, error: serviceErr } = await repo.findServiceById(
+      const { data: serviceRow, error: serviceErr } = (await repo.findServiceById(
         businessId,
         apt.service_id,
-      );
+      )) as { data: ServiceConfig | null; error: PostgrestError | null };
       if (serviceErr || !serviceRow) throw new AppError(404, "Service not found");
 
-      const service = serviceRow as {
-        duration_minutes: number;
-        buffer_minutes: number;
-        max_capacity: number;
-      };
-
+      const service = serviceRow;
       const startDate = new Date(startTime);
       const endDate = new Date(
         startDate.getTime() + service.duration_minutes * 60 * 1000,
@@ -224,7 +230,7 @@ export function createAppointmentService(
         appointmentId,
       );
 
-      const { data, error } = await repo.update(
+      const { data, error } = (await repo.update(
         appointmentId,
         businessId,
         {
@@ -232,7 +238,7 @@ export function createAppointmentService(
           end_time: endDate.toISOString(),
         },
         "*, services(name_he, color), customers(name, phone)",
-      );
+      )) as { data: Record<string, unknown> | null; error: PostgrestError | null };
 
       if (error) throw new AppError(400, error.message);
 
@@ -244,11 +250,11 @@ export function createAppointmentService(
     },
 
     async approve(appointmentId: string) {
-      const { data: target, error: fetchErr } = await repo.findById(
+      const { data: target, error: fetchErr } = (await repo.findById(
         appointmentId,
         undefined,
         "id, business_id, status, start_time, end_time",
-      );
+      )) as { data: { id: string; business_id: string; status: string; start_time: string; end_time: string } | null; error: PostgrestError | null };
 
       if (fetchErr || !target) throw new AppError(404, "Appointment not found");
       if (target.status !== "pending_approval") {
@@ -267,14 +273,14 @@ export function createAppointmentService(
       );
       if (updErr) throw new AppError(400, updErr.message);
 
-      const { data: overlapping } = await repo.findOverlappingPendingApproval(
+      const { data: overlapping } = (await repo.findOverlappingPendingApproval(
         businessId,
         target.start_time,
         target.end_time,
         appointmentId,
-      );
+      )) as { data: { id: string }[] | null; error: PostgrestError | null };
 
-      const rejectedIds = (overlapping || []).map((r: any) => r.id);
+      const rejectedIds = (overlapping || []).map((r) => r.id);
       if (rejectedIds.length > 0) {
         const { error: rejErr } = await repo.updateIn(
           "id",
@@ -297,18 +303,23 @@ export function createAppointmentService(
         ),
       );
 
-      deps.gcal.pushAppointment(appointmentId).catch(() => {});
-      for (const id of rejectedIds) deps.gcal.pushAppointment(id).catch(() => {});
+      deps.gcal.pushAppointment(appointmentId).catch((err) =>
+        console.error("[gcal] pushAppointment failed:", err),
+      );
+      for (const id of rejectedIds)
+        deps.gcal.pushAppointment(id).catch((err) =>
+          console.error("[gcal] pushAppointment failed:", err),
+        );
 
       return { approved: appointmentId, rejected: rejectedIds };
     },
 
     async reject(appointmentId: string) {
-      const { data: target, error: fetchErr } = await repo.findById(
+      const { data: target, error: fetchErr } = (await repo.findById(
         appointmentId,
         undefined,
         "id, business_id, status",
-      );
+      )) as { data: { id: string; business_id: string; status: string } | null; error: PostgrestError | null };
 
       if (fetchErr || !target) throw new AppError(404, "Appointment not found");
       if (target.status !== "pending_approval") {
@@ -333,7 +344,9 @@ export function createAppointmentService(
         console.error("[Notification] manual rejection failed:", err),
       );
 
-      deps.gcal.pushAppointment(appointmentId).catch(() => {});
+      deps.gcal.pushAppointment(appointmentId).catch((err) =>
+        console.error("[gcal] pushAppointment failed:", err),
+      );
 
       return { rejected: appointmentId };
     },

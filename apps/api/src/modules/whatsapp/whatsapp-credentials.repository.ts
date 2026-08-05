@@ -1,4 +1,4 @@
-import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@torup/db";
 
 export type CredentialRow = {
@@ -11,33 +11,31 @@ export type CredentialRow = {
   is_active: boolean;
 };
 
-type SingleResult = { data: CredentialRow | null; error: PostgrestError | null };
-
 const COLUMNS =
   "id, business_id, phone_number_id, access_token, display_phone, verified_at, is_active" as const;
 
 export function createWhatsAppCredentialsRepo(client: SupabaseClient<Database>) {
   return {
-    async getByBusinessId(businessId: string): Promise<SingleResult> {
+    async getByBusinessId(businessId: string) {
       return client
         .from("whatsapp_credentials")
         .select(COLUMNS)
         .eq("business_id", businessId)
-        .single() as any;
+        .single();
     },
 
-    async getByPhoneNumberId(phoneNumberId: string): Promise<SingleResult> {
+    async getByPhoneNumberId(phoneNumberId: string) {
       return client
         .from("whatsapp_credentials")
         .select(COLUMNS)
         .eq("phone_number_id", phoneNumberId)
-        .single() as any;
+        .single();
     },
 
     async upsert(
       businessId: string,
       input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null },
-    ): Promise<SingleResult> {
+    ) {
       return client
         .from("whatsapp_credentials")
         .upsert(
@@ -51,14 +49,14 @@ export function createWhatsAppCredentialsRepo(client: SupabaseClient<Database>) 
           { onConflict: "business_id" },
         )
         .select(COLUMNS)
-        .single() as any;
+        .single();
     },
 
-    async markVerified(businessId: string): Promise<{ error: PostgrestError | null }> {
+    async markVerified(businessId: string) {
       return client
         .from("whatsapp_credentials")
         .update({ verified_at: new Date().toISOString() })
-        .eq("business_id", businessId) as any;
+        .eq("business_id", businessId);
     },
   };
 }
