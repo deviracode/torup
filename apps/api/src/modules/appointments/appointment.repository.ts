@@ -1,9 +1,5 @@
-import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@torup/db";
-
-type DbRow = Record<string, any>;
-type SingleResult<T = DbRow> = { data: T | null; error: PostgrestError | null };
-type MultiResult<T = DbRow> = { data: T[] | null; error: PostgrestError | null };
 
 const APPOINTMENT_JOIN_SELECT =
   "*, services(name_he, name_ar, name_en, color), customers(name, phone)" as const;
@@ -34,7 +30,7 @@ export function createAppointmentRepo(
     async findByDate(
       businessId: string,
       filters?: { date?: string; status?: string; staffId?: string },
-    ): Promise<MultiResult> {
+    ) {
       const base = primary
         .from("appointments")
         .select(APPOINTMENT_JOIN_SELECT)
@@ -58,18 +54,18 @@ export function createAppointmentRepo(
       appointmentId: string,
       businessId?: string,
       columns = "*",
-    ): Promise<SingleResult> {
+    ) {
       const base = primary.from("appointments").select(columns).eq("id", appointmentId);
       const query = businessId ? base.eq("business_id", businessId) : base;
-      return query.single() as any;
+      return query.single();
     },
 
-    async create(data: Record<string, unknown>): Promise<SingleResult> {
+    async create(data: Record<string, unknown>) {
       return primary
         .from("appointments")
-        .insert(data)
+        .insert(data as never)
         .select(APPOINTMENT_JOIN_SELECT)
-        .single() as any;
+        .single();
     },
 
     async update(
@@ -77,14 +73,14 @@ export function createAppointmentRepo(
       businessId: string,
       patch: Record<string, unknown>,
       select = "*",
-    ): Promise<SingleResult> {
+    ) {
       return primary
         .from("appointments")
-        .update(patch)
+        .update(patch as never)
         .eq("id", appointmentId)
         .eq("business_id", businessId)
         .select(select)
-        .single() as any;
+        .single();
     },
 
     async findOverlapping(
@@ -93,7 +89,7 @@ export function createAppointmentRepo(
       startTime: string,
       endWithBuffer: string,
       excludeId?: string,
-    ): Promise<MultiResult> {
+    ) {
       let query = primary
         .from("appointments")
         .select("id")
@@ -111,39 +107,37 @@ export function createAppointmentRepo(
     async findServiceById(
       businessId: string,
       serviceId: string,
-    ): Promise<SingleResult> {
+    ) {
       return primary
         .from("services")
         .select("duration_minutes, buffer_minutes, max_capacity")
         .eq("id", serviceId)
         .eq("business_id", businessId)
-        .single() as any;
+        .single();
     },
 
-    async findBookingRules(businessId: string): Promise<SingleResult> {
+    async findBookingRules(businessId: string) {
       return primary
         .from("booking_rules")
         .select("cancellation_window_minutes")
         .eq("business_id", businessId)
-        .single() as any;
+        .single();
     },
-
-    // ── Internal operations (use serviceRole client when available) ──
 
     async updateWhere(
       column: string,
       value: unknown,
       patch: Record<string, unknown>,
-    ): Promise<{ error: PostgrestError | null }> {
-      return svc.from("appointments").update(patch).eq(column, value) as any;
+    ) {
+      return svc.from("appointments").update(patch as never).eq(column, value as never);
     },
 
     async updateIn(
       column: string,
       values: string[],
       patch: Record<string, unknown>,
-    ): Promise<{ error: PostgrestError | null }> {
-      return svc.from("appointments").update(patch).in(column, values) as any;
+    ) {
+      return svc.from("appointments").update(patch as never).in(column, values);
     },
 
     async findOverlappingPendingApproval(
@@ -151,7 +145,7 @@ export function createAppointmentRepo(
       targetStartTime: string,
       targetEndTime: string,
       excludeId: string,
-    ): Promise<MultiResult> {
+    ) {
       return svc
         .from("appointments")
         .select("id")
@@ -159,7 +153,7 @@ export function createAppointmentRepo(
         .eq("status", "pending_approval")
         .neq("id", excludeId)
         .lt("start_time", targetEndTime)
-        .gt("end_time", targetStartTime) as any;
+        .gt("end_time", targetStartTime);
     },
   };
 }

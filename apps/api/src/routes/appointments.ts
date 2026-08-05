@@ -7,7 +7,7 @@ import {
   type AuthenticatedRequest,
 } from "../middleware/auth";
 import { createAppointmentRepo } from "../modules/appointments/appointment.repository";
-import { createAppointmentService } from "../modules/appointments/appointment.service";
+import { createAppointmentService, type AppointmentDeps } from "../modules/appointments/appointment.service";
 import { pushAppointmentToGoogle } from "../services/google-calendar";
 import {
   sendAppointmentNotification,
@@ -17,13 +17,13 @@ import {
 } from "../services/notifications";
 import { cacheGet, cacheSet, cacheClear } from "../lib/redis";
 
-const deps = {
+const deps: AppointmentDeps = {
   cache: { get: cacheGet, set: cacheSet, clear: cacheClear },
   notify: {
     sendAppointment: sendAppointmentNotification,
     sendManager: sendManagerNotification,
     sendApproval: sendApprovalNotification,
-    sendRejection: sendRejectionNotification,
+    sendRejection: sendRejectionNotification as AppointmentDeps["notify"]["sendRejection"],
   },
   gcal: { pushAppointment: pushAppointmentToGoogle },
 };

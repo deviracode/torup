@@ -82,7 +82,6 @@ app.post("/webhook", async (req, res) => {
   }
 
   // Parse incoming messages
-  console.log("Webhook body:", JSON.stringify(req.body).slice(0, 500));
   const messages = parseWebhookPayload(req.body);
   console.log("Parsed messages:", messages.length);
   if (messages.length === 0) return;

@@ -8,11 +8,17 @@ import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-cred
 
 const router: ReturnType<typeof Router> = Router();
 
-const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "queuepro_verify";
-const APP_SECRET = process.env.WHATSAPP_APP_SECRET || "";
+const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+if (!WEBHOOK_VERIFY_TOKEN) {
+  console.error("WHATSAPP_WEBHOOK_VERIFY_TOKEN is required for webhook verification");
+}
+const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 
 function verifySignature(req: Request): boolean {
-  if (!APP_SECRET) return true;
+  if (!APP_SECRET) {
+    console.error("[Webhook] WHATSAPP_APP_SECRET is not set — rejecting all webhook POSTs");
+    return false;
+  }
   const signature = req.headers["x-hub-signature-256"] as string;
   if (!signature) return false;
   const expected = "sha256=" + crypto.createHmac("sha256", APP_SECRET).update(JSON.stringify(req.body)).digest("hex");

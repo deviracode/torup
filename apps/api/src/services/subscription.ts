@@ -116,7 +116,7 @@ export async function extendTrial(
     .eq("status", "trial")
     .single();
 
-  if (!sub) return;
+  if (!sub || !sub.trial_ends_at) return;
 
   const currentEnd = new Date(sub.trial_ends_at);
   const newEnd = new Date(currentEnd.getTime() + additionalDays * 24 * 60 * 60 * 1000);

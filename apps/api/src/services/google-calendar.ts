@@ -52,7 +52,7 @@ async function getAuthClient(businessId: string) {
     await supabase
       .from("google_calendar_tokens")
       .update({
-        access_token: credentials.access_token,
+        access_token: credentials.access_token ?? undefined,
         token_expires_at: new Date(credentials.expiry_date!).toISOString(),
       })
       .eq("business_id", businessId);

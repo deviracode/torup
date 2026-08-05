@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { processReminders, sendManagerNotification } from "../services/notifications";
 import { syncGoogleCalendar } from "../services/google-calendar";
 import { createAppointmentRepo } from "../modules/appointments/appointment.repository";
-import { createAppointmentService } from "../modules/appointments/appointment.service";
+import { createAppointmentService, type AppointmentDeps } from "../modules/appointments/appointment.service";
 import { cacheGet, cacheSet, cacheClear } from "../lib/redis";
 import { pushAppointmentToGoogle } from "../services/google-calendar";
 import {
@@ -11,13 +11,13 @@ import {
   sendRejectionNotification,
 } from "../services/notifications";
 
-const deps = {
+const deps: AppointmentDeps = {
   cache: { get: cacheGet, set: cacheSet, clear: cacheClear },
   notify: {
     sendAppointment: sendAppointmentNotification,
     sendManager: sendManagerNotification,
     sendApproval: sendApprovalNotification,
-    sendRejection: sendRejectionNotification,
+    sendRejection: sendRejectionNotification as AppointmentDeps["notify"]["sendRejection"],
   },
   gcal: { pushAppointment: pushAppointmentToGoogle },
 };

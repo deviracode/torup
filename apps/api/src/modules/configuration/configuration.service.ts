@@ -26,7 +26,7 @@ export function createConfigService(repo: Repo) {
     async addReminderSetting(businessId: string, minutesBefore: number) {
       if (!minutesBefore || typeof minutesBefore !== "number" || minutesBefore <= 0) throw new AppError(400, "minutes_before must be a positive integer");
       const { data, error } = await repo.createReminderSetting({ business_id: businessId, minutes_before: minutesBefore });
-      if (error) { if ((error as any).code === "23505") throw new AppError(409, "Reminder interval already exists"); throw new AppError(400, error.message); }
+      if (error) { if (error.code === "23505") throw new AppError(409, "Reminder interval already exists"); throw new AppError(400, error.message); }
       return data;
     },
     async editReminderSetting(reminderId: string, businessId: string, isActive: boolean) { const { data, error } = await repo.updateReminderSetting(reminderId, businessId, { is_active: isActive }); if (error) throw new AppError(400, error.message); return data; },

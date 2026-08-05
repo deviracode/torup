@@ -34,18 +34,18 @@ export function createAvailabilityService(repo: Repo) {
 
       const whMap = new Map<number, { start: string; end: string }[]>();
       for (const wh of whR.data || []) { if (!whMap.has(wh.day_of_week)) whMap.set(wh.day_of_week, []); if (!wh.is_closed) whMap.get(wh.day_of_week)!.push({ start: toUTCTime(wh.start_time, il.hours), end: toUTCTime(wh.end_time, il.hours) }); }
-      const workingHours: WorkingDay[] = Array.from({ length: 7 }, (_, day) => { const ranges = whMap.get(day) || []; return { dayOfWeek: day, ranges, isClosed: ranges.length === 0 || (whR.data || []).some((wh: Record<string, unknown>) => wh.day_of_week === day && wh.is_closed) }; });
-      const breaks: BreakPeriod[] = (brR.data || []).map((b: Record<string, unknown>) => ({ type: b.type as any, dayOfWeek: b.day_of_week as number, specificDate: b.specific_date as string, start: toUTCTime(b.start_time as string, il.hours), end: toUTCTime(b.end_time as string, il.hours) }));
-      const existing: ExistingAppointment[] = (aptR.data || []).map((a: Record<string, unknown>) => ({ startTime: new Date(a.start_time as string), endTime: new Date(a.end_time as string), staffId: a.staff_id as string | null }));
-      const assigned = (ssR.data || []).map((r: Record<string, unknown>) => r.staff_id as string);
-      const offToday = new Set((sbR.data || []).map((r: Record<string, unknown>) => r.staff_id as string));
+      const workingHours: WorkingDay[] = Array.from({ length: 7 }, (_, day) => { const ranges = whMap.get(day) || []; return { dayOfWeek: day, ranges, isClosed: ranges.length === 0 || (whR.data || []).some((wh) => wh.day_of_week === day && wh.is_closed) }; });
+      const breaks: BreakPeriod[] = (brR.data || []).map((b) => ({ type: b.type as BreakPeriod["type"], dayOfWeek: b.day_of_week ?? undefined, specificDate: b.specific_date ?? undefined, start: toUTCTime(b.start_time, il.hours), end: toUTCTime(b.end_time, il.hours) }));
+      const existing: ExistingAppointment[] = (aptR.data || []).map((a) => ({ startTime: new Date(a.start_time), endTime: new Date(a.end_time), staffId: a.staff_id }));
+      const assigned = (ssR.data || []).map((r) => r.staff_id);
+      const offToday = new Set((sbR.data || []).map((r) => r.staff_id));
       const availStaff = assigned.length > 0 ? assigned.filter((id) => !offToday.has(id)).length : null;
 
       const svcCfg: ServiceConfig = { durationMinutes: service.duration_minutes, bufferMinutes: service.buffer_minutes, maxCapacity: availStaff ?? service.max_capacity };
       const rules: BookingRulesConfig | undefined = rulesR.data ? { minAdvanceMinutes: rulesR.data.min_advance_minutes, maxFutureDays: rulesR.data.max_future_days, cancellationWindowMinutes: rulesR.data.cancellation_window_minutes, rescheduleWindowMinutes: rulesR.data.reschedule_window_minutes } : undefined;
 
       const slots = getAvailableSlots(dateStr, svcCfg, workingHours, breaks, existing, rules, service.duration_minutes + service.buffer_minutes);
-      return { date: dateStr, service_id: service.id, service_name: service.name_he, duration_minutes: service.duration_minutes, slots: slots.map((s: any) => ({ start: s.start.toISOString(), end: s.end.toISOString(), available_capacity: s.availableCapacity, total_capacity: s.totalCapacity })) };
+      return { date: dateStr, service_id: service.id, service_name: service.name_he, duration_minutes: service.duration_minutes, slots: slots.map((s) => ({ start: s.start.toISOString(), end: s.end.toISOString(), available_capacity: s.availableCapacity, total_capacity: s.totalCapacity })) };
     },
   };
 }
