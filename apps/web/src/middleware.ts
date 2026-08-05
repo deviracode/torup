@@ -40,6 +40,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (path.startsWith("/auth/")) {
+    return response;
+  }
+
   return i18nMiddleware(request);
 }
 
