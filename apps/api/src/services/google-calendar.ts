@@ -170,10 +170,12 @@ export async function pushAppointmentToGoogle(appointmentId: string) {
     const auth = await getAuthClient(apt.business_id);
     const calendar = google.calendar({ version: "v3", auth });
 
-    const appointment = apt as unknown as {
-      id: string; business_id: string; start_time: string; end_time: string; status: string;
-      services: { name_he: string }; customers: { name: string };
-    };
+interface GCalAppointment {
+  id: string; business_id: string; start_time: string; end_time: string; status: string;
+  services: { name_he: string }; customers: { name: string };
+}
+
+    const appointment = apt as unknown as GCalAppointment;
 
     // Delete from Google if cancelled
     if (appointment.status === "cancelled" || appointment.status === "no_show") {

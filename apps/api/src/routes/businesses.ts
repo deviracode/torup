@@ -20,7 +20,7 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response, 
     const enrichedMemberships = await Promise.all(
       memberships.map(async (m) => {
         const { data } = await createBusinessRepo(createServiceClient()).findById(m.businessId);
-        return { businessId: m.businessId, role: m.role, name: data?.name ?? m.businessId };
+        return { businessId: m.businessId, role: m.role, name: (data as any)?.name ?? m.businessId };
       })
     );
 

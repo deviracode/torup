@@ -10,10 +10,24 @@ export function createCategoryService(repo: Repo) {
       if (error) throw new AppError(500, error.message);
       return data;
     },
-    async add(businessId: string, input: { name_he: string; name_ar?: string | null; name_en?: string | null; sort_order?: number }) {
+    async add(
+      businessId: string,
+      input: {
+        name_he: string;
+        name_ar?: string | null;
+        name_en?: string | null;
+        sort_order?: number;
+      }
+    ) {
       const { name_he, name_ar, name_en, sort_order } = input;
       if (!name_he) throw new AppError(400, "name_he is required");
-      const { data, error } = await repo.create({ name_he, name_ar: name_ar || null, name_en: name_en || null, sort_order: sort_order ?? 0, business_id: businessId });
+      const { data, error } = await repo.create({
+        name_he,
+        name_ar: name_ar || null,
+        name_en: name_en || null,
+        sort_order: sort_order ?? 0,
+        business_id: businessId,
+      });
       if (error) throw new AppError(400, error.message);
       return data;
     },

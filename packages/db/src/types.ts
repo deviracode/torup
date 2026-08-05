@@ -56,7 +56,6 @@ export interface Database {
           default_language: string;
           is_active: boolean;
           bot_context: string | null;
-          allow_multiple_bookings: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -75,7 +74,6 @@ export interface Database {
           default_language?: string;
           is_active?: boolean;
           bot_context?: string | null;
-          allow_multiple_bookings?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -94,7 +92,6 @@ export interface Database {
           default_language?: string;
           is_active?: boolean;
           bot_context?: string | null;
-          allow_multiple_bookings?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -743,12 +740,7 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: {
-      acquire_booking_lock: {
-        Args: { biz_id: string; cust_id: string };
-        Returns: void;
-      };
-    };
+    Functions: Record<string, never>;
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

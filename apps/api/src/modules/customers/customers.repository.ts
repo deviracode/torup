@@ -15,10 +15,19 @@ export function createCustomerRepo(client: SupabaseClient<Database>) {
       return client.from("customers").select("*").eq("phone", phone).single();
     },
     async create(data: Record<string, unknown>) {
-      return client.from("customers").insert(data as never).select().single();
+      return client
+        .from("customers")
+        .insert(data as never)
+        .select()
+        .single();
     },
     async update(customerId: string, data: Record<string, unknown>) {
-      return client.from("customers").update(data as never).eq("id", customerId).select().single();
+      return client
+        .from("customers")
+        .update(data as never)
+        .eq("id", customerId)
+        .select()
+        .single();
     },
   };
 }

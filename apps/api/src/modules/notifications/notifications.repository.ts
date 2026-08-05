@@ -5,7 +5,7 @@ export function createNotificationRepo(client: SupabaseClient<Database>) {
   return {
     async findLog(
       businessId: string,
-      opts?: { limit?: number; offset?: number; type?: string; appointmentId?: string },
+      opts?: { limit?: number; offset?: number; type?: string; appointmentId?: string }
     ) {
       let query = client
         .from("notifications_log")

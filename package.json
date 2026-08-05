@@ -11,6 +11,7 @@
     "serve": "ulimit -n 10240 && turbo dev --filter=@queue/api --filter=@queue/web --filter=@queue/whatsapp-agent"
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
   },
