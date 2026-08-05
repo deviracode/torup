@@ -24,10 +24,23 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session cookie
   await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+
+  // Pass through /auth/* routes directly (no locale prefix, no i18n)
+  if (path.startsWith("/auth/")) {
+    return response;
+  }
+
+  // Rewrite locale-prefixed auth callback (Supabase may redirect with locale in URL)
+  const authCallbackMatch = path.match(/^\/(he|ar|en)\/auth\/(.*)/);
+  if (authCallbackMatch) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/auth/${authCallbackMatch[2]}`;
+    return NextResponse.rewrite(url);
+  }
+
   const isProtected = path.includes("/dashboard") || path.includes("/admin");
   const locale = path.split("/")[1];
   const isValidLocale = routing.locales.includes(locale as "he" | "ar" | "en");
