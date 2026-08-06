@@ -47,12 +47,48 @@ export function createAdminRepo(client: SupabaseClient<Database>) {
     async countSubscriptions() {
       return client.from("subscriptions").select("id, status", { count: "exact" });
     },
+    async findOwners(businessIds: string[]) {
+      if (businessIds.length === 0) return { data: [], error: null };
+      return client
+        .from("business_members")
+        .select("business_id, user_id")
+        .eq("role", "owner")
+        .in("business_id", businessIds);
+    },
+    async findOwner(businessId: string) {
+      return client
+        .from("business_members")
+        .select("user_id")
+        .eq("business_id", businessId)
+        .eq("role", "owner")
+        .maybeSingle();
+    },
     async createMember(data: Record<string, unknown>) {
       return client
         .from("business_members")
         .insert(data as never)
         .select()
         .single();
+    },
+    async updateOwnerMember(businessId: string, newUserId: string) {
+      return client
+        .from("business_members")
+        .update({ user_id: newUserId })
+        .eq("business_id", businessId)
+        .eq("role", "owner")
+        .select()
+        .single();
+    },
+    async deleteMemberships(userId: string, businessId?: string) {
+      let q = client.from("business_members").delete().eq("user_id", userId);
+      if (businessId) q = q.eq("business_id", businessId);
+      return q;
+    },
+    async countMembershipsByUser(userId: string) {
+      return client
+        .from("business_members")
+        .select("id", { count: "exact" })
+        .eq("user_id", userId);
     },
     async createSubscription(data: Record<string, unknown>) {
       return client.from("subscriptions").insert(data as never);
