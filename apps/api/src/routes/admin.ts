@@ -10,13 +10,13 @@ router.use(requireAuth, requireRole("super_admin"));
 function svc() { return createAdminService(createAdminRepo(createServiceClient())); }
 
 router.get("/businesses", async (req: AuthenticatedRequest, res, next) => {
-  try { res.json(await svc().listBusinesses({ category: req.query.category as string, status: req.query.status as string, search: req.query.search as string })); } catch (e) { next(e); }
+  try { res.json(await svc().listBusinesses(createServiceClient(), { category: req.query.category as string, status: req.query.status as string, search: req.query.search as string })); } catch (e) { next(e); }
 });
 router.post("/businesses", async (req: AuthenticatedRequest, res, next) => {
   try { res.status(201).json(await svc().onboard(createServiceClient(), req.body)); } catch (e) { next(e); }
 });
 router.patch("/businesses/:id", async (req: AuthenticatedRequest, res, next) => {
-  try { res.json(await svc().editBusiness(req.params.id as string, req.body)); } catch (e) { next(e); }
+  try { res.json(await svc().editBusiness(req.params.id as string, req.body, createServiceClient())); } catch (e) { next(e); }
 });
 router.delete("/businesses/:id", async (req: AuthenticatedRequest, res, next) => {
   try { res.json(await svc().removeBusiness(req.params.id as string)); } catch (e) { next(e); }

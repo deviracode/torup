@@ -20,6 +20,7 @@ interface Business {
   category: string | null;
   phone: string | null;
   email: string | null;
+  owner_email: string | null;
   is_active: boolean;
   created_at: string;
   address: string | null;
@@ -167,7 +168,7 @@ export default function AdminBusinessesPage() {
     if (!editBusiness) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/admin/businesses/${editBusiness.id}`, {
+      const result = await apiFetch<{ temp_password?: string | null }>(`/api/admin/businesses/${editBusiness.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: editBusiness.name,
@@ -176,8 +177,15 @@ export default function AdminBusinessesPage() {
           phone: editBusiness.phone,
           email: editBusiness.email,
           address: editBusiness.address,
+          owner_email: editBusiness.owner_email,
         }),
       }, token);
+      if (result?.temp_password) {
+        await navigator.clipboard.writeText(result.temp_password).catch(() => {});
+        alert(
+          `New owner created.\n\nOwner login:\nEmail: ${editBusiness.owner_email}\nTemp password (copied to clipboard): ${result.temp_password}`
+        );
+      }
       setEditBusiness(null);
       fetchBusinesses();
     } catch {} finally { setSaving(false); }
@@ -356,7 +364,7 @@ export default function AdminBusinessesPage() {
                 <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} dir="ltr" />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>Contact Email</Label>
                 <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} dir="ltr" />
               </div>
             </div>
@@ -420,9 +428,14 @@ export default function AdminBusinessesPage() {
                 <Input value={editBusiness?.phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, phone: e.target.value })} dir="ltr" />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={editBusiness?.email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, email: e.target.value })} dir="ltr" />
+                <Label>Contact Email</Label>
+                <Input type="email" value={editBusiness?.email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, email: e.target.value })} dir="ltr" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("ownerEmail")}</Label>
+              <Input type="email" value={editBusiness?.owner_email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, owner_email: e.target.value })} dir="ltr" />
+              <p className="text-xs text-muted-foreground">Changing the owner email reassigns ownership of this business to that account.</p>
             </div>
           </div>
           <DialogFooter className="pt-2">

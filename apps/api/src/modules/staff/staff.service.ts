@@ -1,4 +1,4 @@
-import { groupBy } from "lodash";
+import groupBy from "lodash/groupBy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@torup/db";
 import { AppError } from "../../middleware/error-handler";
