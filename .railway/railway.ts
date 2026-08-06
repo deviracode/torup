@@ -3,7 +3,7 @@ import { defineRailway, github, group, preserve, project, service } from "railwa
 export default defineRailway(() => {
   const api = service("torup-api", {
     source: github("deviracode/torup", {
-      branch: "worker-api-split",
+      branch: "torup-tenant-env",
     }),
     build: {
       builder: "DOCKERFILE",
@@ -23,12 +23,18 @@ export default defineRailway(() => {
       GOOGLE_REDIRECT_URI: preserve(),
       APP_URL: preserve(),
       API_URL: preserve(),
+      PAYPLUS_API_KEY: preserve(),
+      PAYPLUS_API_URL: preserve(),
+      PAYPLUS_MOCK: preserve(),
+      PAYPLUS_PAGE_UID: preserve(),
+      PAYPLUS_SECRET_KEY: preserve(),
+      PAYPLUS_TERMINAL_UID: preserve(),
     },
   });
 
   const worker = service("torup-worker", {
     source: github("deviracode/torup", {
-      branch: "worker-api-split",
+      branch: "torup-tenant-env",
     }),
     build: {
       builder: "DOCKERFILE",
@@ -54,7 +60,7 @@ export default defineRailway(() => {
 
   const agent = service("torup-whatsapp", {
     source: github("deviracode/torup", {
-      branch: "worker-api-split",
+      branch: "torup-tenant-env",
     }),
     build: {
       builder: "DOCKERFILE",
@@ -69,7 +75,6 @@ export default defineRailway(() => {
       WHATSAPP_ACCESS_TOKEN: preserve(),
       WHATSAPP_APP_SECRET: preserve(),
       WHATSAPP_PHONE_NUMBER_ID: preserve(),
-      WHATSAPP_VERIFY_TOKEN: preserve(),
       INTERNAL_SECRET: preserve(),
       API_URL: "http://${{torup-api.RAILWAY_PRIVATE_DOMAIN}}:3001",
       API_INTERNAL_URL: "http://${{torup-worker.RAILWAY_PRIVATE_DOMAIN}}:3001",
@@ -78,7 +83,7 @@ export default defineRailway(() => {
 
   const web = service("torup-web", {
     source: github("deviracode/torup", {
-      branch: "worker-api-split",
+      branch: "torup-tenant-env",
     }),
     build: {
       builder: "DOCKERFILE",
