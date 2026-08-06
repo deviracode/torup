@@ -1,7 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import express from "express";
 import request from "supertest";
+import crypto from "crypto";
 import { extractPhoneNumberId } from "../routes/webhooks";
+import { encrypt } from "@torup/shared";
+
+const TEST_KEY = Buffer.alloc(32, 3).toString("base64");
+
+function signedPost(app: express.Express, path: string, body: unknown, appSecret: string) {
+  const raw = JSON.stringify(body);
+  const signature = "sha256=" + crypto.createHmac("sha256", appSecret).update(raw).digest("hex");
+  return request(app)
+    .post(path)
+    .set("x-hub-signature-256", signature)
+    .set("Content-Type", "application/json")
+    .send(raw);
+}
 
 describe("extractPhoneNumberId", () => {
   it("reads metadata.phone_number_id from a WhatsApp payload", () => {
@@ -40,6 +54,7 @@ const BUSINESS_A = "biz-a";
 const BUSINESS_B = "biz-b";
 const PHONE_NUMBER_ID_A = "PN_A";
 const ACCESS_TOKEN_A = "token-a";
+const APP_SECRET_A = "app-secret-a";
 const MANAGER_PHONE_A = "972500000001";
 const APPOINTMENT_B = "apt-b-1";
 
@@ -48,6 +63,8 @@ type CredRow = {
   business_id: string;
   phone_number_id: string;
   access_token: string;
+  app_secret: string | null;
+  verify_token: string | null;
   display_phone: string | null;
   verified_at: string | null;
   is_active: boolean;
@@ -75,7 +92,9 @@ function freshFixtures() {
       id: "cred-a",
       business_id: BUSINESS_A,
       phone_number_id: PHONE_NUMBER_ID_A,
-      access_token: ACCESS_TOKEN_A,
+      access_token: encrypt(ACCESS_TOKEN_A),
+      app_secret: encrypt(APP_SECRET_A),
+      verify_token: encrypt("verify-a"),
       display_phone: null,
       verified_at: null,
       is_active: true,
@@ -198,9 +217,14 @@ vi.mock("../services/notifications", () => ({
 }));
 
 describe("POST /whatsapp inbound routing — tenant isolation", () => {
+  const originalKey = process.env.ENCRYPTION_KEY;
   beforeEach(() => {
+    process.env.ENCRYPTION_KEY = TEST_KEY;
     freshFixtures();
     sendWhatsAppMessageMock = vi.fn(async () => "msg-id");
+  });
+  afterEach(() => {
+    process.env.ENCRYPTION_KEY = originalKey;
   });
 
   async function buildApp() {
@@ -234,18 +258,37 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
     };
   }
 
-  it("acks 200 and drops silently for an unknown phone_number_id, with no mutation or send", async () => {
+  it("acks 200 and drops silently when the payload's phone_number_id doesn't match the path business's number, with no mutation or send", async () => {
     const app = await buildApp();
 
-    const res = await request(app)
-      .post("/api/webhooks/whatsapp")
-      .send(buttonReplyPayload("PN_UNKNOWN", MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`));
+    // Business A's webhook path, correctly signed with Business A's app
+    // secret, but the payload claims a different (unregistered) phone number.
+    const res = await signedPost(
+      app,
+      `/api/webhooks/whatsapp/${BUSINESS_A}`,
+      buttonReplyPayload("PN_UNKNOWN", MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`),
+      APP_SECRET_A
+    );
 
     expect(res.status).toBe(200);
     // Response is sent before async processing runs; give it a tick to complete.
     await new Promise((r) => setTimeout(r, 20));
 
     expect(appointments[APPOINTMENT_B].status).toBe("pending_approval");
+    expect(sendWhatsAppMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a POST signed with the wrong tenant's app_secret", async () => {
+    const app = await buildApp();
+
+    const res = await signedPost(
+      app,
+      `/api/webhooks/whatsapp/${BUSINESS_A}`,
+      buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`),
+      "wrong-app-secret"
+    );
+
+    expect(res.status).toBe(403);
     expect(sendWhatsAppMessageMock).not.toHaveBeenCalled();
   });
 
@@ -260,9 +303,12 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
 
     // Manager phone from Business A's WhatsApp number tries to approve an
     // appointment that actually belongs to Business B.
-    const res = await request(app)
-      .post("/api/webhooks/whatsapp")
-      .send(buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`));
+    const res = await signedPost(
+      app,
+      `/api/webhooks/whatsapp/${BUSINESS_A}`,
+      buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`),
+      APP_SECRET_A
+    );
 
     expect(res.status).toBe(200);
     await new Promise((r) => setTimeout(r, 20));
@@ -287,9 +333,12 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
 
     const app = await buildApp();
 
-    const res = await request(app)
-      .post("/api/webhooks/whatsapp")
-      .send(buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`));
+    const res = await signedPost(
+      app,
+      `/api/webhooks/whatsapp/${BUSINESS_A}`,
+      buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`),
+      APP_SECRET_A
+    );
 
     expect(res.status).toBe(200);
     await new Promise((r) => setTimeout(r, 20));
@@ -310,9 +359,12 @@ describe("POST /whatsapp inbound routing — tenant isolation", () => {
 
     const app = await buildApp();
 
-    const res = await request(app)
-      .post("/api/webhooks/whatsapp")
-      .send(buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`));
+    const res = await signedPost(
+      app,
+      `/api/webhooks/whatsapp/${BUSINESS_A}`,
+      buttonReplyPayload(PHONE_NUMBER_ID_A, MANAGER_PHONE_A, `approve_${APPOINTMENT_B}`),
+      APP_SECRET_A
+    );
 
     expect(res.status).toBe(200);
     await new Promise((r) => setTimeout(r, 20));

@@ -19,6 +19,16 @@ export function createWhatsAppCredentialsService(
     return { phoneNumberId: data.phone_number_id, accessToken: data.access_token };
   }
 
+  async function resolveMeta(
+    businessId: string
+  ): Promise<{ appSecret: string; verifyToken: string } | null> {
+    const { data } = await repo.getByBusinessId(businessId);
+    if (!data || !data.is_active || !data.app_secret || !data.verify_token) {
+      return null;
+    }
+    return { appSecret: data.app_secret, verifyToken: data.verify_token };
+  }
+
   async function status(businessId: string) {
     const { data } = await repo.getByBusinessId(businessId);
     return {
@@ -30,7 +40,13 @@ export function createWhatsAppCredentialsService(
 
   async function save(
     businessId: string,
-    input: { phoneNumberId: string; accessToken: string; displayPhone?: string | null }
+    input: {
+      phoneNumberId: string;
+      accessToken: string;
+      appSecret?: string | null;
+      verifyToken?: string | null;
+      displayPhone?: string | null;
+    }
   ) {
     const { data, error } = await repo.upsert(businessId, input);
     if (error) throw new AppError(500, "Failed to save WhatsApp credentials");
@@ -50,5 +66,5 @@ export function createWhatsAppCredentialsService(
     return { ok: true as const };
   }
 
-  return { resolveForBusiness, status, save, testSend };
+  return { resolveForBusiness, resolveMeta, status, save, testSend };
 }
