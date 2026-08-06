@@ -254,5 +254,16 @@
     "completed": "הושלם",
     "cancelled": "בוטל",
     "noShow": "לא הגיע"
+  },
+  "authErrors": {
+    "invalidCredentials": "פרטי התחברות שגויים",
+    "emailNotConfirmed": "האימייל לא אומת. בדוק את תיבת הדואר שלך ושלח שוב במידת הצורך",
+    "rateLimitExceeded": "נסה שוב בעוד מספר דקות",
+    "userAlreadyExists": "משתמש עם אימייל זה כבר רשום",
+    "userNotFound": "לא נמצא משתמש עם אימייל זה",
+    "invalidEmail": "כתובת אימייל לא תקינה",
+    "weakPassword": "הסיסמה חייבת להכיל לפחות 6 תווים",
+    "expiredLink": "הקישור פג תוקף, בקש קישור חדש",
+    "default": "אירעה שגיאה, אנא נסה שוב"
   }
 }

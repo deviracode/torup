@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion, useAnimate } from "framer-motion";
 import Link from "next/link";
 
@@ -31,7 +32,7 @@ export default function LoginPage() {
       const isSuperAdmin = user?.user_metadata?.role === "super_admin";
       router.push(`/${locale}/${isSuperAdmin ? "admin" : "dashboard"}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(translateAuthError(err as Error, t));
       animate(scope.current, { x: [0, 10, -10, 6, -6, 0] }, { duration: 0.4 });
     } finally {
       setLoading(false);

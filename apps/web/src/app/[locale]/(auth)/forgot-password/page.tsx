@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -30,7 +31,7 @@ export default function ForgotPasswordPage() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset link");
+      setError(translateAuthError(err as Error, t));
     } finally {
       setLoading(false);
     }
