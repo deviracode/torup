@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
+import { formatILS } from "@/lib/format";
 
 interface Service {
   id: string;
@@ -54,7 +55,7 @@ function getCategoryName(cat: ServiceCategory, locale: string) {
 
 // Shared input class for the light booking page
 const inputCls =
-  "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 transition-all";
+  "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 transition-all text-start";
 
 function StepIndicator({ current, onStepClick }: { current: Step; locale: string; onStepClick: (step: Step) => void }) {
   const labels: Record<Step, string> = { service: "שירות", date: "תאריך", time: "שעה", details: "פרטים", confirmed: "אישור" };
@@ -292,7 +293,7 @@ export function BookingFlow({
                     {service.price_type === "discuss" ? (
                       <><MessageCircle className="h-3.5 w-3.5" />לשיחה</>
                     ) : (
-                      <><Banknote className="h-3.5 w-3.5" />₪{service.price}</>
+                      <><Banknote className="h-3.5 w-3.5" />{formatILS(service.price)}</>
                     )}
                   </span>
                 </div>
@@ -361,7 +362,7 @@ export function BookingFlow({
           <form onSubmit={handleBook} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("name")}</label>
-              <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              <input type="text" required value={name} onChange={(e) => setName(e.target.value)} dir="auto" className={inputCls} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("phone")}</label>
@@ -373,6 +374,7 @@ export function BookingFlow({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+                dir="auto"
                 className={`${inputCls} resize-none`}
               />
             </div>
@@ -394,7 +396,7 @@ export function BookingFlow({
               type="submit"
               disabled={loading}
               className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+              style={{ background: "linear-gradient(135deg, #6366f1, #d4a24e)" }}
             >
               {loading ? `${t("confirmBooking")}...` : t("confirmBooking")}
             </button>

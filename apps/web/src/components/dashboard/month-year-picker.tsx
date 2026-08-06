@@ -112,7 +112,7 @@ export function MonthYearPicker({ value, onSelect, trigger }: MonthYearPickerPro
                     ${!current ? "text-white/20 hover:text-white/40 hover:bg-white/5" : ""}
                     ${current && !isToday && !isSelected ? "text-white/70 hover:bg-white/10 hover:text-white" : ""}
                     ${isSelected ? "text-white font-bold" : ""}
-                    ${isToday && !isSelected ? "ring-1 ring-[#a78bfa] text-[#a78bfa]" : ""}
+                    ${isToday && !isSelected ? "ring-1 ring-[#818cf8] text-[#818cf8]" : ""}
                   `}
                   style={isSelected ? { background: "var(--grad-primary)" } : {}}
                 >

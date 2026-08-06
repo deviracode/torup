@@ -204,7 +204,8 @@
     "errorUpdateServices": "فشل تحديث الخدمات",
     "errorEndBeforeStart": "يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء",
     "errorAddTimeOff": "فشل إضافة أيام الغياب",
-    "errorRemoveTimeOff": "فشل حذف أيام الغياب"
+    "errorRemoveTimeOff": "فشل حذف أيام الغياب",
+    "unnamedStaffMember": "عضو فريق بدون اسم"
   },
   "admin": {
     "businesses": "الأعمال",
@@ -252,5 +253,22 @@
     "completed": "مكتمل",
     "cancelled": "ملغي",
     "noShow": "لم يحضر"
+  },
+  "billing": {
+    "currentPlan": "الخطة الحالية",
+    "active": "نشط",
+    "planFeatures": "ما تتضمنه الخطة",
+    "features": [
+      "حتى 5 أعضاء فريق",
+      "مواعيد غير محدودة",
+      "روبوت واتساب",
+      "صفحة حجز عبر الإنترنت",
+      "لوحة التحليلات"
+    ],
+    "needMore": "تحتاج المزيد؟",
+    "upgradeDesc": "قم بالترقية إلى خطة Business للحصول على عدد غير محدود من الموظفين ودعم ذو أولوية.",
+    "upgradePlan": "ترقية الخطة",
+    "upgradeComingSoon": "ترقيات الخطة قادمة قريبًا. تواصل معنا عبر واتساب في هذه الأثناء.",
+    "perMonth": "شهريًا"
   }
 }

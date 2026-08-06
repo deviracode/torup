@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Copy, Check } from "lucide-react";
 import { useApi } from "@/lib/use-api";
 import { useBusiness } from "@/components/auth/business-provider";
 import { toast } from "sonner";
@@ -33,6 +34,18 @@ export default function WhatsAppSettings() {
 
   const [testTo, setTestTo] = useState("");
   const [testing, setTesting] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
+
+  const copyWebhookUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setUrlCopied(true);
+      toast.success("הכתובת הועתקה");
+      setTimeout(() => setUrlCopied(false), 2000);
+    } catch {
+      toast.error("ההעתקה נכשלה");
+    }
+  };
 
   const fetchStatus = useCallback(async () => {
     if (!businessId) return;
@@ -98,75 +111,94 @@ export default function WhatsAppSettings() {
         .
       </p>
       {webhookUrl && (
-        <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+        <div className="rounded-md bg-muted border border-border p-3">
+          <label className="block text-xs font-medium text-muted-foreground mb-2">
             כתובת ה-Webhook (הדבק ב-Meta App שלך)
           </label>
-          <code className="block text-xs break-all select-all">{webhookUrl}</code>
+          <div className="flex items-center gap-2">
+            <code
+              dir="ltr"
+              className="flex-1 text-start text-xs break-all select-all text-foreground bg-background rounded px-2 py-1.5 border border-border"
+            >
+              {webhookUrl}
+            </code>
+            <button
+              type="button"
+              onClick={() => copyWebhookUrl(webhookUrl)}
+              aria-label="העתק כתובת webhook"
+              className="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              {urlCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
         </div>
       )}
       <div>
-        <label htmlFor="wa-phone-number-id" className="block text-sm font-medium mb-1">Phone Number ID</label>
+        <label htmlFor="wa-phone-number-id" className="block text-sm font-medium mb-1">מזהה מספר טלפון (Phone Number ID)</label>
         <input
           id="wa-phone-number-id"
           type="text"
           value={phoneNumberId}
           onChange={(e) => setPhoneNumberId(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+          dir="auto"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
           placeholder="123456789012345"
         />
       </div>
       <div>
-        <label htmlFor="wa-access-token" className="block text-sm font-medium mb-1">Access Token</label>
+        <label htmlFor="wa-access-token" className="block text-sm font-medium mb-1">טוקן גישה (Access Token)</label>
         <div className="flex gap-2">
           <input
             id="wa-access-token"
             type={showToken ? "text" : "password"}
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+            dir="auto"
+            className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
             placeholder="EAAG..."
           />
           <button
             type="button"
             aria-label={showToken ? "הסתר טוקן" : "הצג טוקן"}
             onClick={() => setShowToken((v) => !v)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-border px-3 py-2 text-sm"
           >
             {showToken ? "🙈" : "👁️"}
           </button>
         </div>
       </div>
       <div>
-        <label htmlFor="wa-app-secret" className="block text-sm font-medium mb-1">App Secret</label>
+        <label htmlFor="wa-app-secret" className="block text-sm font-medium mb-1">סוד האפליקציה (App Secret)</label>
         <div className="flex gap-2">
           <input
             id="wa-app-secret"
             type={showAppSecret ? "text" : "password"}
             value={appSecret}
             onChange={(e) => setAppSecret(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
-            placeholder="מתוך הגדרות ה-Meta App"
+            dir="auto"
+            className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
+            placeholder="מופיע בהגדרות האפליקציה שלך"
           />
           <button
             type="button"
             aria-label={showAppSecret ? "הסתר" : "הצג"}
             onClick={() => setShowAppSecret((v) => !v)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-border px-3 py-2 text-sm"
           >
             {showAppSecret ? "🙈" : "👁️"}
           </button>
         </div>
       </div>
       <div>
-        <label htmlFor="wa-verify-token" className="block text-sm font-medium mb-1">Webhook Verify Token</label>
+        <label htmlFor="wa-verify-token" className="block text-sm font-medium mb-1">טוקן אימות Webhook</label>
         <input
           id="wa-verify-token"
           type="text"
           value={verifyToken}
           onChange={(e) => setVerifyToken(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
-          placeholder="בחר מחרוזת סודית ושמור אותה זהה כאן וב-Meta"
+          dir="auto"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
+          placeholder="בחרו מחרוזת סודית ושמרו אותה זהה כאן ואצל Meta"
         />
       </div>
       <div>
@@ -176,7 +208,8 @@ export default function WhatsAppSettings() {
           type="text"
           value={displayPhone}
           onChange={(e) => setDisplayPhone(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          dir="auto"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm text-start"
           placeholder="+972..."
         />
       </div>
@@ -191,7 +224,7 @@ export default function WhatsAppSettings() {
   );
 
   const testRow = (
-    <div className="border-t border-gray-200 pt-4 space-y-2">
+    <div className="border-t border-border pt-4 space-y-2">
       <label htmlFor="wa-test-to" className="text-xs text-muted-foreground">שלח הודעת בדיקה לאימות החיבור:</label>
       <div className="flex gap-2">
         <input
@@ -199,7 +232,8 @@ export default function WhatsAppSettings() {
           type="text"
           value={testTo}
           onChange={(e) => setTestTo(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+          dir="auto"
+          className="flex-1 rounded-md border border-border px-3 py-2 text-sm text-start"
           placeholder="972501234567"
         />
         <button

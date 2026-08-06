@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
 import { apiFetch } from "@/lib/api";
 import {
@@ -131,7 +132,9 @@ export default function AdminBusinessesPage() {
         body: JSON.stringify({ is_active: !biz.is_active }),
       }, token);
       fetchBusinesses();
-    } catch {}
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update status");
+    }
   };
 
   const handleImpersonate = async (biz: Business) => {
@@ -141,15 +144,21 @@ export default function AdminBusinessesPage() {
         body: JSON.stringify({ business_id: biz.id }),
       }, token);
       setImpersonating(biz);
-    } catch {}
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start impersonation");
+    }
   };
 
   const handleStopImpersonate = async () => {
     if (impersonating) {
-      await apiFetch("/api/admin/stop-impersonate", {
-        method: "POST",
-        body: JSON.stringify({ business_id: impersonating.id }),
-      }, token).catch(() => {});
+      try {
+        await apiFetch("/api/admin/stop-impersonate", {
+          method: "POST",
+          body: JSON.stringify({ business_id: impersonating.id }),
+        }, token);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to stop impersonation");
+      }
     }
     setImpersonating(null);
   };
@@ -277,7 +286,9 @@ export default function AdminBusinessesPage() {
                     <TableRow key={biz.id}>
                       <TableCell className="font-medium">{biz.name}</TableCell>
                       <TableCell className="text-muted-foreground">{biz.slug}</TableCell>
-                      <TableCell className="text-muted-foreground">{biz.category || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {BUSINESS_CATEGORIES.find((c) => c.value === biz.category)?.label_he || biz.category || "—"}
+                      </TableCell>
                       <TableCell>
                         {sub ? (
                           <Badge variant={SUB_VARIANT[sub.status] || "outline"}>

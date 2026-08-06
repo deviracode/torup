@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
           {isRtl ? "נשלח!" : "Check your email"}
         </h2>
         <p className="text-sm text-white/40 mb-6">{t("resetLinkSent" as any)}</p>
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </div>
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
       </form>
 
       <p className="mt-5 text-center">
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </p>

@@ -59,7 +59,7 @@ export default function ResetPasswordPage() {
           {isRtl ? "הסיסמה עודכנה" : "Password updated"}
         </h2>
         <p className="text-sm text-white/40 mb-6">{t("passwordUpdated" as any)}</p>
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </div>
@@ -114,7 +114,7 @@ export default function ResetPasswordPage() {
       </form>
 
       <p className="mt-5 text-center">
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </p>

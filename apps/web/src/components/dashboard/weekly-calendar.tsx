@@ -192,7 +192,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
           onSelect={(d) => setWeekStart(getWeekStart(d))}
           trigger={
             <span className="block">
-              <span className="text-sm font-semibold text-white hover:text-[#a78bfa] transition-colors">
+              <span className="text-sm font-semibold text-white hover:text-[#818cf8] transition-colors">
                 {weekLabel}
               </span>
               <button
@@ -201,7 +201,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                   setWeekStart(getWeekStart(new Date()));
                 }}
                 disabled={isCurrentWeek}
-                className={`text-xs transition-colors mt-0.5 block mx-auto ${isCurrentWeek ? "text-white/40 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+                className={`text-xs transition-colors mt-0.5 block mx-auto ${isCurrentWeek ? "text-white/40 cursor-default" : "text-[#818cf8] hover:text-white"}`}
               >
                 {t("today")}
               </button>
@@ -257,7 +257,7 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                     className="flex-1 border-e border-white/7 last:border-e-0 px-2 py-3 text-center"
                     style={isToday ? { background: "rgba(99,102,241,0.1)" } : {}}
                   >
-                    <div className={`text-[11px] font-semibold uppercase tracking-wide ${isToday ? "text-[#a78bfa]" : "text-white/70"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wide ${isToday ? "text-[#818cf8]" : "text-white/70"}`}>
                       {day.toLocaleDateString("he-IL", { weekday: "short" })}
                     </div>
                     <div className={`text-xl font-black mt-0.5 leading-none ${isToday ? "text-white" : "text-white/85"}`}>

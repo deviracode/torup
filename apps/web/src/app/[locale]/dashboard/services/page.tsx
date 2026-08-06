@@ -10,6 +10,7 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@torup/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { formatILS } from "@/lib/format";
 
 interface ServiceCategory {
   id: string;
@@ -190,7 +191,7 @@ export default function ServicesPage() {
                       {service.duration_minutes}
                       {service.buffer_minutes > 0 && <span className="text-muted-foreground"> +{service.buffer_minutes}</span>}
                     </TableCell>
-                    <TableCell>₪{service.price}</TableCell>
+                    <TableCell>{formatILS(service.price)}</TableCell>
                     <TableCell>
                       <Badge
                         variant={service.is_active ? "success" : "outline"}
@@ -245,30 +246,35 @@ export default function ServicesPage() {
             <div className="space-y-2">
               <Label>{t("descriptionHe")}</Label>
               <textarea value={formData.description_he} onChange={(e) => setFormData({ ...formData, description_he: e.target.value })} rows={2}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+                dir="auto"
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-start" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("min")} *</Label>
                 <Input type="number" required min={5} value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
+                  className="text-end" />
               </div>
               <div className="space-y-2">
                 <Label>{t("buffer")} ({t("min")})</Label>
                 <Input type="number" min={0} value={formData.buffer_minutes}
-                  onChange={(e) => setFormData({ ...formData, buffer_minutes: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, buffer_minutes: Number(e.target.value) })}
+                  className="text-end" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>₪ {t("price")}</Label>
                 <Input type="number" min={0} value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                  className="text-end" />
               </div>
               <div className="space-y-2">
                 <Label>{t("capacity")}</Label>
                 <Input type="number" min={1} value={formData.max_capacity}
-                  onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })}
+                  className="text-end" />
               </div>
             </div>
             {categories.length > 0 && (

@@ -2,6 +2,7 @@ import { Router, type Router as RouterType, type Response, type NextFunction } f
 import { getBusinessId, getParam, getUserClient } from "../lib/params";
 import { requireAuth, requireRole, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { AppError } from "../middleware/error-handler";
+import { createServiceClient } from "../lib/supabase";
 import { createStaffRepo } from "../modules/staff/staff.repository";
 import { createStaffService } from "../modules/staff/staff.service";
 
@@ -12,7 +13,9 @@ function svc(req: AuthenticatedRequest) {
 }
 
 router.get("/", requireAuth, requireBusinessAccess, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try { res.json(await svc(req).list(getUserClient(req), getBusinessId(req))); } catch (e) { next(e); }
+  // list() needs auth.admin.getUserById to resolve each member's email/name,
+  // which requires the service-role client — the RLS-scoped user client can't call auth.admin.*
+  try { res.json(await svc(req).list(createServiceClient(), getBusinessId(req))); } catch (e) { next(e); }
 });
 router.post("/", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try { res.status(201).json(await svc(req).add(getUserClient(req), getBusinessId(req), req.body)); } catch (e) { next(e); }
