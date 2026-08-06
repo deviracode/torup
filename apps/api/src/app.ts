@@ -23,6 +23,7 @@ import internalRouter from "./routes/internal";
 import googleCalendarRouter from "./routes/google-calendar";
 import categoriesRouter from "./routes/categories";
 import whatsappCredentialsRouter from "./routes/whatsapp-credentials";
+import authRouter from "./routes/auth";
 import { startReminderScheduler } from "./services/notifications";
 import { startGCalSyncScheduler } from "./services/google-calendar";
 
@@ -81,6 +82,9 @@ export function createApp(options: AppOptions = {}): Express {
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // Auth routes (unauthenticated)
+  app.use("/api/auth", authRouter);
 
   // Business routes (public + auth)
   app.use("/api/businesses", businessesRouter);
