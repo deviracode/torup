@@ -9,8 +9,9 @@ import {
 } from "./session.js";
 import { detectLanguage } from "./language.js";
 import { processMessage } from "./agent.js";
-import { sendTextMessage, sendButtonMessage, sendListMessage, markAsRead } from "./whatsapp-api.js";
+import { sendTextMessage, sendButtonMessage, sendListMessage, markAsRead, type WhatsAppCredential } from "./whatsapp-api.js";
 import { extractBookingIntent, type BookingIntent } from "./intent.js";
+import { getCredentialByBusinessId } from "./credentials.js";
 import { createClient } from "@torup/db";
 
 const app: Express = express();
@@ -25,13 +26,20 @@ app.use(
   })
 );
 
+// Each tenant registers their own Meta App, so the webhook verify token and
+// app secret are per-tenant secrets stored (encrypted) on their
+// whatsapp_credentials row — resolved by the :businessId path segment, never
+// a shared platform-level env value.
+
 // WhatsApp webhook verification (GET)
-app.get("/webhook", (req, res) => {
+app.get("/webhook/:businessId", async (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+  const credential = await getCredentialByBusinessId(req.params.businessId);
+
+  if (mode === "subscribe" && credential && token === credential.verifyToken) {
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -39,20 +47,23 @@ app.get("/webhook", (req, res) => {
 });
 
 // WhatsApp webhook for incoming messages (POST)
-app.post("/webhook", async (req, res) => {
+app.post("/webhook/:businessId", async (req, res) => {
+  const credential = await getCredentialByBusinessId(req.params.businessId);
+  if (!credential) {
+    res.sendStatus(403);
+    return;
+  }
+
+  const signature = req.headers["x-hub-signature-256"] as string | undefined;
+  const rawBody = (req as unknown as Record<string, Buffer>).rawBody;
+  if (!verifySignature(rawBody, signature, credential.appSecret)) {
+    console.warn("Invalid webhook signature for business", req.params.businessId);
+    res.sendStatus(403);
+    return;
+  }
+
   // Acknowledge immediately per Meta requirement
   res.sendStatus(200);
-
-  // Verify signature if app secret is configured
-  const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (appSecret) {
-    const signature = req.headers["x-hub-signature-256"] as string | undefined;
-    const rawBody = (req as unknown as Record<string, Buffer>).rawBody;
-    if (!verifySignature(rawBody, signature, appSecret)) {
-      console.warn("Invalid webhook signature");
-      return;
-    }
-  }
 
   // Parse delivery/read/failure status updates (e.g. messages sent but not
   // delivered because the customer's 24h session window had expired)
@@ -87,29 +98,20 @@ app.post("/webhook", async (req, res) => {
   if (messages.length === 0) return;
 
   for (const msg of messages) {
+    if (msg.businessPhoneNumberId !== credential.phoneNumberId) {
+      // Path businessId and inbound payload's phone number must agree —
+      // otherwise this could be a replayed/misrouted payload.
+      continue;
+    }
     try {
-      await handleIncomingMessage(msg.from, msg.text, msg.businessPhoneNumberId, msg.messageId, msg.interactionId);
+      await handleIncomingMessage(credential, credential.businessId, msg.from, msg.text, msg.businessPhoneNumberId, msg.messageId, msg.interactionId);
     } catch (err) {
       console.error("Error processing message:", err);
     }
   }
 });
 
-/**
- * Map business WhatsApp phone number IDs to business IDs.
- * In production, this would be a database lookup.
- */
-async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null } | null> {
-  // Try to find from environment mapping
-  const mapping = process.env.PHONE_BUSINESS_MAP;
-  if (mapping) {
-    try {
-      const map = JSON.parse(mapping);
-      if (map[phoneNumberId]) return map[phoneNumberId];
-    } catch {}
-  }
-
-  // Fallback: look up in database
+async function getBusinessContext(businessId: string): Promise<{ businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null } | null> {
   const supabase = createClient(
     process.env.SUPABASE_URL || "",
     process.env.SUPABASE_SERVICE_ROLE_KEY || ""
@@ -118,8 +120,8 @@ async function resolveBusinessId(phoneNumberId: string): Promise<{ businessId: s
   const { data } = await supabase
     .from("businesses")
     .select("id, name, phone, allow_multiple_bookings, bot_context")
+    .eq("id", businessId)
     .eq("is_active", true)
-    .limit(1)
     .single();
 
   if (data) return { businessId: data.id, businessName: data.name, phone: data.phone, allowMultipleBookings: data.allow_multiple_bookings, botContext: data.bot_context ?? null };
@@ -145,11 +147,11 @@ async function getBusinessServices(businessId: string) {
 // Cache business info + services + booking rules (5 min TTL)
 const bizCache = new Map<string, { biz: { businessId: string; businessName: string; phone: string; allowMultipleBookings: boolean; botContext: string | null }; services: Record<string, any>[]; categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null; sort_order: number }>; maxFutureDays: number; expiresAt: number }>();
 
-async function getCachedBusinessContext(businessPhoneNumberId: string) {
-  const cached = bizCache.get(businessPhoneNumberId);
+async function getCachedBusinessContext(businessId: string) {
+  const cached = bizCache.get(businessId);
   if (cached && cached.expiresAt > Date.now()) return cached;
 
-  const biz = await resolveBusinessId(businessPhoneNumberId);
+  const biz = await getBusinessContext(businessId);
   if (!biz) return null;
 
   const supabase = createClient(
@@ -170,7 +172,7 @@ async function getCachedBusinessContext(businessPhoneNumberId: string) {
   const maxFutureDays = rulesResult.data?.max_future_days ?? 30;
   const categories = categoriesResult.data || [];
   const entry = { biz, services, categories, maxFutureDays, expiresAt: Date.now() + 5 * 60 * 1000 };
-  bizCache.set(businessPhoneNumberId, entry);
+  bizCache.set(businessId, entry);
   return entry;
 }
 
@@ -201,14 +203,14 @@ const MAIN_MENU_I18N: Record<"he" | "ar" | "en", {
 };
 
 async function sendMainMenu(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   businessName: string,
   customerName?: string,
   language: "he" | "ar" | "en" = "he"
 ) {
   const i18n = MAIN_MENU_I18N[language];
-  await sendButtonMessage(phoneNumberId, to, i18n.greeting(customerName, businessName), [
+  await sendButtonMessage(credential, to, i18n.greeting(customerName, businessName), [
     { id: "menu_book", title: i18n.book },
     { id: "menu_my_appointments", title: i18n.myAppts },
     { id: "menu_cancel", title: i18n.cancel },
@@ -283,7 +285,7 @@ const CATEGORY_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: s
 };
 
 async function sendCategoryList(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   categories: Array<{ id: string; name_he: string; name_ar: string | null; name_en: string | null }>,
   hasUncategorized: boolean,
@@ -298,10 +300,10 @@ async function sendCategoryList(
   if (hasUncategorized) {
     rows.push({ id: "category_uncategorized", title: i18n.more, description: "" });
   }
-  await sendListMessage(phoneNumberId, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows }]);
+  await sendListMessage(credential, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows }]);
 }
 
-async function sendServiceList(phoneNumberId: string, to: string, services: Record<string, any>[], language: "he" | "ar" | "en" = "he") {
+async function sendServiceList(credential: WhatsAppCredential, to: string, services: Record<string, any>[], language: "he" | "ar" | "en" = "he") {
   const i18n = SERVICE_LIST_I18N[language];
   const rows = services.map((s: any) => {
     const name = (language === "ar" && s.name_ar ? s.name_ar : language === "en" && s.name_en ? s.name_en : s.name_he) || s.name_he || "";
@@ -315,7 +317,7 @@ async function sendServiceList(phoneNumberId: string, to: string, services: Reco
   });
 
   const displayRows = rows.slice(0, 10);
-  await sendListMessage(phoneNumberId, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows: displayRows }]);
+  await sendListMessage(credential, to, i18n.prompt, i18n.button, [{ title: i18n.section, rows: displayRows }]);
 }
 
 function getSupabase() {
@@ -650,7 +652,7 @@ export function groupTimeSlots(slots: { time: string; label: string }[]): Record
 }
 
 async function sendTimeSlotsGrouped(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   serviceName: string,
   date: string,
@@ -673,7 +675,7 @@ async function sendTimeSlotsGrouped(
 
   if (sections.length === 0) return;
 
-  await sendListMessage(phoneNumberId, to,
+  await sendListMessage(credential, to,
     `${serviceName} • ${date.slice(5).replace("-", "/")}\n${i18n.chooseTime}`,
     i18n.showTimes,
     sections
@@ -681,7 +683,7 @@ async function sendTimeSlotsGrouped(
 }
 
 async function sendTimePeriodOrSlots(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   businessPhoneNumberId: string,
   session: ConversationSession,
@@ -702,7 +704,7 @@ async function sendTimePeriodOrSlots(
     updateSession(to, businessPhoneNumberId, {
       booking: { ...session.booking!, step: "select_time" },
     });
-    await sendTimeSlotsGrouped(phoneNumberId, to, session.booking!.serviceName, session.booking!.date!, grouped[nonEmpty[0]], lang);
+    await sendTimeSlotsGrouped(credential, to, session.booking!.serviceName, session.booking!.date!, grouped[nonEmpty[0]], lang);
     return;
   }
 
@@ -716,7 +718,7 @@ async function sendTimePeriodOrSlots(
   }));
 
   await sendButtonMessage(
-    phoneNumberId,
+    credential,
     to,
     `${session.booking!.serviceName} ✂️\n${session.booking!.date!.slice(5).replace("-", "/")}\n${i18n.choosePartOfDay}`,
     buttons
@@ -724,6 +726,7 @@ async function sendTimePeriodOrSlots(
 }
 
 async function resumeFromIntent(
+  credential: WhatsAppCredential,
   from: string,
   businessPhoneNumberId: string,
   session: ConversationSession,
@@ -733,13 +736,13 @@ async function resumeFromIntent(
   const lang = session.language ?? "he";
 
   if (!intent.service_id) {
-    await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    await sendServiceList(credential, from, ctx.services, lang);
     return;
   }
 
   const service = ctx.services.find((s: any) => s.id === intent.service_id);
   if (!service) {
-    await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+    await sendServiceList(credential, from, ctx.services, lang);
     return;
   }
 
@@ -756,7 +759,7 @@ async function resumeFromIntent(
 
   if (!intent.date) {
     const bf = BOOKING_FLOW_I18N[lang];
-    await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.howPickDate}`, [
+    await sendButtonMessage(credential, from, `${serviceName} ✂️\n${bf.howPickDate}`, [
       { id: "flow_quick", title: bf.quickDates },
       { id: "flow_specific", title: bf.specificDate },
     ]);
@@ -767,10 +770,10 @@ async function resumeFromIntent(
 
   if (slots.length === 0) {
     const bf = BOOKING_FLOW_I18N[lang];
-    await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
+    await sendTextMessage(credential, from, bf.noDates);
     const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
-      await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
+      await sendButtonMessage(credential, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
     }
@@ -782,7 +785,7 @@ async function resumeFromIntent(
       booking: { step: "select_date", serviceId: intent.service_id, serviceName, date: intent.date },
     });
     const updatedSession = { ...session, booking: { step: "select_date" as const, serviceId: intent.service_id, serviceName, date: intent.date } };
-    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
+    await sendTimePeriodOrSlots(credential, from, businessPhoneNumberId, updatedSession, slots);
     return;
   }
 
@@ -798,11 +801,11 @@ async function resumeFromIntent(
 
   if (!exactSlot) {
     const dateDisplay = intent.date.slice(5).replace("-", "/");
-    await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](String(intent.time_hour), dateDisplay));
+    await sendTextMessage(credential, from, SLOT_TAKEN_MSG[lang](String(intent.time_hour), dateDisplay));
     const bf = BOOKING_FLOW_I18N[lang];
     const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
     if (dates.length > 0) {
-      await sendButtonMessage(businessPhoneNumberId, from, `${serviceName} ✂️\n${bf.chooseDate}`,
+      await sendButtonMessage(credential, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
     }
@@ -825,7 +828,7 @@ async function resumeFromIntent(
   });
 
   const bfConf = BOOKING_FLOW_I18N[lang];
-  await sendButtonMessage(businessPhoneNumberId, from,
+  await sendButtonMessage(credential, from,
     bfConf.summary(serviceName, intent.date.slice(5).replace("-", "/"), timeLabel),
     [
       { id: "confirm_yes", title: bfConf.confirmYes },
@@ -835,13 +838,15 @@ async function resumeFromIntent(
 }
 
 async function handleIncomingMessage(
+  credential: WhatsAppCredential,
+  businessId: string,
   from: string,
   text: string,
   businessPhoneNumberId: string,
   messageId: string,
   interactionId?: string
 ) {
-  markAsRead(businessPhoneNumberId, messageId).catch(() => {});
+  markAsRead(credential, messageId).catch(() => {});
 
   // Manager approve/reject buttons from sendManagerApprovalRequest (id format: approve_<apptId> / reject_<apptId>)
   if (interactionId && (interactionId.startsWith("approve_") || interactionId.startsWith("reject_"))) {
@@ -855,22 +860,22 @@ async function handleIncomingMessage(
         headers: { "Content-Type": "application/json", "x-internal-secret": secret },
       });
       if (r.ok) {
-        await sendTextMessage(businessPhoneNumberId, from, action === "approve" ? "✅ התור אושר ונשלחה הודעה ללקוח" : "❌ התור נדחה ונשלחה הודעה ללקוח");
+        await sendTextMessage(credential, from, action === "approve" ? "✅ התור אושר ונשלחה הודעה ללקוח" : "❌ התור נדחה ונשלחה הודעה ללקוח");
       } else {
         const body = await r.text().catch(() => "");
         console.error(`[manager-action] ${action} failed: ${r.status} ${body}`);
-        await sendTextMessage(businessPhoneNumberId, from, "⚠️ לא הצלחנו לעדכן את התור. ייתכן שכבר טופל.");
+        await sendTextMessage(credential, from, "⚠️ לא הצלחנו לעדכן את התור. ייתכן שכבר טופל.");
       }
     } catch (err) {
       console.error(`[manager-action] ${action} error:`, err);
-      await sendTextMessage(businessPhoneNumberId, from, "⚠️ אירעה שגיאה בעדכון התור.");
+      await sendTextMessage(credential, from, "⚠️ אירעה שגיאה בעדכון התור.");
     }
     return;
   }
 
-  const ctx = await getCachedBusinessContext(businessPhoneNumberId);
+  const ctx = await getCachedBusinessContext(businessId);
   if (!ctx) {
-    console.error("Could not resolve business for phone number:", businessPhoneNumberId);
+    console.error("Could not resolve business context for:", businessId);
     return;
   }
 
@@ -922,7 +927,7 @@ async function handleIncomingMessage(
         session.pendingIntent = intent;
       }
     }
-    await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+    await sendTextMessage(credential, from, ASK_NAME[session.language]);
     return;
   }
 
@@ -930,7 +935,7 @@ async function handleIncomingMessage(
   if (session.booking?.step === "select_date" && session.bookingFlow === "specific" && !interactionId) {
     const dateMatch = text.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!dateMatch) {
-      await sendTextMessage(businessPhoneNumberId, from, "פורמט לא תקין. הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)");
+      await sendTextMessage(credential, from, "פורמט לא תקין. הקלידו תאריך בפורמט DD/MM/YYYY (לדוגמה: 30/12/2026)");
       return;
     }
 
@@ -940,7 +945,7 @@ async function handleIncomingMessage(
     const inputDate = new Date(year, month - 1, day);
 
     if (isNaN(inputDate.getTime())) {
-      await sendTextMessage(businessPhoneNumberId, from, "תאריך לא תקין. נסו שוב.");
+      await sendTextMessage(credential, from, "תאריך לא תקין. נסו שוב.");
       return;
     }
 
@@ -948,7 +953,7 @@ async function handleIncomingMessage(
     const inputDateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
     if (inputDateStr < today.dateStr) {
-      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].pastDate);
+      await sendTextMessage(credential, from, BOOKING_FLOW_I18N[session.language ?? "he"].pastDate);
       return;
     }
 
@@ -956,13 +961,13 @@ async function handleIncomingMessage(
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + maxFutureDays);
     if (inputDate > maxDate) {
-      await sendTextMessage(businessPhoneNumberId, from, `ניתן לקבוע תור עד ${maxFutureDays} ימים מראש. נסו תאריך קרוב יותר.`);
+      await sendTextMessage(credential, from, `ניתן לקבוע תור עד ${maxFutureDays} ימים מראש. נסו תאריך קרוב יותר.`);
       return;
     }
 
     const dateSlots = await getAvailableTimeSlots(ctx.biz.businessId, session.booking.serviceId, inputDateStr);
     if (dateSlots.length === 0) {
-      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].noSlotsDate);
+      await sendTextMessage(credential, from, BOOKING_FLOW_I18N[session.language ?? "he"].noSlotsDate);
       return;
     }
 
@@ -970,7 +975,7 @@ async function handleIncomingMessage(
       booking: { ...session.booking, date: inputDateStr },
     });
     const updatedSession = { ...session, booking: { ...session.booking, date: inputDateStr } };
-    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, dateSlots);
+    await sendTimePeriodOrSlots(credential, from, businessPhoneNumberId, updatedSession, dateSlots);
     return;
   }
 
@@ -987,7 +992,7 @@ async function handleIncomingMessage(
         awaitingName: false,
       });
       await sendTextMessage(
-        businessPhoneNumberId,
+        credential,
         from,
         NAME_THANKS[session.language](candidate)
       );
@@ -997,15 +1002,15 @@ async function handleIncomingMessage(
         const intent = session.pendingIntent;
         updateSession(from, businessPhoneNumberId, { pendingIntent: undefined });
         const updatedSession = { ...session, customerName: candidate, awaitingName: false, pendingIntent: undefined };
-        await resumeFromIntent(from, businessPhoneNumberId, updatedSession, ctx, intent);
+        await resumeFromIntent(credential, from, businessPhoneNumberId, updatedSession, ctx, intent);
         return;
       }
 
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, candidate, session.language ?? "he");
+      await sendMainMenu(credential, from, ctx.biz.businessName, candidate, session.language ?? "he");
       return;
     }
     // Re-ask once and bail.
-    await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+    await sendTextMessage(credential, from, ASK_NAME[session.language]);
     return;
   }
 
@@ -1049,7 +1054,7 @@ async function handleIncomingMessage(
               const msg = interactionId === "confirm"
                 ? "התור שלך כבר מאושר! נתראה 😊"
                 : "התור שלך כבר בוטל.";
-              await sendTextMessage(businessPhoneNumberId, from, msg);
+              await sendTextMessage(credential, from, msg);
             } else if (["pending", "confirmed"].includes(aptData.status)) {
               await supabase.from("appointments")
                 .update({ status: newStatus, customer_confirmed: interactionId === "confirm" })
@@ -1060,9 +1065,9 @@ async function handleIncomingMessage(
                 .like("template_id", "reminder_%");
 
               if (interactionId === "confirm") {
-                await sendTextMessage(businessPhoneNumberId, from, "התור שלך אושר! נתראה 😊");
+                await sendTextMessage(credential, from, "התור שלך אושר! נתראה 😊");
               } else {
-                await sendTextMessage(businessPhoneNumberId, from, "התור שלך בוטל. תוכל לקבוע תור חדש בכל עת 👋");
+                await sendTextMessage(credential, from, "התור שלך בוטל. תוכל לקבוע תור חדש בכל עת 👋");
               }
 
               // Notify manager
@@ -1079,18 +1084,18 @@ async function handleIncomingMessage(
                 const managerMsg = interactionId === "confirm"
                   ? `✅ ${customerName} אישר/אה את התור ב-${date} בשעה ${time}`
                   : `❌ ${customerName} ביטל/לה את התור ב-${date} בשעה ${time}`;
-                sendTextMessage(businessPhoneNumberId, managerPhone, managerMsg).catch((err: unknown) =>
+                sendTextMessage(credential, managerPhone, managerMsg).catch((err: unknown) =>
                   console.error("[agent] Failed to notify manager of customer response:", err)
                 );
               }
             } else {
-              await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].cantChangeStatus);
+              await sendTextMessage(credential, from, BOOKING_FLOW_I18N[session.language ?? "he"].cantChangeStatus);
             }
             return;
           }
         }
       }
-      await sendTextMessage(businessPhoneNumberId, from, "לא נמצא תור מתאים. 🤔");
+      await sendTextMessage(credential, from, "לא נמצא תור מתאים. 🤔");
       return;
     }
 
@@ -1098,9 +1103,9 @@ async function handleIncomingMessage(
       const lang = session.language ?? "he";
       if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
         const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
-        await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+        await sendCategoryList(credential, from, ctx.categories, hasUncategorized, lang);
       } else {
-        await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+        await sendServiceList(credential, from, ctx.services, lang);
       }
       return;
     }
@@ -1128,7 +1133,7 @@ async function handleIncomingMessage(
       });
       addMessage(from, businessPhoneNumberId, "user", prompt);
       addMessage(from, businessPhoneNumberId, "assistant", response);
-      await sendTextMessage(businessPhoneNumberId, from, response);
+      await sendTextMessage(credential, from, response);
       return;
     }
 
@@ -1138,7 +1143,7 @@ async function handleIncomingMessage(
       const filtered = categoryId === "uncategorized"
         ? ctx.services.filter((s: any) => !s.category_id)
         : ctx.services.filter((s: any) => s.category_id === categoryId);
-      await sendServiceList(businessPhoneNumberId, from, filtered, lang);
+      await sendServiceList(credential, from, filtered, lang);
       return;
     }
 
@@ -1152,8 +1157,8 @@ async function handleIncomingMessage(
       if (service?.price_type === "discuss") {
         const bizWhatsApp = ctx.biz.phone.replace(/[^0-9]/g, "");
         const bf0 = BOOKING_FLOW_I18N[session.language ?? "he"];
-        await sendTextMessage(businessPhoneNumberId, from, bf0.discussService(bizWhatsApp));
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+        await sendTextMessage(credential, from, bf0.discussService(bizWhatsApp));
+        await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
         return;
       }
 
@@ -1162,7 +1167,7 @@ async function handleIncomingMessage(
       });
 
       const bf1 = BOOKING_FLOW_I18N[session.language ?? "he"];
-      await sendButtonMessage(businessPhoneNumberId, from,
+      await sendButtonMessage(credential, from,
         `${serviceName} ✂️\n${bf1.howPickDate}`,
         [
           { id: "flow_quick", title: bf1.quickDates },
@@ -1179,11 +1184,11 @@ async function handleIncomingMessage(
 
       const bf2 = BOOKING_FLOW_I18N[session.language ?? "he"];
       if (dates.length === 0) {
-        await sendTextMessage(businessPhoneNumberId, from, bf2.noDates);
+        await sendTextMessage(credential, from, bf2.noDates);
         return;
       }
 
-      await sendButtonMessage(businessPhoneNumberId, from,
+      await sendButtonMessage(credential, from,
         `${session.booking.serviceName} ✂️\n${bf2.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
@@ -1193,7 +1198,7 @@ async function handleIncomingMessage(
     // Specific date flow — prompt for DD/MM/YYYY input
     if (interactionId === "flow_specific" && session.booking?.step === "select_date") {
       updateSession(from, businessPhoneNumberId, { bookingFlow: "specific" });
-      await sendTextMessage(businessPhoneNumberId, from, BOOKING_FLOW_I18N[session.language ?? "he"].typeDate);
+      await sendTextMessage(credential, from, BOOKING_FLOW_I18N[session.language ?? "he"].typeDate);
       return;
     }
 
@@ -1204,8 +1209,8 @@ async function handleIncomingMessage(
 
       const bf3 = BOOKING_FLOW_I18N[session.language ?? "he"];
       if (slots.length === 0) {
-        await sendTextMessage(businessPhoneNumberId, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+        await sendTextMessage(credential, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
+        await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
         return;
       }
 
@@ -1213,7 +1218,7 @@ async function handleIncomingMessage(
         booking: { ...session.booking, date },
       });
       const updatedSession = { ...session, booking: { ...session.booking, date } };
-      await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
+      await sendTimePeriodOrSlots(credential, from, businessPhoneNumberId, updatedSession, slots);
       return;
     }
 
@@ -1230,13 +1235,13 @@ async function handleIncomingMessage(
       if (periodSlots.length === 0) {
         const remaining = slots;
         if (remaining.length === 0) {
-          await sendTextMessage(businessPhoneNumberId, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
+          await sendTextMessage(credential, from, TIME_SLOTS_I18N[session.language ?? "he"].noSlots);
           updateSession(from, businessPhoneNumberId, { booking: undefined });
-          await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+          await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
           return;
         }
         const updatedSession = { ...session };
-        await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, remaining);
+        await sendTimePeriodOrSlots(credential, from, businessPhoneNumberId, updatedSession, remaining);
         return;
       }
 
@@ -1244,7 +1249,7 @@ async function handleIncomingMessage(
         booking: { ...session.booking, step: "select_time" },
       });
 
-      await sendTimeSlotsGrouped(businessPhoneNumberId, from, session.booking.serviceName, session.booking.date!, periodSlots, session.language ?? "he");
+      await sendTimeSlotsGrouped(credential, from, session.booking.serviceName, session.booking.date!, periodSlots, session.language ?? "he");
       return;
     }
 
@@ -1258,7 +1263,7 @@ async function handleIncomingMessage(
       });
 
       const bfConf = BOOKING_FLOW_I18N[session.language ?? "he"];
-      await sendButtonMessage(businessPhoneNumberId, from,
+      await sendButtonMessage(credential, from,
         bfConf.summary(session.booking.serviceName, session.booking.date?.slice(5).replace("-", "/") ?? "", timeLabel),
         [
           { id: "confirm_yes", title: bfConf.confirmYes },
@@ -1275,7 +1280,7 @@ async function handleIncomingMessage(
       if (!session.customerId) {
         updateSession(from, businessPhoneNumberId, { awaitingName: true });
         session.awaitingName = true;
-        await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+        await sendTextMessage(credential, from, ASK_NAME[session.language]);
         return;
       }
 
@@ -1296,7 +1301,7 @@ async function handleIncomingMessage(
         });
         const dateLabel = session.booking.date?.slice(5).replace("-", "/") || "";
         await sendTextMessage(
-          businessPhoneNumberId,
+          credential,
           from,
           PENDING_APPROVAL_MSG[session.language](
             session.booking.serviceName,
@@ -1310,7 +1315,7 @@ async function handleIncomingMessage(
         if (chain > 0) {
           updateSession(from, businessPhoneNumberId, { chainRemaining: chain - 1 });
           const lang = session.language ?? "he";
-          await sendButtonMessage(businessPhoneNumberId, from,
+          await sendButtonMessage(credential, from,
             CHAIN_BOOKING_MSG[lang](chain),
             [
               { id: "chain_yes", title: lang === "ar" ? "آه، أكيد" : lang === "en" ? "Yes" : "כן" },
@@ -1319,9 +1324,9 @@ async function handleIncomingMessage(
           );
         }
       } else if (result === "already_booked") {
-        await sendTextMessage(businessPhoneNumberId, from, ALREADY_BOOKED_MSG[session.language]);
+        await sendTextMessage(credential, from, ALREADY_BOOKED_MSG[session.language]);
       } else {
-        await sendTextMessage(businessPhoneNumberId, from, result);
+        await sendTextMessage(credential, from, result);
       }
 
       updateSession(from, businessPhoneNumberId, { booking: undefined });
@@ -1330,8 +1335,8 @@ async function handleIncomingMessage(
 
     if (interactionId === "confirm_no") {
       updateSession(from, businessPhoneNumberId, { booking: undefined });
-      await sendTextMessage(businessPhoneNumberId, from, "ההזמנה בוטלה. 👋");
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+      await sendTextMessage(credential, from, "ההזמנה בוטלה. 👋");
+      await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
       return;
     }
 
@@ -1344,9 +1349,9 @@ async function handleIncomingMessage(
       const slots = await getAvailableTimeSlots(ctx.biz.businessId, serviceId, date);
       if (slots.length === 0) {
         const bf = BOOKING_FLOW_I18N[lang];
-        await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
+        await sendTextMessage(credential, from, bf.noDates);
         updateSession(from, businessPhoneNumberId, { booking: undefined, chainRemaining: undefined });
-        await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, lang);
+        await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, lang);
         return;
       }
 
@@ -1354,13 +1359,13 @@ async function handleIncomingMessage(
         booking: { step: "select_date", serviceId, serviceName, date },
       });
       const updatedSession = { ...session, booking: { step: "select_date" as const, serviceId, serviceName, date } };
-      await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSession, slots);
+      await sendTimePeriodOrSlots(credential, from, businessPhoneNumberId, updatedSession, slots);
       return;
     }
 
     if (interactionId === "chain_no") {
       updateSession(from, businessPhoneNumberId, { booking: undefined, chainRemaining: undefined });
-      await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+      await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
       return;
     }
   }
@@ -1374,10 +1379,10 @@ async function handleIncomingMessage(
       if (!session.customerName) {
         updateSession(from, businessPhoneNumberId, { awaitingName: true, pendingIntent: intent });
         session.awaitingName = true;
-        await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+        await sendTextMessage(credential, from, ASK_NAME[session.language]);
         return;
       }
-      await resumeFromIntent(from, businessPhoneNumberId, session, ctx, intent);
+      await resumeFromIntent(credential, from, businessPhoneNumberId, session, ctx, intent);
       return;
     }
     // confidence=low: fall through to greeting/booking pattern matching
@@ -1389,10 +1394,10 @@ async function handleIncomingMessage(
     if (!session.customerName) {
       updateSession(from, businessPhoneNumberId, { awaitingName: true });
       session.awaitingName = true;
-      await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+      await sendTextMessage(credential, from, ASK_NAME[session.language]);
       return;
     }
-    await sendMainMenu(businessPhoneNumberId, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
+    await sendMainMenu(credential, from, ctx.biz.businessName, session.customerName, session.language ?? "he");
     return;
   }
 
@@ -1402,15 +1407,15 @@ async function handleIncomingMessage(
     if (!session.customerName) {
       updateSession(from, businessPhoneNumberId, { awaitingName: true });
       session.awaitingName = true;
-      await sendTextMessage(businessPhoneNumberId, from, ASK_NAME[session.language]);
+      await sendTextMessage(credential, from, ASK_NAME[session.language]);
       return;
     }
     const lang = session.language ?? "he";
     if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
       const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
-      await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+      await sendCategoryList(credential, from, ctx.categories, hasUncategorized, lang);
     } else {
-      await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+      await sendServiceList(credential, from, ctx.services, lang);
     }
     return;
   }
@@ -1432,15 +1437,15 @@ async function handleIncomingMessage(
     const lang = session.language ?? "he";
     if (shouldShowCategories(ctx.categories, ctx.services as any[])) {
       const hasUncategorized = ctx.services.some((s: any) => !s.category_id);
-      await sendCategoryList(businessPhoneNumberId, from, ctx.categories, hasUncategorized, lang);
+      await sendCategoryList(credential, from, ctx.categories, hasUncategorized, lang);
     } else {
-      await sendServiceList(businessPhoneNumberId, from, ctx.services, lang);
+      await sendServiceList(credential, from, ctx.services, lang);
     }
     return;
   }
 
   addMessage(from, businessPhoneNumberId, "assistant", response);
-  await sendTextMessage(businessPhoneNumberId, from, response);
+  await sendTextMessage(credential, from, response);
 }
 
 app.get("/health", (_req, res) => {

@@ -46,9 +46,16 @@ describe("whatsapp-credentials route", () => {
   it("PUT saves and returns masked view (never the token)", async () => {
     const res = await request(app())
       .put("/api/businesses/b1/whatsapp")
-      .send({ phoneNumberId: "pn", accessToken: "tok", displayPhone: "+972" });
+      .send({ phoneNumberId: "pn", accessToken: "tok", appSecret: "sec", verifyToken: "vtok", displayPhone: "+972" });
     expect(res.status).toBe(200);
     expect(JSON.stringify(res.body)).not.toContain("tok");
-    expect(saveMock).toHaveBeenCalledWith("b1", { phoneNumberId: "pn", accessToken: "tok", displayPhone: "+972" });
+    expect(JSON.stringify(res.body)).not.toContain("sec");
+    expect(saveMock).toHaveBeenCalledWith("b1", {
+      phoneNumberId: "pn",
+      accessToken: "tok",
+      appSecret: "sec",
+      verifyToken: "vtok",
+      displayPhone: "+972",
+    });
   });
 });

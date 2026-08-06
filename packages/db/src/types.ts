@@ -708,6 +708,8 @@ export interface Database {
           business_id: string;
           phone_number_id: string;
           access_token: string;
+          app_secret: string | null;
+          verify_token: string | null;
           display_phone: string | null;
           verified_at: string | null;
           is_active: boolean;
@@ -719,6 +721,8 @@ export interface Database {
           business_id: string;
           phone_number_id: string;
           access_token: string;
+          app_secret?: string | null;
+          verify_token?: string | null;
           display_phone?: string | null;
           verified_at?: string | null;
           is_active?: boolean;
@@ -730,6 +734,8 @@ export interface Database {
           business_id?: string;
           phone_number_id?: string;
           access_token?: string;
+          app_secret?: string | null;
+          verify_token?: string | null;
           display_phone?: string | null;
           verified_at?: string | null;
           is_active?: boolean;

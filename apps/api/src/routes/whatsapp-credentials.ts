@@ -37,11 +37,19 @@ router.put(
   requireRole("business_owner", "super_admin"),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { phoneNumberId, accessToken, displayPhone } = req.body ?? {};
+      const { phoneNumberId, accessToken, appSecret, verifyToken, displayPhone } = req.body ?? {};
       if (!phoneNumberId || !accessToken) {
         throw new AppError(400, "phoneNumberId and accessToken are required");
       }
-      res.json(await svc().save(getBusinessId(req), { phoneNumberId, accessToken, displayPhone }));
+      res.json(
+        await svc().save(getBusinessId(req), {
+          phoneNumberId,
+          accessToken,
+          appSecret,
+          verifyToken,
+          displayPhone,
+        }),
+      );
     } catch (err) {
       next(err);
     }

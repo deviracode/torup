@@ -18,21 +18,17 @@ interface WebhookAppointment {
 
 const router: ReturnType<typeof Router> = Router();
 
-const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
-if (!WEBHOOK_VERIFY_TOKEN) {
-  console.error("WHATSAPP_WEBHOOK_VERIFY_TOKEN is required for webhook verification");
-}
-const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
-
-function verifySignature(req: Request): boolean {
-  if (!APP_SECRET) {
-    console.error("[Webhook] WHATSAPP_APP_SECRET is not set — rejecting all webhook POSTs");
-    return false;
-  }
+// Each tenant registers their own Meta App, so the webhook verify token and
+// app secret are per-tenant secrets stored (encrypted) on their
+// whatsapp_credentials row — never a shared platform-level env value.
+function verifySignature(req: Request, appSecret: string): boolean {
   const signature = req.headers["x-hub-signature-256"] as string;
   if (!signature) return false;
-  const expected = "sha256=" + crypto.createHmac("sha256", APP_SECRET).update(JSON.stringify(req.body)).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  const expected = "sha256=" + crypto.createHmac("sha256", appSecret).update(JSON.stringify(req.body)).digest("hex");
+  const expectedBuf = Buffer.from(expected);
+  const signatureBuf = Buffer.from(signature);
+  if (expectedBuf.length !== signatureBuf.length) return false;
+  return crypto.timingSafeEqual(signatureBuf, expectedBuf);
 }
 
 const responseMessages: Record<string, Record<string, string>> = {
@@ -58,13 +54,16 @@ const responseMessages: Record<string, Record<string, string>> = {
   },
 };
 
-// GET /api/webhooks/whatsapp - Meta verification challenge
-router.get("/whatsapp", (req: Request, res: Response) => {
+// GET /api/webhooks/whatsapp/:businessId - Meta verification challenge
+router.get("/whatsapp/:businessId", async (req: Request, res: Response) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
+  const credRepo = createWhatsAppCredentialsRepo(createServiceClient());
+  const { data: credRow } = await credRepo.getByBusinessId(req.params.businessId);
+
+  if (mode === "subscribe" && credRow?.verify_token && token === credRow.verify_token) {
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -77,10 +76,13 @@ export function extractPhoneNumberId(body: any): string | null {
   return body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id ?? null;
 }
 
-// POST /api/webhooks/whatsapp - Incoming messages & status updates
-router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/webhooks/whatsapp/:businessId - Incoming messages & status updates
+router.post("/whatsapp/:businessId", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!verifySignature(req)) {
+    const credRepo = createWhatsAppCredentialsRepo(createServiceClient());
+    const { data: credRow } = await credRepo.getByBusinessId(req.params.businessId);
+
+    if (!credRow?.app_secret || !verifySignature(req, credRow.app_secret)) {
       res.sendStatus(403);
       return;
     }
@@ -94,14 +96,12 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
     if (!value?.messages) return;
 
     const phoneNumberId = extractPhoneNumberId(req.body);
-    if (!phoneNumberId) return;
-
-    const credRepo = createWhatsAppCredentialsRepo(createServiceClient());
-    const { data: credRow } = await credRepo.getByPhoneNumberId(phoneNumberId);
-    if (!credRow) {
-      // Unknown number — ack (200 already sent above) and silently drop.
+    if (!phoneNumberId || phoneNumberId !== credRow.phone_number_id) {
+      // Path businessId and inbound payload's phone number must agree —
+      // otherwise this could be a replayed/misrouted payload.
       return;
     }
+
     const credential: WhatsAppCredential = {
       phoneNumberId: credRow.phone_number_id,
       accessToken: credRow.access_token,

@@ -12,6 +12,7 @@ interface WhatsAppStatus {
 }
 
 const META_MANAGER_URL = "https://business.facebook.com/wa/manage/";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function WhatsAppSettings() {
   const api = useApi();
@@ -23,8 +24,11 @@ export default function WhatsAppSettings() {
 
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [appSecret, setAppSecret] = useState("");
+  const [verifyToken, setVerifyToken] = useState("");
   const [displayPhone, setDisplayPhone] = useState("");
   const [showToken, setShowToken] = useState(false);
+  const [showAppSecret, setShowAppSecret] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [testTo, setTestTo] = useState("");
@@ -43,25 +47,32 @@ export default function WhatsAppSettings() {
   }, [businessId, fetchStatus]);
 
   const save = async () => {
-    if (!businessId || !phoneNumberId || !accessToken) return;
+    if (!businessId || !phoneNumberId || !accessToken || !appSecret || !verifyToken) return;
     setSaving(true);
     const res = await api<WhatsAppStatus>(`/api/businesses/${businessId}/whatsapp`, {
       method: "PUT",
       body: JSON.stringify({
         phoneNumberId,
         accessToken,
+        appSecret,
+        verifyToken,
         displayPhone: displayPhone || undefined,
       }),
     });
     setSaving(false);
     if (res) {
-      setAccessToken(""); // never retain the secret
+      setAccessToken(""); // never retain the secrets
+      setAppSecret("");
+      setVerifyToken("");
       setShowToken(false);
+      setShowAppSecret(false);
       setEditing(false);
       toast.success("מספר הוואטסאפ נשמר");
       fetchStatus();
     }
   };
+
+  const webhookUrl = businessId ? `${API_URL}/api/webhooks/whatsapp/${businessId}` : "";
 
   const sendTest = async () => {
     if (!businessId || !testTo) return;
@@ -80,12 +91,20 @@ export default function WhatsAppSettings() {
   const pasteForm = (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        חבר את מספר הוואטסאפ העסקי שלך כדי שההודעות יישלחו מהמספר שלך. את הפרטים תמצא ב-
+        חבר את אפליקציית ה-Meta והמספר העסקי שלך כדי שההודעות יישלחו מהמספר שלך. את הפרטים תמצא ב-
         <a href={META_MANAGER_URL} target="_blank" rel="noreferrer" className="text-blue-600 underline">
           WhatsApp Manager של Meta
         </a>
         .
       </p>
+      {webhookUrl && (
+        <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            כתובת ה-Webhook (הדבק ב-Meta App שלך)
+          </label>
+          <code className="block text-xs break-all select-all">{webhookUrl}</code>
+        </div>
+      )}
       <div>
         <label htmlFor="wa-phone-number-id" className="block text-sm font-medium mb-1">Phone Number ID</label>
         <input
@@ -119,6 +138,38 @@ export default function WhatsAppSettings() {
         </div>
       </div>
       <div>
+        <label htmlFor="wa-app-secret" className="block text-sm font-medium mb-1">App Secret</label>
+        <div className="flex gap-2">
+          <input
+            id="wa-app-secret"
+            type={showAppSecret ? "text" : "password"}
+            value={appSecret}
+            onChange={(e) => setAppSecret(e.target.value)}
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+            placeholder="מתוך הגדרות ה-Meta App"
+          />
+          <button
+            type="button"
+            aria-label={showAppSecret ? "הסתר" : "הצג"}
+            onClick={() => setShowAppSecret((v) => !v)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            {showAppSecret ? "🙈" : "👁️"}
+          </button>
+        </div>
+      </div>
+      <div>
+        <label htmlFor="wa-verify-token" className="block text-sm font-medium mb-1">Webhook Verify Token</label>
+        <input
+          id="wa-verify-token"
+          type="text"
+          value={verifyToken}
+          onChange={(e) => setVerifyToken(e.target.value)}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+          placeholder="בחר מחרוזת סודית ושמור אותה זהה כאן וב-Meta"
+        />
+      </div>
+      <div>
         <label htmlFor="wa-display-phone" className="block text-sm font-medium mb-1">מספר לתצוגה (אופציונלי)</label>
         <input
           id="wa-display-phone"
@@ -131,7 +182,7 @@ export default function WhatsAppSettings() {
       </div>
       <button
         onClick={save}
-        disabled={saving || !phoneNumberId || !accessToken}
+        disabled={saving || !phoneNumberId || !accessToken || !appSecret || !verifyToken}
         className="rounded-md bg-green-600 px-4 py-2 text-sm text-white font-medium hover:bg-green-700 disabled:opacity-50"
       >
         {saving ? "שומר..." : "שמור"}
