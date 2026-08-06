@@ -11,15 +11,14 @@ export function createCustomerRepo(client: SupabaseClient<Database>) {
       if (search) q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
       return q.order("name");
     },
-    async findByPhone(phone: string) {
-      return client.from("customers").select("*").eq("phone", phone).single();
-    },
-    async create(data: Record<string, unknown>) {
-      return client
-        .from("customers")
-        .insert(data as never)
-        .select()
-        .single();
+    async findOrCreateViaRpc(input: { phone: string; name?: string | null; language_preference?: string }) {
+      // Scoped SECURITY DEFINER RPC — the anon key can reach only this single
+      // row (find-or-create by phone), never the whole customers table.
+      return client.rpc("find_or_create_customer", {
+        p_phone: input.phone,
+        p_name: input.name || undefined,
+        p_language: input.language_preference ?? "he",
+      });
     },
     async update(customerId: string, data: Record<string, unknown>) {
       return client

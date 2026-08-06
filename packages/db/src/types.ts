@@ -746,7 +746,23 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      find_or_create_customer: {
+        Args: {
+          p_language?: string;
+          p_name?: string;
+          p_phone: string;
+        };
+        Returns: {
+          created_at: string;
+          id: string;
+          language_preference: string;
+          name: string;
+          phone: string;
+          updated_at: string;
+        };
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
