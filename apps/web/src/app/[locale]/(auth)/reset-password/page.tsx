@@ -21,24 +21,17 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const establish = async () => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) setError(error.message);
-      } else if (window.location.hash.includes("access_token")) {
-        const hash = new URLSearchParams(window.location.hash.slice(1));
-        const access_token = hash.get("access_token");
-        const refresh_token = hash.get("refresh_token");
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
-        }
+    const check = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setReady(true);
+      } else {
+        setError(isRtl ? "קישור לא תקין או פג תוקף" : "Invalid or expired link");
+        setReady(true);
       }
-      setReady(true);
     };
-    establish();
-  }, [supabase]);
+    check();
+  }, [supabase, isRtl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

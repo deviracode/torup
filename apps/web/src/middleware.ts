@@ -20,6 +20,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Handle reset-password PKCE code exchange server-side
+  if (path.includes("/reset-password")) {
+    const code = request.nextUrl.searchParams.get("code");
+    if (code) {
+      const url = request.nextUrl.clone();
+      url.searchParams.delete("code");
+      const redirect = NextResponse.redirect(url);
+
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll: () => request.cookies.getAll(),
+            setAll: (cookiesToSet) => {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                redirect.cookies.set(name, value, options);
+              });
+            },
+          },
+        }
+      );
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        const locale = path.split("/")[1];
+        const validLocale = routing.locales.includes(locale as "he" | "ar" | "en") ? locale : "he";
+        return NextResponse.redirect(new URL(`/${validLocale}/login?error=reset_link_expired`, request.url));
+      }
+
+      return redirect;
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
