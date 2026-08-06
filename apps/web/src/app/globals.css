@@ -2,43 +2,46 @@
 @import "tw-animate-css";
 
 @theme inline {
+  /* ── Typography ── */
+  --font-sans: var(--font-heebo), "Noto Sans Hebrew", -apple-system, sans-serif;
+
   /* ── Backgrounds ── */
-  --color-background: hsl(244 93% 5%);
+  --color-background: hsl(248 35% 8%);
   --color-foreground: hsl(214 32% 91%);
 
   /* ── Cards / Surfaces ── */
-  --color-card: hsl(244 40% 16%);
+  --color-card: hsl(248 28% 14%);
   --color-card-foreground: hsl(214 32% 91%);
-  --color-popover: hsl(242 44% 10%);
+  --color-popover: hsl(248 32% 10%);
   --color-popover-foreground: hsl(214 32% 91%);
 
-  /* ── Primary (indigo) ── */
+  /* ── Primary (indigo — unchanged) ── */
   --color-primary: hsl(239 84% 67%);
   --color-primary-foreground: hsl(0 0% 100%);
 
   /* ── Secondary ── */
-  --color-secondary: hsl(244 40% 16%);
-  --color-secondary-foreground: hsl(258 91% 76%);
+  --color-secondary: hsl(248 28% 14%);
+  --color-secondary-foreground: hsl(214 20% 78%);
 
   /* ── Muted ── */
-  --color-muted: hsl(244 35% 20%);
+  --color-muted: hsl(248 24% 19%);
   --color-muted-foreground: hsl(214 20% 60%);
 
-  /* ── Accent (violet) ── */
-  --color-accent: hsl(262 83% 66%);
-  --color-accent-foreground: hsl(0 0% 100%);
+  /* ── Accent (amber — reserved for "live/now" state, was violet) ── */
+  --color-accent: hsl(38 62% 58%);
+  --color-accent-foreground: hsl(244 60% 8%);
 
   /* ── Semantic ── */
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 98%);
-  --color-success: hsl(160 84% 39%);
+  --color-success: hsl(155 34% 44%);
   --color-success-foreground: hsl(0 0% 100%);
   --color-warning: hsl(38 92% 50%);
   --color-warning-foreground: hsl(0 0% 100%);
 
   /* ── Chrome ── */
-  --color-border: hsl(244 30% 22%);
-  --color-input: hsl(244 40% 18%);
+  --color-border: hsl(248 26% 20%);
+  --color-input: hsl(248 28% 16%);
   --color-ring: hsl(239 84% 67%);
 
   /* ── Radii ── */
@@ -49,10 +52,10 @@
 
 /* ── Gradient custom properties (not Tailwind tokens) ── */
 :root {
-  --grad-primary: linear-gradient(135deg, #6366f1, #8b5cf6);
-  --grad-brand: linear-gradient(135deg, #a78bfa, #f472b6);
-  --grad-warm: linear-gradient(135deg, #f472b6, #fb923c);
-  --grad-success: linear-gradient(135deg, #10b981, #06b6d4);
+  --grad-primary: linear-gradient(135deg, #6366f1, #818cf8);
+  --grad-brand: linear-gradient(135deg, #6366f1, #d4a24e);
+  --grad-warm: linear-gradient(135deg, #d4a24e, #e8c37c);
+  --grad-success: linear-gradient(135deg, #4d9b7a, #10b981);
 }
 
 @layer base {
@@ -62,6 +65,10 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  html[dir="rtl"] body {
+    line-height: 1.7;
   }
 }
 

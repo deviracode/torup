@@ -120,7 +120,7 @@ export default function LoginPage() {
           <div className={`flex ${isRtl ? "justify-start" : "justify-end"}`}>
             <Link
               href={`/${locale}/forgot-password`}
-              className="text-xs text-[#a78bfa] hover:text-white transition-colors"
+              className="text-xs text-[#818cf8] hover:text-white transition-colors"
             >
               {t("forgotPassword" as any)}
             </Link>
@@ -131,7 +131,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setShowResend(!showResend)}
-            className="text-xs text-white/40 hover:text-[#a78bfa] transition-colors"
+            className="text-xs text-white/40 hover:text-[#818cf8] transition-colors"
           >
             {isRtl ? "לא קיבלת אימייל אימות? שלח שוב" : "Didn't receive confirmation? Resend it"}
           </button>
@@ -155,7 +155,7 @@ export default function LoginPage() {
                 type="button"
                 disabled={resendLoading}
                 onClick={handleResend}
-                className="rounded-[10px] bg-[#6366f1]/20 border border-[#6366f1]/30 px-3 py-2 text-xs font-medium text-[#a78bfa] hover:bg-[#6366f1]/30 transition-colors disabled:opacity-50"
+                className="rounded-[10px] bg-[#6366f1]/20 border border-[#6366f1]/30 px-3 py-2 text-xs font-medium text-[#818cf8] hover:bg-[#6366f1]/30 transition-colors disabled:opacity-50"
               >
                 {resendLoading ? t("loading") : (isRtl ? "שלח" : "Send")}
               </button>
@@ -184,7 +184,7 @@ export default function LoginPage() {
       </form>
 
       <p className="mt-5 text-center text-sm text-white/40">
-        <Link href={`/${locale}/register`} className="text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/register`} className="text-[#818cf8] hover:text-white transition-colors">
           {t("register")}
         </Link>
       </p>

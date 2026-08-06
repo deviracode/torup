@@ -10,7 +10,7 @@ import { Calendar, MessageCircle, BarChart3, Globe } from "lucide-react";
 const FEATURES = [
   {
     icon: Calendar,
-    gradient: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+    gradient: "linear-gradient(135deg, #6366f1, #d4a24e)",
     titleHe: "ניהול תורים חכם",
     titleEn: "Smart Scheduling",
     descHe: "לוח זמנים אוטומטי, ניהול זמינות וחלונות זמן",
@@ -34,7 +34,7 @@ const FEATURES = [
   },
   {
     icon: Globe,
-    gradient: "linear-gradient(135deg, #f472b6, #a78bfa)",
+    gradient: "linear-gradient(135deg, #d4a24e, #818cf8)",
     titleHe: "רב-שפתי",
     titleEn: "Multilingual",
     descHe: "תמיכה בעברית, ערבית ואנגלית עם RTL מלא",
@@ -67,7 +67,7 @@ export default function HomePage() {
         <div
           className="orb-3 absolute w-[400px] h-[400px] rounded-full bottom-[-150px] left-1/2"
           style={{
-            background: "radial-gradient(circle, rgba(244,114,182,0.2) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(212,162,78,0.2) 0%, transparent 70%)",
             filter: "blur(60px)",
           }}
         />
@@ -113,8 +113,8 @@ export default function HomePage() {
             borderColor: "rgba(99,102,241,0.3)",
           }}
         >
-          <span className="w-2 h-2 rounded-full bg-[#a78bfa]" />
-          <span className="text-xs font-semibold text-[#a78bfa]">
+          <span className="w-2 h-2 rounded-full bg-[#818cf8]" />
+          <span className="text-xs font-semibold text-[#818cf8]">
             {isRtl ? "פלטפורמת ניהול תורים חכמה" : "AI-Powered Scheduling Platform"}
           </span>
         </motion.div>
@@ -125,7 +125,7 @@ export default function HomePage() {
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number], delay: 0.2 }}
           className="text-5xl sm:text-6xl font-black tracking-tight max-w-2xl mb-5"
           style={{
-            background: "linear-gradient(135deg, #e0e7ff 0%, #a78bfa 50%, #f472b6 100%)",
+            background: "linear-gradient(135deg, #e0e7ff 0%, #818cf8 50%, #d4a24e 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             lineHeight: 1.1,

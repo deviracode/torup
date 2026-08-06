@@ -206,7 +206,8 @@
     "errorUpdateServices": "Failed to update services",
     "errorEndBeforeStart": "End date must be after start date",
     "errorAddTimeOff": "Failed to add time-off",
-    "errorRemoveTimeOff": "Failed to remove time-off"
+    "errorRemoveTimeOff": "Failed to remove time-off",
+    "unnamedStaffMember": "Unnamed staff member"
   },
   "admin": {
     "businesses": "Businesses",
@@ -254,5 +255,22 @@
     "completed": "Completed",
     "cancelled": "Cancelled",
     "noShow": "No Show"
+  },
+  "billing": {
+    "currentPlan": "Current plan",
+    "active": "Active",
+    "planFeatures": "What's included",
+    "features": [
+      "Up to 5 staff members",
+      "Unlimited appointments",
+      "WhatsApp agent",
+      "Web booking page",
+      "Analytics dashboard"
+    ],
+    "needMore": "Need more?",
+    "upgradeDesc": "Upgrade to the Business plan for unlimited staff and priority support.",
+    "upgradePlan": "Upgrade plan",
+    "upgradeComingSoon": "Plan upgrades are coming soon. Contact us on WhatsApp in the meantime.",
+    "perMonth": "per month"
   }
 }

@@ -239,7 +239,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
           onSelect={(d) => setDate(formatDate(d))}
           trigger={
             <span className="block">
-              <span className="text-sm font-semibold text-white hover:text-[#a78bfa] transition-colors">
+              <span className="text-sm font-semibold text-white hover:text-[#818cf8] transition-colors">
                 {dayLabel}
               </span>
               <button
@@ -248,7 +248,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                   setDate(formatDate(new Date()));
                 }}
                 disabled={isToday}
-                className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/40 cursor-default" : "text-[#a78bfa] hover:text-white"}`}
+                className={`text-xs transition-colors mt-0.5 block mx-auto ${isToday ? "text-white/40 cursor-default" : "text-[#818cf8] hover:text-white"}`}
               >
                 {t("today")}
               </button>
@@ -278,7 +278,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
           style={isToday ? { background: "rgba(99,102,241,0.08)" } : {}}
         >
           <CalendarDays className="h-4 w-4 text-white/60" />
-          <span className={`text-xs font-semibold ${isToday ? "text-[#a78bfa]" : "text-white/70"}`}>
+          <span className={`text-xs font-semibold ${isToday ? "text-[#818cf8]" : "text-white/70"}`}>
             {isToday ? t("today") : dateObj.toLocaleDateString("he-IL", { weekday: "long" })}
           </span>
           <div className="ms-auto flex items-center gap-2">

@@ -27,7 +27,7 @@ export interface StaffMember {
 }
 
 const inputCls =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-start";
 
 export function StaffCard({
   member,
@@ -136,7 +136,7 @@ export function StaffCard({
   };
 
   const displayLabel =
-    member.display_name || member.user?.user_metadata?.name || member.user?.email || member.user_id;
+    member.display_name || member.user?.user_metadata?.name || member.user?.email || t("unnamedStaffMember");
 
   return (
     <div className="rounded-md border border-border bg-background">
@@ -153,7 +153,7 @@ export function StaffCard({
           )}
           <span
             className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-              member.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+              member.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
             }`}
           >
             {t(member.role as "owner" | "staff")}
@@ -179,6 +179,7 @@ export function StaffCard({
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
+                dir="auto"
                 className={inputCls}
               />
               <button

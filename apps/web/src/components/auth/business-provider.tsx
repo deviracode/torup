@@ -21,8 +21,14 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [businesses, setBusinesses] = useState<BusinessContextType["businesses"]>([]);
 
+  // Keyed on user id, not the access token — background token refreshes swap the
+  // token string on every renewal without changing who's signed in, and re-running
+  // this fetch on each renewal (which can itself trigger a refresh on 401) creates
+  // a self-sustaining refresh/fetch loop.
+  const userId = session?.user?.id ?? null;
+
   useEffect(() => {
-    if (!session?.access_token) {
+    if (!userId || !session?.access_token) {
       setBusinessId(null);
       setHasNoBusiness(false);
       setBusinesses([]);
@@ -51,7 +57,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setBusinesses([]);
       })
       .finally(() => setLoading(false));
-  }, [session?.access_token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const switchBusiness = useCallback((newBusinessId: string) => {
     if (businesses.some((b) => b.businessId === newBusinessId)) {

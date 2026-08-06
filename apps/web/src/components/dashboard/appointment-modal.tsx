@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Badge, Button, Separator, Card, CardContent } from "@torup/ui";
 import { User, Scissors, CalendarDays, FileText, Clock, Phone, Bell } from "lucide-react";
+import { formatILS } from "@/lib/format";
 
 interface Appointment {
   id: string;
@@ -299,7 +300,7 @@ export function AppointmentModal({
                   )}
                   {durationMin && price && <span className="text-muted-foreground">·</span>}
                   {price && (
-                    <span className="text-xs font-medium text-emerald-600">₪{price}</span>
+                    <span className="text-xs font-medium text-emerald-600">{formatILS(price)}</span>
                   )}
                 </div>
               )}

@@ -8,6 +8,7 @@ import { useApi } from "@/lib/use-api";
 import { Card, CardContent, Button, Input, Label } from "@torup/ui";
 import { StaffCard, type StaffMember } from "@/components/dashboard/staff-card";
 import WhatsAppSettings from "@/components/dashboard/whatsapp-settings";
+import { formatILS } from "@/lib/format";
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
@@ -489,9 +490,9 @@ function SettingsPageInner() {
                             return arr;
                           });
                         }}
-                        className="rounded border border-gray-300 px-2 py-1 text-sm"
+                        className="rounded border border-border px-2 py-1 text-sm"
                       />
-                      <span className="text-gray-400">–</span>
+                      <span className="text-muted-foreground">–</span>
                       <input
                         type="time"
                         value={h.end_time}
@@ -504,7 +505,7 @@ function SettingsPageInner() {
                             return arr;
                           });
                         }}
-                        className="rounded border border-gray-300 px-2 py-1 text-sm"
+                        className="rounded border border-border px-2 py-1 text-sm"
                       />
                     </>
                   )}
@@ -524,10 +525,10 @@ function SettingsPageInner() {
             {breaks.length > 0 && (
               <div className="space-y-2">
                 {breaks.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2 text-sm">
+                  <div key={b.id} className="flex items-center justify-between rounded-md border border-border px-4 py-2 text-sm">
                     <div>
                       <span className="font-medium">{b.label || t(b.type === "recurring" ? "recurring" : "oneTime")}</span>
-                      <span className="text-gray-500 ms-2">
+                      <span className="text-muted-foreground ms-2">
                         {b.type === "recurring" && b.day_of_week !== null ? t(DAYS[b.day_of_week]) : b.specific_date}
                         {" "}{b.start_time} – {b.end_time}
                       </span>
@@ -538,29 +539,30 @@ function SettingsPageInner() {
               </div>
             )}
 
-            <div className="border-t border-gray-200 pt-4 space-y-3">
+            <div className="border-t border-border pt-4 space-y-3">
               <h4 className="text-sm font-medium">{t("addBreak")}</h4>
               <div className="flex gap-3 flex-wrap">
                 <select value={newBreak.type} onChange={(e) => setNewBreak({ ...newBreak, type: e.target.value })}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm">
+                  className="rounded border border-border px-2 py-1 text-sm">
                   <option value="recurring">{t("recurring")}</option>
                   <option value="one_time">{t("oneTime")}</option>
                 </select>
                 {newBreak.type === "recurring" ? (
                   <select value={newBreak.day_of_week} onChange={(e) => setNewBreak({ ...newBreak, day_of_week: Number(e.target.value) })}
-                    className="rounded border border-gray-300 px-2 py-1 text-sm">
+                    className="rounded border border-border px-2 py-1 text-sm">
                     {DAYS.map((d, i) => <option key={d} value={i}>{t(d)}</option>)}
                   </select>
                 ) : (
                   <input type="date" value={newBreak.specific_date} onChange={(e) => setNewBreak({ ...newBreak, specific_date: e.target.value })}
-                    className="rounded border border-gray-300 px-2 py-1 text-sm" />
+                    className="rounded border border-border px-2 py-1 text-sm" />
                 )}
                 <input type="time" value={newBreak.start_time} onChange={(e) => setNewBreak({ ...newBreak, start_time: e.target.value })}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm" />
+                  className="rounded border border-border px-2 py-1 text-sm" />
                 <input type="time" value={newBreak.end_time} onChange={(e) => setNewBreak({ ...newBreak, end_time: e.target.value })}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm" />
+                  className="rounded border border-border px-2 py-1 text-sm" />
                 <input type="text" placeholder={t("label")} value={newBreak.label} onChange={(e) => setNewBreak({ ...newBreak, label: e.target.value })}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm" />
+                  dir="auto"
+                  className="rounded border border-border px-2 py-1 text-sm text-start" />
               </div>
               <button onClick={addBreak} disabled={saving}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
@@ -581,7 +583,7 @@ function SettingsPageInner() {
                   const preset = REMINDER_PRESETS.find((p) => p.minutes === r.minutes_before);
                   const label = preset ? t(`reminder_${preset.label}`) : `${r.minutes_before} ${t("minutes")}`;
                   return (
-                    <div key={r.id} className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-sm">
+                    <div key={r.id} className="flex items-center justify-between rounded-md border border-border px-4 py-3 text-sm">
                       <div className="flex items-center gap-3">
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -590,7 +592,7 @@ function SettingsPageInner() {
                             onChange={(e) => toggleReminder(r.id, e.target.checked)}
                             className="sr-only peer"
                           />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                          <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                         <span className={`font-medium ${!r.is_active ? "text-muted-foreground" : ""}`}>{label}</span>
                       </div>
@@ -601,7 +603,7 @@ function SettingsPageInner() {
               </div>
             )}
 
-            <div className="border-t border-gray-200 pt-4">
+            <div className="border-t border-border pt-4">
               <h4 className="text-sm font-medium mb-3">{t("addReminder")}</h4>
               <div className="flex flex-wrap gap-2">
                 {REMINDER_PRESETS.filter((p) => !reminders.some((r) => r.minutes_before === p.minutes)).map((p) => (
@@ -609,7 +611,7 @@ function SettingsPageInner() {
                     key={p.minutes}
                     onClick={() => addReminder(p.minutes)}
                     disabled={saving}
-                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-50"
+                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors disabled:opacity-50"
                   >
                     {t(`reminder_${p.label}`)}
                   </button>
@@ -626,25 +628,25 @@ function SettingsPageInner() {
               <label className="block text-sm font-medium mb-1">{t("minAdvance")}</label>
               <input type="number" min={0} value={rules.min_advance_minutes}
                 onChange={(e) => setRules({ ...rules, min_advance_minutes: Number(e.target.value) })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-end" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("maxFutureDays")}</label>
               <input type="number" min={1} value={rules.max_future_days}
                 onChange={(e) => setRules({ ...rules, max_future_days: Number(e.target.value) })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-end" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("cancellationWindow")}</label>
               <input type="number" min={0} value={rules.cancellation_window_minutes}
                 onChange={(e) => setRules({ ...rules, cancellation_window_minutes: Number(e.target.value) })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-end" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("rescheduleWindow")}</label>
               <input type="number" min={0} value={rules.reschedule_window_minutes}
                 onChange={(e) => setRules({ ...rules, reschedule_window_minutes: Number(e.target.value) })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-end" />
             </div>
             <button onClick={saveRules} disabled={saving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
@@ -676,7 +678,7 @@ function SettingsPageInner() {
                 placeholder={t("email")}
                 value={newStaffEmail}
                 onChange={(e) => setNewStaffEmail(e.target.value)}
-                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
               />
               <button
                 onClick={addStaff}
@@ -692,7 +694,7 @@ function SettingsPageInner() {
         {/* Booking Settings */}
         {tab === "booking" && (
           <div className="space-y-4 max-w-md">
-            <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between rounded-md border border-border px-4 py-3">
               <div>
                 <p className="text-sm font-medium">{t("allowMultipleBookings")}</p>
                 <p className="text-xs text-muted-foreground">{t("allowMultipleBookingsDesc")}</p>
@@ -704,7 +706,7 @@ function SettingsPageInner() {
                   onChange={(e) => setAllowMultipleBookings(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
               </label>
             </div>
             <button onClick={saveBooking} disabled={saving}
@@ -726,17 +728,18 @@ function SettingsPageInner() {
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
                   {gcalConnecting ? "מתחבר..." : "🔗 חיבור Google Calendar"}
                 </button>
-                <div className="border-t border-gray-200 pt-4 space-y-2">
+                <div className="border-t border-border pt-4 space-y-2">
                   <p className="text-xs text-muted-foreground">
                     לאחר אישור Google, העתק את הקוד שהתקבל בחזרה לכאן:
                   </p>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Authorization code"
+                      placeholder="קוד אימות"
                       value={gcalCode}
                       onChange={(e) => setGcalCode(e.target.value)}
-                      className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+                      dir="auto"
+                      className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
                     />
                     <button
                       onClick={() => { handleGCalCode(gcalCode); setGcalCode(""); }}
@@ -772,7 +775,7 @@ function SettingsPageInner() {
                     <select
                       value={gcalStatus.calendarId || ""}
                       onChange={(e) => setGcalStatus({ ...gcalStatus, calendarId: e.target.value || null })}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      className="w-full rounded-md border border-border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                     >
                       <option value="">—</option>
                       {gcalCalendars.map((c) => (
@@ -786,7 +789,7 @@ function SettingsPageInner() {
 
                 {/* Toggles */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-center justify-between rounded-md border border-border px-4 py-3">
                     <div>
                       <p className="text-sm font-medium">סנכרון מיומן Google</p>
                       <p className="text-xs text-muted-foreground">אירועים מהיומן יחסמו משבצות זמן</p>
@@ -798,11 +801,11 @@ function SettingsPageInner() {
                         onChange={(e) => setGcalStatus({ ...gcalStatus, syncEnabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3">
+                  <div className="flex items-center justify-between rounded-md border border-border px-4 py-3">
                     <div>
                       <p className="text-sm font-medium">דחיפת תורים ליומן</p>
                       <p className="text-xs text-muted-foreground">תורים חדשים יופיעו אוטומטית ביומן Google</p>
@@ -814,7 +817,7 @@ function SettingsPageInner() {
                         onChange={(e) => setGcalStatus({ ...gcalStatus, pushEnabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 </div>
@@ -835,7 +838,7 @@ function SettingsPageInner() {
                       setSaving(false);
                     }}
                     disabled={saving}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
                   >
                     🔄 סנכרן עכשיו
                   </button>
@@ -857,18 +860,18 @@ function SettingsPageInner() {
           <div className="space-y-4 max-w-md">
             <div>
               <label className="block text-sm font-medium mb-1">{t("businessName")}</label>
-              <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} dir="auto"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("description")}</label>
-              <textarea value={profile.description || ""} onChange={(e) => setProfile({ ...profile, description: e.target.value })} rows={3}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <textarea value={profile.description || ""} onChange={(e) => setProfile({ ...profile, description: e.target.value })} rows={3} dir="auto"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("phone")}</label>
               <input value={profile.phone || ""} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} dir="ltr"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("contactPhone")}</label>
@@ -879,18 +882,18 @@ function SettingsPageInner() {
             <div>
               <label className="block text-sm font-medium mb-1">{t("email")}</label>
               <input type="email" value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} dir="ltr"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("address")}</label>
-              <input value={profile.address || ""} onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <input value={profile.address || ""} onChange={(e) => setProfile({ ...profile, address: e.target.value })} dir="auto"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">{t("botContext")}</label>
               <p className="text-xs text-muted-foreground mb-1">{t("botContextDesc")}</p>
-              <textarea value={profile.bot_context || ""} onChange={(e) => setProfile({ ...profile, bot_context: e.target.value })} rows={5}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <textarea value={profile.bot_context || ""} onChange={(e) => setProfile({ ...profile, bot_context: e.target.value })} rows={5} dir="auto"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm text-start" />
             </div>
             <button onClick={saveProfile} disabled={saving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white font-medium hover:bg-blue-700 disabled:opacity-50">
@@ -970,12 +973,14 @@ function SettingsPageInner() {
                                   value={serviceForm.duration_minutes ?? svc.duration_minutes}
                                   onChange={(e) => setServiceForm((f) => ({ ...f, duration_minutes: Number(e.target.value) }))}
                                   placeholder={t("duration")}
+                                  className="text-end"
                                 />
                                 <Input
                                   type="number"
                                   value={serviceForm.price ?? svc.price}
                                   onChange={(e) => setServiceForm((f) => ({ ...f, price: Number(e.target.value) }))}
                                   placeholder={t("price")}
+                                  className="text-end"
                                 />
                               </div>
                               <div className="space-y-1">
@@ -1046,7 +1051,7 @@ function SettingsPageInner() {
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-sm">{svc.name_he}</p>
-                                <p className="text-xs text-muted-foreground">{svc.duration_minutes} {t("min")} • ₪{svc.price}</p>
+                                <p className="text-xs text-muted-foreground">{svc.duration_minutes} {t("min")} • {formatILS(svc.price)}</p>
                               </div>
                               <Button
                                 variant="ghost"

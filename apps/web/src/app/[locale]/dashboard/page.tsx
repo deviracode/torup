@@ -62,7 +62,7 @@ const STAT_CONFIG = [
     key: "total" as const,
     labelKey: "todayAppointments",
     icon: CalendarDays,
-    gradient: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+    gradient: "linear-gradient(135deg, #6366f1, #d4a24e)",
     drawerTitle: { he: "כל התורים להיום", en: "All Today's Appointments" },
     statusFilter: null as string[] | null,
   },
@@ -87,7 +87,7 @@ const STAT_CONFIG = [
     key: "pendingApproval" as const,
     labelKey: "pendingApproval",
     icon: AlertCircle,
-    gradient: "linear-gradient(135deg, #ef4444, #f472b6)",
+    gradient: "linear-gradient(135deg, #ef4444, #d4a24e)",
     drawerTitle: { he: "ממתינים לאישורך", en: "Awaiting Your Approval" },
     statusFilter: ["pending_approval"],
   },
@@ -129,8 +129,8 @@ function AppointmentDrawer({
         exit={{ x: isRtl ? "-100%" : "100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        className={`absolute top-0 bottom-0 w-full max-w-md flex flex-col ${isRtl ? "left-0" : "right-0"}`}
-        style={{ background: "hsl(244 40% 10%)", borderLeft: isRtl ? "none" : "1px solid rgba(255,255,255,0.07)", borderRight: isRtl ? "1px solid rgba(255,255,255,0.07)" : "none" }}
+        className="absolute start-0 top-0 bottom-0 w-full max-w-md flex flex-col"
+        style={{ background: "hsl(244 40% 10%)", borderInlineStart: "1px solid rgba(255,255,255,0.07)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/7">

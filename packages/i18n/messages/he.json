@@ -206,7 +206,8 @@
     "errorUpdateServices": "עדכון השירותים נכשל",
     "errorEndBeforeStart": "תאריך הסיום חייב להיות אחרי תאריך ההתחלה",
     "errorAddTimeOff": "הוספת ימי ההיעדרות נכשלה",
-    "errorRemoveTimeOff": "מחיקת ימי ההיעדרות נכשלה"
+    "errorRemoveTimeOff": "מחיקת ימי ההיעדרות נכשלה",
+    "unnamedStaffMember": "איש צוות ללא שם"
   },
   "admin": {
     "businesses": "עסקים",
@@ -265,5 +266,22 @@
     "weakPassword": "הסיסמה חייבת להכיל לפחות 6 תווים",
     "expiredLink": "הקישור פג תוקף, בקש קישור חדש",
     "default": "אירעה שגיאה, אנא נסה שוב"
+  },
+  "billing": {
+    "currentPlan": "התוכנית הנוכחית",
+    "active": "פעיל",
+    "planFeatures": "מה כלול בתוכנית",
+    "features": [
+      "עד 5 אנשי צוות",
+      "תורים ללא הגבלה",
+      "בוט וואטסאפ",
+      "עמוד הזמנות אונליין",
+      "לוח אנליטיקס"
+    ],
+    "needMore": "צריכים יותר?",
+    "upgradeDesc": "שדרגו לתוכנית Business לצוות ללא הגבלה ותמיכה בעדיפות.",
+    "upgradePlan": "שדרוג תוכנית",
+    "upgradeComingSoon": "שדרוג תוכניות יהיה זמין בקרוב. פנו אלינו בוואטסאפ בינתיים.",
+    "perMonth": "לחודש"
   }
 }

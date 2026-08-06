@@ -19,14 +19,14 @@ function BrandPanel() {
     <div
       className="hidden md:flex w-[45%] flex-col justify-center px-10 relative overflow-hidden"
       style={{
-        background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
+        background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 55%, #8a6a2f 130%)",
       }}
     >
       {/* Ambient orb */}
       <div
         className="absolute bottom-[-80px] right-[-80px] w-[300px] h-[300px] rounded-full pointer-events-none"
         style={{
-          background: "radial-gradient(circle, rgba(167,139,250,0.25) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(212,162,78,0.25) 0%, transparent 70%)",
           filter: "blur(40px)",
         }}
       />

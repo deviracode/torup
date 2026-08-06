@@ -62,7 +62,7 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`hidden md:flex h-screen w-[220px] flex-col py-4 bg-[hsl(242_44%_10%)] ${isRtl ? "border-l" : "border-r"} border-white/6 flex-shrink-0`}
+        className="hidden md:flex h-screen w-[220px] flex-col py-4 bg-[hsl(242_44%_10%)] border-e border-white/6 flex-shrink-0"
       >
         {/* Logo */}
         <div
@@ -85,7 +85,7 @@ export function Sidebar() {
                     className="absolute inset-0 rounded-[10px]"
                     style={{
                       background:
-                        "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.15))",
+                        "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(99,102,241,0.1))",
                       boxShadow: "0 0 0 1px rgba(99,102,241,0.3)",
                     }}
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -94,9 +94,9 @@ export function Sidebar() {
                 <button
                   onClick={() => router.push(`/${locale}${item.href}`)}
                   aria-label={label(item.key)}
-                  className={`relative z-10 w-full flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors ${isRtl ? "text-right" : "text-left"} ${
+                  className={`relative z-10 w-full flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-start transition-colors ${
                     active
-                      ? "text-[#a78bfa]"
+                      ? "text-[#818cf8]"
                       : "text-white/45 hover:text-white/80 hover:bg-white/5"
                   }`}
                 >
@@ -128,7 +128,7 @@ export function Sidebar() {
                       onClick={() => { switchBusiness(b.businessId); setSwitcherOpen(false); }}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                         b.businessId === businessId
-                          ? "text-[#a78bfa] bg-white/5"
+                          ? "text-[#818cf8] bg-white/5"
                           : "text-white/50 hover:text-white/80 hover:bg-white/5"
                       }`}
                     >
@@ -174,7 +174,7 @@ export function Sidebar() {
                 onClick={() => router.push(`/${locale}${item.href}`)}
                 aria-label={label(item.key)}
                 className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-                  active ? "bg-primary/20 text-[#a78bfa]" : "text-white/40 hover:text-white/70"
+                  active ? "bg-primary/20 text-[#818cf8]" : "text-white/40 hover:text-white/70"
                 }`}
               >
                 <Icon className="h-[18px] w-[18px]" />

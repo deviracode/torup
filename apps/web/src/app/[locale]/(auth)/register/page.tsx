@@ -112,7 +112,7 @@ export default function RegisterPage() {
       </form>
 
       <p className="mt-5 text-center text-sm text-white/40">
-        <Link href={`/${locale}/login`} className="text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-[#818cf8] hover:text-white transition-colors">
           {t("login")}
         </Link>
       </p>
