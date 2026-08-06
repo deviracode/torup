@@ -16,13 +16,7 @@ export function createCustomerService(repo: Repo) {
       return data;
     },
     async findOrCreate(input: { phone: string; name?: string; language_preference?: string }) {
-      const existing = (await repo.findByPhone(input.phone)).data;
-      if (existing) return existing;
-      const { data, error } = await repo.create({
-        phone: input.phone,
-        name: input.name || null,
-        language_preference: input.language_preference || "he",
-      });
+      const { data, error } = await repo.findOrCreateViaRpc(input);
       if (error) throw new AppError(400, error.message);
       return data;
     },
