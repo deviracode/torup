@@ -71,8 +71,8 @@ export default defineRailway(() => {
       WHATSAPP_PHONE_NUMBER_ID: preserve(),
       WHATSAPP_VERIFY_TOKEN: preserve(),
       INTERNAL_SECRET: preserve(),
-      API_URL: `http://${api.env.RAILWAY_PRIVATE_DOMAIN}:3001`,
-      API_INTERNAL_URL: `http://${worker.env.RAILWAY_PRIVATE_DOMAIN}:3001`,
+      API_URL: "http://${{torup-api.RAILWAY_PRIVATE_DOMAIN}}:3001",
+      API_INTERNAL_URL: "http://${{torup-worker.RAILWAY_PRIVATE_DOMAIN}}:3001",
     },
   });
 
@@ -91,7 +91,7 @@ export default defineRailway(() => {
       HOSTNAME: "0.0.0.0",
       NEXT_PUBLIC_SUPABASE_URL: preserve(),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: preserve(),
-      NEXT_PUBLIC_API_URL: `https://${api.env.RAILWAY_PUBLIC_DOMAIN}`,
+      NEXT_PUBLIC_API_URL: "https://${{torup-api.RAILWAY_PUBLIC_DOMAIN}}",
     },
   });
 
