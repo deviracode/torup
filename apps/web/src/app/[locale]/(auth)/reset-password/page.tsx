@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -42,7 +43,7 @@ export default function ResetPasswordPage() {
       if (error) throw error;
       setUpdated(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update password");
+      setError(translateAuthError(err as Error, t));
     } finally {
       setLoading(false);
     }
