@@ -14,6 +14,7 @@ interface WhatsAppStatus {
 
 const META_MANAGER_URL = "https://business.facebook.com/wa/manage/";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const WHATSAPP_AGENT_URL = process.env.NEXT_PUBLIC_WHATSAPP_AGENT_URL || "http://localhost:3002";
 
 export default function WhatsAppSettings() {
   const api = useApi();
@@ -85,7 +86,7 @@ export default function WhatsAppSettings() {
     }
   };
 
-  const webhookUrl = businessId ? `${API_URL}/api/webhooks/whatsapp/${businessId}` : "";
+  const webhookUrl = businessId ? `${WHATSAPP_AGENT_URL}/webhook/${businessId}` : "";
 
   const sendTest = async () => {
     if (!businessId || !testTo) return;
