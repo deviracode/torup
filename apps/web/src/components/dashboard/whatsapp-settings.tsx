@@ -140,6 +140,9 @@ export default function WhatsAppSettings() {
           type="text"
           value={phoneNumberId}
           onChange={(e) => setPhoneNumberId(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           dir="auto"
           className="w-full rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
           placeholder="123456789012345"
@@ -153,6 +156,9 @@ export default function WhatsAppSettings() {
             type={showToken ? "text" : "password"}
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
             dir="auto"
             className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
             placeholder="EAAG..."
@@ -175,6 +181,9 @@ export default function WhatsAppSettings() {
             type={showAppSecret ? "text" : "password"}
             value={appSecret}
             onChange={(e) => setAppSecret(e.target.value)}
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
             dir="auto"
             className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
             placeholder="מופיע בהגדרות האפליקציה שלך"
@@ -196,6 +205,9 @@ export default function WhatsAppSettings() {
           type="text"
           value={verifyToken}
           onChange={(e) => setVerifyToken(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           dir="auto"
           className="w-full rounded-md border border-border px-3 py-2 text-sm font-mono text-start"
           placeholder="בחרו מחרוזת סודית ושמרו אותה זהה כאן ואצל Meta"
