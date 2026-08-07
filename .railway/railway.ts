@@ -106,6 +106,7 @@ export default defineRailway((ctx) => {
       NEXT_PUBLIC_SUPABASE_URL: preserve(),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: preserve(),
       NEXT_PUBLIC_API_URL: "https://${{torup-api.RAILWAY_PUBLIC_DOMAIN}}",
+      NEXT_PUBLIC_WHATSAPP_AGENT_URL: "https://${{torup-whatsapp.RAILWAY_PUBLIC_DOMAIN}}",
     },
   });
 
