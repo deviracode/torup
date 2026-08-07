@@ -97,6 +97,50 @@ supabase db push --linked --yes
 supabase migration new <name>
 ```
 
+#### Supabase auth/config (`config.toml`) — one file, per-env values
+
+`packages/db/supabase/config.toml` is a **single, committed** file. Per-environment
+values (auth `site_url`, redirect URLs) are **not** hardcoded — they're injected at
+push time via `env(...)` interpolation. This avoids maintaining separate staging/prod
+config files that drift (which previously leaked the production URL into staging).
+
+Real values live in **gitignored** env files next to `config.toml`; templates are
+committed as `.example`:
+
+| File | Committed? | Purpose |
+|------|-----------|---------|
+| `config.toml` | ✅ yes | Shared config with `env()` placeholders + local-dev defaults |
+| `.env.staging` | ❌ ignored | Staging `PROJECT_REF` + `SUPABASE_AUTH_*` values |
+| `.env.production` | ❌ ignored | Production values (off-limits by default) |
+| `.env.staging.example` | ✅ yes | Template — copy to `.env.staging` |
+| `.env.production.example` | ✅ yes | Template — copy to `.env.production` |
+
+**⚠️ `supabase config push` is all-or-nothing on the whole auth block.** Any auth
+setting *not* present in `config.toml` gets reset to the CLI default on push (this is
+how email confirmations + MFA were accidentally disabled once). Keep every auth
+setting you care about explicit in `config.toml`.
+
+Push config per environment (never pushes silently — prod requires typing the ref):
+
+```bash
+# First time: create the real env files from templates
+cp packages/db/supabase/.env.staging.example    packages/db/supabase/.env.staging
+cp packages/db/supabase/.env.production.example  packages/db/supabase/.env.production
+# …then fill in the values.
+
+# Push (uses the matching .env.<env>, explicit --project-ref inside)
+scripts/push-config.sh staging       # → vwrsqdfunxmjjtebyxdf
+scripts/push-config.sh production     # → xewiqmxzhxlhmgspairk (guarded: type ref to confirm)
+```
+
+Manual equivalent (if not using the script) — export the vars first so `env()` resolves:
+
+```bash
+set -a; source packages/db/supabase/.env.staging; set +a
+supabase config push --project-ref "$PROJECT_REF" --workdir packages/db/supabase
+```
+
+
 > Migration source of truth: **`supabase/migrations/`** (root). `packages/db/supabase/migrations/` is stale — ignore it.
 > Workflow is **imperative** (no `supabase/schemas/`). Iterate schema with `execute_sql`/`db query`, then `supabase db pull <name> --local --yes` to snapshot into a migration.
 
