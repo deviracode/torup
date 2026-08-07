@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Workspace packages ship their own Tailwind class strings (@torup/ui) —
+   Tailwind v4 auto-detection does not scan outside apps/web, so declare it. */
+@source "../../../../packages/ui/src";
+
 @theme inline {
   /* ── Typography ── */
   --font-sans: var(--font-heebo), "Noto Sans Hebrew", -apple-system, sans-serif;
@@ -69,6 +73,13 @@
   }
   html[dir="rtl"] body {
     line-height: 1.7;
+  }
+  /* dir=auto inputs resolve LTR while empty in Chrome, which left-aligns
+     Hebrew placeholders — force placeholder alignment from the page
+     direction, except fields explicitly forced LTR (phone/email). */
+  [dir="rtl"] input:not([dir="ltr"])::placeholder,
+  [dir="rtl"] textarea:not([dir="ltr"])::placeholder {
+    text-align: right;
   }
 }
 
