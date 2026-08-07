@@ -32,7 +32,18 @@
     "password": "Password",
     "status": "Status",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "authErrors": {
+      "invalidCredentials": "Invalid email or password",
+      "emailNotConfirmed": "Please confirm your email address before signing in",
+      "rateLimitExceeded": "Too many attempts. Please try again in a few minutes",
+      "userAlreadyExists": "A user with this email already exists",
+      "userNotFound": "User not found",
+      "invalidEmail": "Invalid email address",
+      "weakPassword": "Password is too weak",
+      "expiredLink": "The link has expired. Please request a new one",
+      "default": "Something went wrong. Please try again"
+    }
   },
   "nav": {
     "calendar": "Calendar",

@@ -32,7 +32,18 @@
     "password": "סיסמה",
     "status": "סטטוס",
     "approve": "אישור",
-    "reject": "דחייה"
+    "reject": "דחייה",
+    "authErrors": {
+      "invalidCredentials": "אימייל או סיסמה שגויים",
+      "emailNotConfirmed": "יש לאמת את כתובת האימייל לפני ההתחברות",
+      "rateLimitExceeded": "יותר מדי ניסיונות. נסו שוב בעוד מספר דקות",
+      "userAlreadyExists": "משתמש עם אימייל זה כבר קיים",
+      "userNotFound": "לא נמצא משתמש",
+      "invalidEmail": "כתובת אימייל לא תקינה",
+      "weakPassword": "הסיסמה חלשה מדי",
+      "expiredLink": "הקישור פג תוקף. בקשו קישור חדש",
+      "default": "אירעה שגיאה. נסו שוב"
+    }
   },
   "nav": {
     "calendar": "לוח שנה",
