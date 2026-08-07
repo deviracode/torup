@@ -1,8 +1,5 @@
-# syntax=docker/dockerfile:1.7
 FROM node:20-slim AS base
 RUN npm install -g pnpm@10
-ENV PNPM_HOME=/pnpm
-ENV PATH="$PNPM_HOME:$PATH"
 
 FROM base AS builder
 WORKDIR /app
@@ -17,10 +14,9 @@ COPY packages/ui/package.json     packages/ui/
 COPY packages/i18n/package.json   packages/i18n/
 COPY apps/web/package.json        apps/web/
 
-# 2. Install with a persistent pnpm store cache mount (BuildKit). Repeat builds
-#    reuse already-downloaded packages instead of refetching them.
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@torup/web...
+# 2. Install deps. This layer is cached and only re-runs when a package.json or
+#    the lockfile changes (the COPYs above), not on every source edit.
+RUN pnpm install --frozen-lockfile --filter=@torup/web...
 
 # 3. Now copy source. Edits here no longer bust the install layer above.
 COPY packages/shared/ packages/shared/
