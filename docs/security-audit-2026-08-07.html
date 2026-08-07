@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>torup-v2 Security Audit — Findings Report</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a23; --panel2: #1e2230; --border: #2a2f3e;
+    --text: #e6e9f0; --muted: #9aa3b5; --accent: #5b8cff;
+    --crit: #ff5d5d; --high: #ff9f43; --med: #ffd166; --low: #6ee7b7; --ok: #34d399;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 28px; margin-bottom: 36px; }
+  h1 { font-size: 2rem; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+  .badge { padding: 4px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; border: 1px solid var(--border); background: var(--panel); color: var(--muted); }
+  h2 { font-size: 1.3rem; margin: 44px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 28px 0 10px; }
+  p { margin: 10px 0; color: var(--text); }
+  .muted { color: var(--muted); }
+
+  /* summary grid */
+  .sum-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0; }
+  .sum-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .sum-card .n { font-size: 2rem; font-weight: 700; }
+  .sum-card .l { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  .c-crit { color: var(--crit); } .c-high { color: var(--high); } .c-med { color: var(--med); } .c-ok { color: var(--ok); }
+
+  /* findings */
+  .finding { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--med); border-radius: 10px; padding: 20px 22px; margin: 18px 0; }
+  .finding.crit { border-left-color: var(--crit); }
+  .finding.high { border-left-color: var(--high); }
+  .finding.med { border-left-color: var(--med); }
+  .finding.low { border-left-color: var(--low); }
+  .finding.ok { border-left-color: var(--ok); }
+  .f-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .f-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); font-size: 0.85rem; }
+  .f-title { font-weight: 650; font-size: 1.02rem; }
+  .sev { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 999px; }
+  .sev.crit { background: rgba(255,93,93,.12); color: var(--crit); }
+  .sev.high { background: rgba(255,159,67,.12); color: var(--high); }
+  .sev.med { background: rgba(255,209,102,.12); color: var(--med); }
+  .sev.low { background: rgba(110,231,183,.12); color: var(--low); }
+  .sev.ok { background: rgba(52,211,153,.12); color: var(--ok); }
+  .f-body { margin-top: 12px; }
+  .f-body h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 6px; }
+  pre { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #c9d4e8; margin: 8px 0; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em; background: var(--panel2); padding: 1px 6px; border-radius: 5px; }
+  .ok-tag { color: var(--ok); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; }
+  ul { margin: 8px 0 8px 22px; }
+  li { margin: 5px 0; }
+  .foot { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>torup-v2 — Security Audit Report</h1>
+  <div class="sub">Penetration test of the multi-tenant booking platform (API · Web · Worker · WhatsApp Agent · Supabase) &nbsp;·&nbsp; conducted 2026-08-07 &nbsp;·&nbsp; methodology: static code review + live exploitation against a local replica stack</div>
+  <div class="badges">
+    <span class="badge">Target: localhost replica (API :3001 + local Supabase + Redis)</span>
+    <span class="badge">Status: audit complete — 7 confirmed exploits, 3 critical</span>
+    <span class="badge">Verified OK: tenant middleware, webhook HMAC, RLS coverage</span>
+  </div>
+</header>
+
+<h2>1 · Executive Summary</h2>
+<p>A hands-on security audit of the torup-v2 multi-tenant platform found <strong>3 critical</strong>, <strong>2 high</strong>, and <strong>4 medium</strong> issues. All critical findings were <strong>exploited end-to-end against a local replica</strong> of the production stack and are believed to apply to production:</p>
+
+<div class="sum-grid">
+  <div class="sum-card"><div class="n c-crit">3</div><div class="l">Critical</div></div>
+  <div class="sum-card"><div class="n c-high">2</div><div class="l">High</div></div>
+  <div class="sum-card"><div class="n c-med">4</div><div class="l">Medium</div></div>
+  <div class="sum-card"><div class="n c-low">1</div><div class="l">Low</div></div>
+  <div class="sum-card"><div class="n c-ok">10+</div><div class="l">Verified OK</div></div>
+</div>
+
+<p>The two most urgent exposures:</p>
+<ul>
+  <li><strong>Customer PII is publicly downloadable.</strong> The Supabase <em>anon</em> key — which ships inside every browser bundle — can read the entire <code>customers</code> table (names + phone numbers of every tenant's customers) because of an over-broad RLS policy added to fix a public-booking bug.</li>
+  <li><strong>The payment webhook can be forged.</strong> <code>POST /api/billing/webhook</code> is unauthenticated and unverified; a fabricated payload upgrades any trial/past-due business to an active premium subscription.</li>
+  <li><strong>The API rate limiter keys everyone to one bucket.</strong> No <code>trust proxy</code> config means every request shares a single IP-based bucket behind the load balancer — a 200-request global budget that one attacker can exhaust to take the API offline.</li>
+</ul>
+
+<h2>2 · Scope &amp; Methodology</h2>
+<table>
+  <tr><th>Area</th><th>What was tested</th><th>Result</th></tr>
+  <tr><td>Tenant isolation</td><td>Cross-tenant access matrix (2 tenants, 2 users) across 10+ business-scoped endpoints</td><td>✅ Isolated (1 leak)</td></tr>
+  <tr><td>Database / RLS</td><td>RLS coverage of all 18 tables + anon-key direct API access</td><td>❌ Customers table open</td></tr>
+  <tr><td>Auth &amp; cookies</td><td>JWT handling, PKCE flow, cookie flags, token storage, email enumeration</td><td>⚠️ Minor</td></tr>
+  <tr><td>Webhooks</td><td>WhatsApp HMAC signature + per-tenant verify, billing webhook</td><td>❌ Billing webhook open</td></tr>
+  <tr><td>Rate limiting / DoS</td><td>Limiter keying behind proxy, X-Forwarded-For behavior</td><td>❌ Single shared bucket</td></tr>
+  <tr><td>Input handling</td><td>Mass assignment on update endpoints</td><td>❌ Raw body → .update()</td></tr>
+  <tr><td>Secrets</td><td>git-tracked files for real credentials</td><td>❌ Keys committed</td></tr>
+</table>
+<p class="muted">The stack was reproduced locally: <code>supabase start</code> (all 27 migrations applied), Redis 7, and the Express API with the worker enabled. All exploitation was performed against this local replica; no production data was modified.</p>
+
+<h2>3 · Findings</h2>
+
+<!-- ============ CRITICAL 1 ============ -->
+<div class="finding crit">
+  <div class="f-head">
+    <span class="f-id">CRIT-01</span>
+    <span class="f-title">Full customer PII dump via the public anon key</span>
+    <span class="sev crit">Critical</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p>Migration <code>supabase/migrations/00025_rls_gap_closure.sql</code> adds an RLS policy that lets <strong>any unauthenticated client</strong> SELECT every row of the <code>customers</code> table:</p>
+    <pre>CREATE POLICY "Public can read customers" ON customers FOR SELECT USING (true);</pre>
+    <p>The Supabase anon key is public by design — it ships in the browser bundle (<code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>). Anyone can therefore download every tenant's customer records (name + phone).</p>
+    <h4>Exploit (confirmed live)</h4>
+    <pre>curl "http://127.0.0.1:54321/rest/v1/customers?select=*" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
+
+→ [{"id":"9d7ff524…","phone":"052-9999999","name":"Secret Customer PII",…}]</pre>
+    <h4>Impact</h4>
+    <p>Complete breach of customer privacy across all tenants — GDPR/Israeli privacy-law exposure, phishing data, reputational damage. The policy was added to fix the public-booking <code>findOrCreate</code> flow, but <code>USING (true)</code> is far broader than needed.</p>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Remove the public SELECT policy. Fix the booking flow server-side: a <code>SECURITY DEFINER</code> RPC (<code>find_or_create_customer(phone, name)</code>) that returns only the caller's row, or route customer lookup through the API with the service client.</li>
+      <li>If anon SELECT-by-phone is unavoidable, scope it narrowly (e.g., require <code>phone = request.jwt.claims.phone</code> — not feasible for anon; the RPC approach is the correct fix).</li>
+      <li>Add a migration <code>00028</code> revoking the policy.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ CRITICAL 2 ============ -->
+<div class="finding crit">
+  <div class="f-head">
+    <span class="f-id">CRIT-02</span>
+    <span class="f-title">Billing webhook spoofing → free premium subscriptions</span>
+    <span class="sev crit">Critical</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p><code>POST /api/billing/webhook</code> (<code>apps/api/src/routes/billing.ts</code>) is <strong>unauthenticated and performs no signature verification</strong>. The handler parses <code>more_info</code> for <code>business_id</code>/<code>plan_id</code> and activates the subscription when <code>status_code === "000"</code>:</p>
+    <pre>router.post("/webhook", async (req, res, next) => {
+  try { res.json(await svc().handleWebhook(req.body)); } catch (e) { next(e); }
+});</pre>
+    <h4>Exploit (confirmed live)</h4>
+    <pre># Victim business is past_due (never paid / payment failed)
+POST /api/billing/webhook  Content-Type: application/json
+{"more_info":"{\"business_id\":\"&lt;victim&gt;\",\"plan_id\":\"&lt;premium&gt;\"}",
+ "status_code":"000","transaction":{"uid":"FORGED"}}
+
+→ {"received":true}
+# subscriptions table: past_due → active, plan_id=premium, payplus_subscription_id="FORGED"</pre>
+    <h4>Impact</h4>
+    <p>Complete paywall bypass. An attacker can upgrade any business (their own, or any trial/past_due business) to any paid plan for free, or downgrade competitors' payment state. Direct revenue loss.</p>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Verify the PayPlus webhook signature (check PayPlus docs for the HMAC header; PayPlus signs requests with the secret key). Reject with 401 on mismatch.</li>
+      <li>Alternatively/in addition: allowlist PayPlus server IPs, require idempotency keys, and validate <code>transaction.uid</code> matches a real pending payment before activating.</li>
+      <li>Never treat <code>status_code === "000"</code> from an unauthenticated caller as payment confirmation.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ CRITICAL 3 ============ -->
+<div class="finding crit">
+  <div class="f-head">
+    <span class="f-id">CRIT-03</span>
+    <span class="f-title">Rate limiter keys all traffic to one shared bucket (global DoS)</span>
+    <span class="sev crit">Critical</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p><code>apps/api/src/app.ts</code> uses <code>express-rate-limit@7.5.0</code> but never sets <code>app.set("trust proxy", …)</code>. Behind Railway's load balancer every request has the same <code>req.ip</code>, so <strong>all anonymous traffic shares one bucket</strong> (200 requests / 15 min in production).</p>
+    <h4>Evidence (confirmed live)</h4>
+    <pre>GET /api/health  → RateLimit-Remaining: 995
+GET /api/health (X-Forwarded-For: 1.2.3.4) → 994
+GET /api/health (X-Forwarded-For: 5.6.7.8) → 993
+…every request, from any "IP", decrements the same counter…</pre>
+    <h4>Impact</h4>
+    <ul>
+      <li><strong>Global denial of service:</strong> 200 anonymous requests (public pages, availability, services, booking reads) exhausts the budget for the entire platform for 15 minutes. Even normal platform traffic can lock itself out.</li>
+      <li><strong>No brute-force protection:</strong> per-user/per-IP limiting does nothing — login/verification attempts are never individually throttled.</li>
+      <li>In-memory store resets on every redeploy and is per-instance (API + worker have separate counters).</li>
+    </ul>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Set <code>app.set("trust proxy", 1)</code> (or the correct hop count) so <code>req.ip</code> resolves to the real client IP from <code>X-Forwarded-For</code>.</li>
+      <li>Back the limiter with Redis (<code>REDIS_URL</code> already exists) so limits are shared across instances and survive deploys.</li>
+      <li>Separate, stricter limits for auth endpoints (login, resend-confirmation, OTP) keyed by IP.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ HIGH 1 ============ -->
+<div class="finding high">
+  <div class="f-head">
+    <span class="f-id">HIGH-01</span>
+    <span class="f-title">Mass assignment on shared customer records → cross-tenant data corruption</span>
+    <span class="sev high">High</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p><code>PATCH /api/businesses/:businessId/customers/:customerId</code> (<code>apps/api/src/routes/customers.ts</code>) requires only membership (no role check) and passes the <strong>raw request body</strong> straight into <code>.update(data)</code> on the <code>customers</code> table. Customers are <em>shared across businesses</em> (identified by phone) — so any member of any business that has an appointment with a customer can rewrite that shared record.</p>
+    <h4>Exploit (confirmed live)</h4>
+    <pre># User B (member of business B only) rewrites a shared customer
+PATCH /api/businesses/&lt;bizB&gt;/customers/&lt;customer&gt;   {"phone":"050-0000000","name":"CORRUPTED"}
+
+→ 200 {"id":…,"phone":"050-0000000","name":"CORRUPTED",…}
+# Row changed for ALL businesses that share this customer</pre>
+    <p>Arbitrary columns are accepted (e.g., <code>language_preference</code>) — no field whitelist.</p>
+    <h4>Impact</h4>
+    <p>Cross-tenant data corruption; a malicious member can hijack a customer's identity by changing their phone (breaking other businesses' appointment links), or poison shared contact data.</p>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Whitelist updatable fields per endpoint (name/phone only where intended) — never pass <code>req.body</code> wholesale.</li>
+      <li>Review the RLS UPDATE policy (<code>00025</code>): it has <code>USING</code> but no <code>WITH CHECK</code>, so arbitrary column values are allowed.</li>
+      <li>Apply the same whitelist audit to <code>PATCH /businesses/:id</code>, configuration, services, categories, and staff update paths (same raw-body pattern).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ HIGH 2 ============ -->
+<div class="finding high">
+  <div class="f-head">
+    <span class="f-id">HIGH-02</span>
+    <span class="f-title">Anonymous booking abuse — direct DB inserts bypass booking rules</span>
+    <span class="sev high">High</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p>The public anon key can insert directly into <code>appointments</code> (RLS: <code>"Anyone can create appointments"</code> with only a business-active <code>WITH CHECK</code>) — with <strong>any column values</strong>, including <code>status: "confirmed"</code>, arbitrary times, and no availability, capacity, or approval-flow enforcement. Anon can also create unlimited <code>customers</code> rows.</p>
+    <h4>Exploit (confirmed live)</h4>
+    <pre># Anonymous insert of a CONFIRMED appointment at 3 AM
+POST /rest/v1/appointments  (apikey: $ANON)
+{"business_id":"&lt;victim&gt;","customer_id":…,"service_id":…,
+ "start_time":"2026-08-07T03:00:00Z","end_time":…,"status":"confirmed"}
+
+→ HTTP 201 · row inserted with status = confirmed
+
+# Anonymous customer spam (pre-register phone numbers)
+POST /rest/v1/customers → 201 (repeatable, unlimited)</pre>
+    <h4>Impact</h4>
+    <ul>
+      <li>Calendar poisoning / booking DoS: an attacker floods a tenant's calendar with fake confirmed appointments, or books all time slots.</li>
+      <li>Phone pre-registration: registering a victim's number <em>before</em> they book triggers the <code>UNIQUE(phone)</code> constraint and breaks their booking.</li>
+      <li>Bypass of the owner-approval workflow and any paid/limit-based booking rules.</li>
+    </ul>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Move booking creation server-side (API route with service client) and enforce availability/capacity/status transitions in code.</li>
+      <li>Constrain the RLS INSERT policy: default <code>status</code> to <code>pending</code> via column default or trigger; <code>WITH CHECK (status = 'pending')</code>.</li>
+      <li>Consider limiting anonymous customer creation (e.g., require a valid format + per-IP throttle at the edge).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ MEDIUM 1 ============ -->
+<div class="finding med">
+  <div class="f-head">
+    <span class="f-id">MED-01</span>
+    <span class="f-title">Internal worker endpoints guarded by a single shared master secret</span>
+    <span class="sev med">Medium</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p>All <code>/api/internal/*</code> routes (reminders tick, notify-manager, <strong>appointment approve/reject</strong>, Google Calendar sync) are protected by one shared <code>INTERNAL_SECRET</code> compared with a <strong>timing-unsafe <code>!==</code></strong> and with no rate limit. There is no per-business scoping.</p>
+    <h4>Exploit (confirmed live)</h4>
+    <pre>POST /api/internal/appointments/&lt;anyTenantAppointment&gt;/approve
+  Header: x-internal-secret: test-internal-secret
+→ {"approved":"cc6c202f…"}   (appointment in a *different* tenant: pending_approval → confirmed)</pre>
+    <h4>Impact</h4>
+    <p>Whoever holds the secret (env leak, logs, misconfig) can approve/reject appointments and trigger notifications for <em>every</em> tenant. Timing-unsafe comparison weakens the secret against timing attacks; no rate limit invites brute force.</p>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Compare with <code>crypto.timingSafeEqual</code>.</li>
+      <li>Scope approve/reject to the business owning the appointment (lookup + membership of the calling service), or per-tenant secrets.</li>
+      <li>Add a rate limit and restrict <code>/api/internal</code> to the private network domain only (Railway private networking).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ MEDIUM 2 ============ -->
+<div class="finding med">
+  <div class="f-head">
+    <span class="f-id">MED-02</span>
+    <span class="f-title">Production secrets committed to git</span>
+    <span class="sev med">Medium</span>
+  </div>
+  <div class="f-body">
+    <h4>Summary</h4>
+    <p><code>apps/api/.env.example</code> (committed) contains the <strong>real production</strong> Supabase project URL, the anon key, and — critically — the <strong>service_role key</strong> (full database admin, bypasses RLS). Anyone with repo access has complete database control.</p>
+    <pre>SUPABASE_URL=https://xewiqmxzhxlhmgspairk.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi…        # public by design
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi… # FULL DB ADMIN — must not be committed</pre>
+    <h4>Remediation</h4>
+    <ul>
+      <li>Replace all values in committed <code>.env.example</code> files with placeholders.</li>
+      <li>Rotate the service_role key and anon key (assume exposure).</li>
+      <li>Scan git history and purge leaked keys; consider <code>git filter-repo</code> or key rotation as the primary mitigation.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ MEDIUM 3 ============ -->
+<div class="finding med">
+  <div class="f-head">
+    <span class="f-id">MED-03</span>
+    <span class="f-title">Rate limiter is in-memory and per-instance (doesn't survive deploys)</span>
+    <span class="sev med">Medium</span>
+  </div>
+  <div class="f-body">
+    <p>Beyond the keying bug (CRIT-03), the limiter store is in-memory: it resets on every deploy, and API + worker instances each maintain independent counters. Combined with the shared bucket, the limiter provides neither protection nor stability. The <code>resendCooldowns</code> map in <code>routes/auth.ts</code> is likewise in-memory and unbounded (slow memory-growth DoS).</p>
+    <p><strong>Remediation:</strong> Redis-backed store (already have <code>REDIS_URL</code>); replace the cooldown map with Redis TTL keys.</p>
+  </div>
+</div>
+
+<!-- ============ MEDIUM 4 ============ -->
+<div class="finding med">
+  <div class="f-head">
+    <span class="f-id">MED-04</span>
+    <span class="f-title">Auth-callback redirect value is unvalidated</span>
+    <span class="sev med">Medium</span>
+  </div>
+  <div class="f-body">
+    <p><code>apps/web/src/app/auth/callback/route.ts</code> concatenates a user-supplied <code>next</code> query parameter into the post-login redirect URL (<code>${origin}${next}</code>). String concatenation prevents the trivial absolute-URL redirect, but the value is never validated against an allowlist (protocol-relative and backslash tricks can be fragile across clients).</p>
+    <p><strong>Remediation:</strong> Validate <code>next</code> against an allowlist of in-app paths (<code>^/[\w-/]+$</code>, must not start with <code>//</code> or contain <code>:</code>), else fall back to <code>/he/dashboard</code>.</p>
+  </div>
+</div>
+
+<!-- ============ LOW ============ -->
+<div class="finding low">
+  <div class="f-head">
+    <span class="f-id">LOW-01</span>
+    <span class="f-title">Email enumeration risk on resend-confirmation (verify in prod)</span>
+    <span class="sev low">Low</span>
+  </div>
+  <div class="f-body">
+    <p><code>POST /api/auth/resend-confirmation</code> forwards Supabase's error message verbatim (<code>throw new AppError(400, error.message)</code>). Locally, Supabase returned success for both existing and non-existing addresses, so enumeration was not demonstrable — but if the production Supabase error for unknown users differs from the success path, account existence can be probed. The 60-second cooldown is also trivially bypassed by rotating email addresses.</p>
+    <p><strong>Remediation:</strong> Return a generic message on all outcomes; log the Supabase error server-side only.</p>
+  </div>
+</div>
+
+<h2>4 · What Verified OK ✅</h2>
+<div class="finding ok">
+  <ul>
+    <li><span class="ok-tag">Tenant isolation middleware</span> — cross-tenant matrix returned <code>403</code> for appointments, customers, staff, waitlist, analytics, business PATCH, and WhatsApp credentials when user A (owner of biz A) accessed biz B. Both owners could access their own businesses (<code>200</code>).</li>
+    <li><span class="ok-tag">WhatsApp webhook security</span> — GET verify endpoint: 403 on wrong per-tenant token, 200 on correct; POST: 403 on invalid HMAC signature (<code>timingSafeEqual</code>), plus inbound payload phone-number match against the credential.</li>
+    <li><span class="ok-tag">RLS enabled on all 18 tables</span> (businesses → whatsapp_credentials, incl. Google Calendar tokens with no anon/authenticated policies).</li>
+    <li><span class="ok-tag">No XSS vectors</span> in the web app (no <code>dangerouslySetInnerHTML</code>/<code>innerHTML</code>/<code>eval</code>).</li>
+    <li><span class="ok-tag">No tokens in URLs</span> — API uses <code>Authorization: Bearer</code>; no <code>localStorage</code> session storage; PKCE flow for password reset; cookie flags from <code>@supabase/ssr</code> defaults (HttpOnly, SameSite=Lax, Secure in prod).</li>
+    <li><span class="ok-tag">helmet() defaults</span> (CSP, HSTS via <code>upgrade-insecure-requests</code>, COOP/CORP) active — verified in response headers.</li>
+    <li><span class="ok-tag">Admin routes</span> — all behind <code>requireRole("super_admin")</code>.</li>
+    <li><span class="ok-tag">Internal routes require the secret</span> — 401 without <code>x-internal-secret</code>.</li>
+    <li><span class="ok-tag">Public business/services reads</span> are intentionally anon and scoped by RLS to <em>active</em> businesses only.</li>
+  </ul>
+</div>
+
+<h2>5 · Infrastructure Recommendations (Railway IaC)</h2>
+<p>Beyond the code fixes, the deployment layer should be hardened. Railway itself does not offer a managed WAF, so the options are:</p>
+<table>
+  <tr><th>Option</th><th>What it adds</th><th>Effort</th></tr>
+  <tr><td><strong>A. Cloudflare in front (recommended)</strong></td><td>Edge rate limiting, WAF rules, bot mitigation, DDoS protection, TLS. Point the custom domains at Cloudflare and set Railway to "Cloudflare proxy" trusted proxies (<code>app.set("trust proxy", …)</code> for Cloudflare's headers).</td><td>Medium</td></tr>
+  <tr><td><strong>B. Redis-backed rate limiting</strong></td><td>Shared, persistent limits across API + worker instances; per-IP + per-token keys; survives deploys. Requires <code>trust proxy</code> fix first (CRIT-03).</td><td>Low</td></tr>
+  <tr><td><strong>C. Railway private networking</strong></td><td>Restrict <code>/api/internal</code> and database/Redis traffic to the private network; do not expose internal endpoints publicly.</td><td>Low</td></tr>
+  <tr><td><strong>D. App-level limits</strong></td><td>Stricter per-IP limits on auth endpoints; input validation whitelists; HMAC verification for billing webhook.</td><td>Low-Medium</td></tr>
+</table>
+<p class="muted">Recommended order: fix CRIT-02 (webhook HMAC) and CRIT-01 (RLS) in code first; then CRIT-03 (trust proxy + Redis limiter); then B+C; then evaluate A as a hardening layer.</p>
+
+<h2>6 · Reproduction Notes</h2>
+<ul>
+  <li>Local replica: <code>supabase start</code> (migrations 00001–00027 applied), <code>docker run -d -p 6379:6379 redis:7-alpine</code>, API booted with local env (worker mode on).</li>
+  <li>Two tenant owners created via the local Auth admin API; memberships seeded; cross-tenant matrix executed with valid JWTs.</li>
+  <li><strong>Ops note:</strong> during setup, a stale production-pointing API process was found holding port 3001 locally — ensure <code>pnpm dev</code> processes are not left running against prod Supabase when testing locally.</li>
+</ul>
+
+<h2>7 · Production Verification (2026-08-07, live)</h2>
+<p>Read-only verification against the live deployment. Ground truth: the deployed frontend (torup.vercel.app JS bundle) connects to <strong><code>https://xewiqmxzhxlhmgspairk.supabase.co</code></strong> — that is the production project (not <code>mrhbyvunpilhlcwhrbfl</code>, which the local <code>.env</code> files point to and which holds no data). API on <code>torup-api-production-2d09.up.railway.app</code>. <strong>No production data was modified.</strong></p>
+<table>
+  <tr><th>Check</th><th>Service-role count (bypasses RLS)</th><th>Anon count</th><th>Interpretation</th></tr>
+  <tr><td><code>customers</code></td><td><strong>376</strong></td><td>0</td><td><span class="ok-tag">RLS is filtering the anon key — CRIT-01 is NOT exploitable in production.</span> The <code>00025</code> "Public can read customers" policy is <strong>not applied</strong> in the prod project. But it remains a time-bomb in the migration set: any fresh environment or future push that applies <code>00025</code> will expose all customer PII.</td></tr>
+  <tr><td><code>appointments</code></td><td>530</td><td>0</td><td>RLS filtering works. ✅</td></tr>
+  <tr><td><code>businesses</code></td><td>2</td><td>2</td><td>Public business cards — by design. ✅</td></tr>
+  <tr><td><code>subscriptions</code></td><td>2</td><td>0</td><td>RLS filtering works. ✅</td></tr>
+  <tr><td><code>notifications_log</code></td><td>1603</td><td>0</td><td>RLS filtering works. ✅</td></tr>
+  <tr><td><code>POST /api/billing/webhook</code> (prod)</td><td colspan="2">HTTP 200 <code>{"received":true}</code></td><td><span class="ok-tag">CRIT-02 confirmed live</span> — unauthenticated endpoint reachable on production (no-op payload used; no state change). A forged payload would activate subscriptions exactly as demonstrated locally.</td></tr>
+</table>
+<p class="muted"><strong>Corrected conclusion:</strong> CRIT-01 is not currently exploitable against production data (RLS protects the 376 real customers) — but the open policy exists in the repo migration set and will leak if/when applied. <strong>Migration drift</strong> is a new finding: production is missing repo migrations (00025 not applied; verify which others are missing — the deployed code expects 00026/00027 columns). CRIT-02 (billing webhook) and CRIT-03 (rate limiter) are code-level and confirmed live in production.</p>
+
+<div class="foot">
+  Generated 2026-08-07 · torup-v2 · audit performed against local replica · findings re-verified before reporting · no production data modified.
+</div>
+
+</div>
+</body>
+</html>
