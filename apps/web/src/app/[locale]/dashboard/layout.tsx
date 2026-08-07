@@ -7,7 +7,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { BusinessProvider } from "@/components/auth/business-provider";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopBarProvider, useTopBar } from "@/components/dashboard/top-bar-context";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { pageVariants } from "@/components/motion";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -60,18 +60,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-col flex-1 md:overflow-hidden">
         <TopBar />
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={pathname}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="flex-1 md:overflow-auto p-4 md:p-6"
-          >
-            {children}
-          </motion.main>
-        </AnimatePresence>
+        {/* Enter-only page transition. AnimatePresence mode="wait" + key={pathname}
+            was gating on the exit animation before mounting the next route, which
+            in the App Router (layout children swap without remounting the layout)
+            left the panel blank after navigation. Keying motion.main on pathname
+            still replays the enter animation per route without blocking mount. */}
+        <motion.main
+          key={pathname}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          className="flex-1 md:overflow-auto p-4 md:p-6"
+        >
+          {children}
+        </motion.main>
       </div>
     </div>
   );
