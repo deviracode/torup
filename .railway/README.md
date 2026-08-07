@@ -18,7 +18,13 @@ agent.
 | `torup-api` | `apps/api` | Customer-facing Express API (endpoints only) | ✅ yes |
 | `torup-worker` | `apps/api` (same image!) | Internal routes `/api/internal/*` + in-process schedulers (reminders 5min, Google Calendar sync 15min) | ❌ **no — private network only** |
 | `torup-web` | `apps/web` | Next.js frontend (Railway Docker, not Vercel) | ✅ yes |
-| `torup-whatsapp` | `services/whatsapp-agent` | WhatsApp agent | ❌ no |
+| `torup-whatsapp` | `services/whatsapp-agent` | WhatsApp agent — the single Meta-facing webhook receiver (buttons, lists, status updates, free text) | ✅ yes |
+
+`torup-whatsapp` must be publicly reachable: Meta delivers webhooks
+(button replies, free text, status updates) directly to it at
+`/webhook/:businessId`. `torup-api` does **not** proxy or receive WhatsApp
+webhooks — an earlier button-only route there was removed since
+`torup-whatsapp` is a full superset of its handling.
 
 The API and worker are **the same codebase and the same Docker image** — they
 differ only by the `WORKER_ENABLED` env var (`true` on the worker, unset on the
@@ -112,7 +118,7 @@ railway api -f query.txt --raw-var projectId=<id> --raw-var environmentId=<id> -
 | `torup-api` | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CORS_ORIGIN`, `APP_URL`, `API_URL` |
 | `torup-worker` | same as api + `INTERNAL_SECRET` + `WORKER_ENABLED=true` (WORKER_ENABLED is set in code) |
 | `torup-web` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL` (baked at **build time** via Docker ARG) |
-| `torup-whatsapp` | `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `INTERNAL_SECRET`, `API_URL`, `API_INTERNAL_URL` |
+| `torup-whatsapp` | `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PHONE_NUMBER_ID`, `INTERNAL_SECRET`, `API_URL`, `API_INTERNAL_URL` |
 
 Notes:
 - WhatsApp per-business send credentials live in the DB (`whatsapp_credentials`
