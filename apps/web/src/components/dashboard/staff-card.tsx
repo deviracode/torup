@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Input,
+} from "@torup/ui";
 import { useApi } from "@/lib/use-api";
 
 interface Service {
@@ -26,21 +36,20 @@ export interface StaffMember {
   time_off_ranges: TimeOffRange[];
 }
 
-const inputCls =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-start";
-
 export function StaffCard({
   member,
   services,
   businessId,
   onUpdate,
   onRemove,
+  onEdit,
 }: {
   member: StaffMember;
   services: Service[];
   businessId: string;
   onUpdate: (updated: StaffMember) => void;
   onRemove: (id: string) => void;
+  onEdit?: (member: StaffMember) => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
@@ -58,6 +67,16 @@ export function StaffCard({
   const [error, setError] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
+
+  const displayLabel =
+    member.display_name || member.user?.user_metadata?.name || member.user?.email || t("unnamedStaffMember");
+
+  const initials = displayLabel
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const saveName = async () => {
     if (!displayName.trim()) return;
@@ -135,39 +154,67 @@ export function StaffCard({
     }
   };
 
-  const displayLabel =
-    member.display_name || member.user?.user_metadata?.name || member.user?.email || t("unnamedStaffMember");
-
   return (
-    <div className="rounded-md border border-border bg-background">
+    <Card>
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-sm font-medium text-foreground hover:text-primary"
-          >
-            {expanded ? "▾" : "▸"} {displayLabel}
-          </button>
-          {member.user?.email && member.display_name && (
-            <span className="text-xs text-muted-foreground">{member.user.email}</span>
-          )}
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-              member.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
-            }`}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 text-start"
+        >
+          <Avatar>
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-foreground">{displayLabel}</span>
+            {member.user?.email && member.display_name && (
+              <span className="text-xs text-muted-foreground">{member.user.email}</span>
+            )}
+          </div>
+          <Badge
+            variant={member.role === "owner" ? "info" : "secondary"}
           >
             {t(member.role as "owner" | "staff")}
-          </span>
+          </Badge>
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        <div className="flex items-center gap-1">
+          {member.role !== "owner" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEdit) {
+                    onEdit(member);
+                  } else {
+                    setExpanded(!expanded);
+                  }
+                }}
+                aria-label={tCommon("edit")}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemove(member.id)}
+                aria-label={tCommon("delete")}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
-        {member.role !== "owner" && (
-          <button onClick={() => onRemove(member.id)} className="text-red-500 text-xs hover:underline">
-            {tCommon("delete")}
-          </button>
-        )}
       </div>
 
       {expanded && (
-        <div className="border-t border-border px-4 py-4 space-y-5">
+        <CardContent className="border-t border-border px-4 py-4 space-y-5">
           {error && <p className="text-xs text-destructive">{error}</p>}
 
           <div>
@@ -175,20 +222,18 @@ export function StaffCard({
               {t("staffDisplayName")}
             </label>
             <div className="flex gap-2">
-              <input
-                type="text"
+              <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 dir="auto"
-                className={inputCls}
               />
-              <button
+              <Button
                 onClick={saveName}
                 disabled={saving || !displayName.trim()}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                size="sm"
               >
                 {tCommon("save")}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -236,35 +281,35 @@ export function StaffCard({
             <div className="flex items-end gap-2 flex-wrap">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">{t("startDate")}</label>
-                <input
+                <Input
                   type="date"
                   min={today}
                   value={timeOffStart}
                   onChange={(e) => setTimeOffStart(e.target.value)}
-                  className={inputCls + " w-40"}
+                  className="w-40"
                 />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">{t("endDate")}</label>
-                <input
+                <Input
                   type="date"
                   min={timeOffStart || today}
                   value={timeOffEnd}
                   onChange={(e) => setTimeOffEnd(e.target.value)}
-                  className={inputCls + " w-40"}
+                  className="w-40"
                 />
               </div>
-              <button
+              <Button
                 onClick={addTimeOff}
                 disabled={saving || !timeOffStart || !timeOffEnd}
-                className="rounded-md bg-primary px-3 py-2 text-xs text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                size="sm"
               >
                 {tCommon("add")}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }
