@@ -1,0 +1,26 @@
+# Keep the Docker build context small and free of host-built artifacts.
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+
+.git
+.github
+.worktrees
+.claude
+.railway
+.superpowers
+.playwright-mcp
+docs
+openspec
+
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.staging
+**/.env.production
+
+**/.DS_Store
+*.log
