@@ -1,6 +1,11 @@
 import { defineRailway, github, group, preserve, project, service } from "railway/iac";
 
-export default defineRailway(() => {
+export default defineRailway((ctx) => {
+  // Serverless (app sleeping) only in staging — cuts idle cost while keeping
+  // prod hot. HTTP services wake on request; worker + whatsapp must NOT sleep
+  // (background jobs / inbound webhooks would be dropped).
+  const sleepWhenIdle = ctx.isEnvironment("staging");
+
   const api = service("torup-api", {
     source: github("deviracode/torup", {
       branch: "torup-tenant-env",
@@ -10,9 +15,11 @@ export default defineRailway(() => {
       dockerfilePath: "apps/api/Dockerfile",
     },
     healthcheck: "/api/health",
+    deploy: { sleepApplication: sleepWhenIdle },
     env: {
       NODE_ENV: "production",
       PORT: "3001",
+      ENCRYPTION_KEY: preserve(),
       CORS_ORIGIN: preserve(),
       SUPABASE_URL: preserve(),
       SUPABASE_ANON_KEY: preserve(),
@@ -69,6 +76,7 @@ export default defineRailway(() => {
     env: {
       NODE_ENV: "production",
       PORT: "3002",
+      ENCRYPTION_KEY: preserve(),
       ANTHROPIC_API_KEY: preserve(),
       SUPABASE_URL: preserve(),
       SUPABASE_SERVICE_ROLE_KEY: preserve(),
@@ -90,6 +98,7 @@ export default defineRailway(() => {
       dockerfilePath: "apps/web/Dockerfile",
     },
     healthcheck: "/",
+    deploy: { sleepApplication: sleepWhenIdle },
     env: {
       NODE_ENV: "production",
       PORT: "3000",
