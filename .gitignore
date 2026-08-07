@@ -10,9 +10,10 @@ coverage/
 .DS_Store
 .vercel
 .claude/*.worktrees/
+.claude/settings.local.json
 .worktrees/
 .playwright-mcp/
 
 # Supabase CLI local state (machine-specific: linked ref, versions, pooler url)
-supabase/.temp/
-supabase/.branches/
+**/supabase/.temp/
+**/supabase/.branches/

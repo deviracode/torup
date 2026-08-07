@@ -1,5 +1,4 @@
-[project]
-id = "queue-management"
+project_id = "queue-management"
 
 [db]
 port = 54322
@@ -11,10 +10,19 @@ enabled = true
 port = 54323
 
 [auth]
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000", "https://torup.vercel.app/**", "https://torup.vercel.app/auth/callback"]
+site_url = "https://torup-web-staging.up.railway.app"
+additional_redirect_urls = ["http://localhost:3000", "http://localhost:3000/**", "https://torup-web-staging.up.railway.app/**", "https://torup-web-staging.up.railway.app/auth/callback"]
 jwt_expiry = 3600
 enable_signup = true
 
-[auth.external.phone]
-enabled = true
+[auth.email]
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
