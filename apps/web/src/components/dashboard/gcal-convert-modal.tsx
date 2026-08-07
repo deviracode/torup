@@ -162,6 +162,7 @@ export function GCalConvertModal({
             ) : (
               <div className="space-y-2">
                 <input type="text" placeholder={t("searchCustomer")} value={customerSearch}
+                  autoComplete="off" data-1p-ignore data-lpignore="true"
                   onChange={(e) => setCustomerSearch(e.target.value)} dir="auto" className={inputCls} />
                 {customers.length > 0 && (
                   <div className="max-h-32 overflow-y-auto rounded-md border border-border bg-background">

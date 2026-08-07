@@ -93,6 +93,9 @@ export default function CustomersPage() {
           placeholder={t("searchCustomer")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           className="ps-9"
         />
       </div>
