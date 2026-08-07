@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useBusiness } from "@/components/auth/business-provider";
 import { useApi } from "@/lib/use-api";
-import { Card, CardContent, Button, Input, Label } from "@torup/ui";
+import { Card, CardContent, Button, Input, Label, Skeleton, EmptyState } from "@torup/ui";
+import { Scissors } from "lucide-react";
 import { formatILS } from "@/lib/format";
 
 interface ServiceItem {
@@ -34,6 +35,7 @@ export default function ServicesTab() {
   const api = useApi();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showNewCategoryInput, setShowNewCategoryInput] = useState<
     string | null
@@ -43,18 +45,22 @@ export default function ServicesTab() {
 
   useEffect(() => {
     if (!businessId) return;
+    setLoading(true);
     Promise.all([
       api<ServiceItem[] | { categories: ServiceCategory[]; services: ServiceItem[] }>(
         `/api/businesses/${businessId}/services`
       ),
       api<ServiceCategory[]>(`/api/businesses/${businessId}/categories`),
-    ]).then(([svcResult, catResult]) => {
-      const svcList = Array.isArray(svcResult)
-        ? svcResult
-        : (svcResult as { services: ServiceItem[] }).services;
-      setServices(svcList || []);
-      setCategories(catResult || []);
-    });
+    ])
+      .then(([svcResult, catResult]) => {
+        const svcList = Array.isArray(svcResult)
+          ? svcResult
+          : (svcResult as { services: ServiceItem[] }).services;
+        setServices(svcList || []);
+        setCategories(catResult || []);
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   // Preserve the original save handler for services (inline editing)
@@ -109,6 +115,22 @@ export default function ServicesTab() {
     setNewCategoryName("");
     setShowNewCategoryInput(null);
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4" data-testid="services-skeleton">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    );
+  }
+
+  if (services.length === 0 && categories.length === 0) {
+    return (
+      <EmptyState icon={Scissors} title={t("noServices")} />
+    );
+  }
 
   return (
     <div className="space-y-6">

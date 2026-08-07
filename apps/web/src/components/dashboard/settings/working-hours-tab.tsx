@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useBusiness } from "@/components/auth/business-provider";
 import { useApi } from "@/lib/use-api";
+import { Skeleton } from "@torup/ui";
 import { toast } from "sonner";
 
 const DAYS = [
@@ -30,11 +31,13 @@ export default function WorkingHoursTab() {
   const api = useApi();
   const [hours, setHours] = useState<WorkingHour[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!businessId) return;
-    api<WorkingHour[]>(`/api/businesses/${businessId}/working-hours`).then(
-      (r) => {
+    setLoading(true);
+    api<WorkingHour[]>(`/api/businesses/${businessId}/working-hours`)
+      .then((r) => {
         setHours(
           Array.isArray(r) && r.length
             ? r
@@ -45,8 +48,9 @@ export default function WorkingHoursTab() {
                 is_closed: i === 6,
               }))
         );
-      }
-    );
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   const saveHours = async () => {
@@ -68,6 +72,17 @@ export default function WorkingHoursTab() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-3" data-testid="working-hours-skeleton">
+        {DAYS.map((day) => (
+          <Skeleton key={day} className="h-9 w-full" />
+        ))}
+        <Skeleton className="h-10 w-24" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBusiness } from "@/components/auth/business-provider";
 import { useApi } from "@/lib/use-api";
+import { Skeleton } from "@torup/ui";
 import { toast } from "sonner";
 
 interface GCalStatus {
@@ -34,23 +35,30 @@ export default function GcalTab() {
     error?: string;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     if (!businessId) return;
-    const status = await api<GCalStatus>(
-      `/api/businesses/${businessId}/google-calendar/status`
-    );
-    if (status) setGcalStatus(status);
-    if (status?.connected) {
-      const calRes = await api<{ calendars: GCalCalendar[] }>(
-        `/api/businesses/${businessId}/google-calendar/calendars`
+    setLoading(true);
+    try {
+      const status = await api<GCalStatus>(
+        `/api/businesses/${businessId}/google-calendar/status`
       );
-      if (calRes?.calendars) setGcalCalendars(calRes.calendars);
+      if (status) setGcalStatus(status);
+      if (status?.connected) {
+        const calRes = await api<{ calendars: GCalCalendar[] }>(
+          `/api/businesses/${businessId}/google-calendar/calendars`
+        );
+        if (calRes?.calendars) setGcalCalendars(calRes.calendars);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (businessId) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   const connectGCal = async () => {
@@ -137,6 +145,15 @@ export default function GcalTab() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4 max-w-md" data-testid="gcal-skeleton">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-10 w-48" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-md">
