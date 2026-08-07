@@ -141,6 +141,18 @@ supabase config push --project-ref "$PROJECT_REF" --workdir packages/db/supabase
 ```
 
 
+#### Grant super_admin to a user
+
+Super_admin is `auth.users.raw_user_meta_data->>'role' = 'super_admin'` (read by RLS
+`is_super_admin()` and the API auth middleware — nothing else defines it). Use the
+script; it verifies the linked ref matches the target env before writing:
+
+```bash
+scripts/set-superadmin.sh a@x.com b@y.com          # grant on staging (default)
+scripts/set-superadmin.sh --revoke a@x.com         # revoke on staging
+scripts/set-superadmin.sh --env production a@x.com # PRODUCTION (guarded: type ref)
+```
+
 > Migration source of truth: **`supabase/migrations/`** (root). `packages/db/supabase/migrations/` is stale — ignore it.
 > Workflow is **imperative** (no `supabase/schemas/`). Iterate schema with `execute_sql`/`db query`, then `supabase db pull <name> --local --yes` to snapshot into a migration.
 
