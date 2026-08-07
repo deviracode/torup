@@ -18,7 +18,6 @@ import analyticsRouter from "./routes/analytics";
 import adminRouter from "./routes/admin";
 import notificationsRouter from "./routes/notifications";
 import billingRouter from "./routes/billing";
-import webhooksRouter from "./routes/webhooks";
 import internalRouter from "./routes/internal";
 import googleCalendarRouter from "./routes/google-calendar";
 import categoriesRouter from "./routes/categories";
@@ -108,9 +107,6 @@ export function createApp(options: AppOptions = {}): Express {
 
   // Billing routes
   app.use("/api/billing", billingRouter);
-
-  // Webhook routes
-  app.use("/api/webhooks", webhooksRouter);
 
   // Error handler (must be last)
   app.use(errorHandler);
