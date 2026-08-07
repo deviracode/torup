@@ -10,8 +10,15 @@ enabled = true
 port = 54323
 
 [auth]
-site_url = "https://torup-web-staging.up.railway.app"
-additional_redirect_urls = ["http://localhost:3000", "http://localhost:3000/**", "https://torup-web-staging.up.railway.app/**", "https://torup-web-staging.up.railway.app/auth/callback"]
+# Per-environment values are injected via env() at `config push` time.
+# Provide them through .env.staging / .env.production (see scripts/push-config.sh).
+site_url = "env(SUPABASE_AUTH_SITE_URL)"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:3000/**",
+  "env(SUPABASE_AUTH_WEB_URL_WILDCARD)",
+  "env(SUPABASE_AUTH_WEB_URL_CALLBACK)",
+]
 jwt_expiry = 3600
 enable_signup = true
 
