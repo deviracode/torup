@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useBusiness } from "@/components/auth/business-provider";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut, Building2, ChevronDown } from "lucide-react";
+import { Calendar, Users, Scissors, Settings, BarChart3, CreditCard, LogOut, Building2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const navItems = [
@@ -36,11 +36,16 @@ export function Sidebar() {
   const isRtl = locale === "he" || locale === "ar";
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
         setSwitcherOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -163,7 +168,7 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Nav icons — max 4 to avoid overflow */}
+        {/* Nav icons — max 4 to avoid overflow; rest live in More menu */}
         <nav className="flex items-center gap-0.5">
           {navItems.slice(0, 4).map((item) => {
             const active = isActive(item.href);
@@ -181,13 +186,49 @@ export function Sidebar() {
               </button>
             );
           })}
-          <button
-            onClick={() => signOut()}
-            aria-label={isRtl ? "יציאה" : "Sign out"}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 transition-colors"
-          >
-            <LogOut className="h-[18px] w-[18px]" />
-          </button>
+          <div className="relative" ref={moreRef}>
+            <button
+              onClick={() => setMoreOpen(!moreOpen)}
+              aria-label={isRtl ? "עוד" : "More"}
+              aria-expanded={moreOpen}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                moreOpen || ["/dashboard/billing", "/dashboard/settings"].some((p) => pathname.includes(p))
+                  ? "bg-primary/20 text-[#818cf8]"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <MoreHorizontal className="h-[18px] w-[18px]" />
+            </button>
+            {moreOpen && (
+              <div className="absolute top-full end-0 mt-1 w-44 rounded-[10px] border border-white/8 bg-[hsl(242_44%_10%)] shadow-lg overflow-hidden z-50">
+                {navItems.slice(4).map((item) => {
+                  const active = isActive(item.href);
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => { router.push(`/${locale}${item.href}`); setMoreOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
+                        active ? "text-[#818cf8] bg-white/5" : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span>{label(item.key)}</span>
+                    </button>
+                  );
+                })}
+                <div className="border-t border-white/6">
+                  <button
+                    onClick={() => signOut()}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-white/35 hover:text-white/70 hover:bg-white/5 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 flex-shrink-0" />
+                    <span>{isRtl ? "יציאה" : "Sign out"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </nav>
       </div>
     </>
