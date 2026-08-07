@@ -52,4 +52,6 @@ if [[ "$ENVIRONMENT" == "production" ]]; then
   fi
 fi
 
-supabase config push --project-ref "$PROJECT_REF" --workdir "$DB_DIR"
+# --yes: the script already confirmed intent above (prod requires typing the ref).
+# Without it, config push waits on an interactive [Y/n] that gets empty stdin here.
+supabase config push --project-ref "$PROJECT_REF" --workdir "$DB_DIR" --yes
