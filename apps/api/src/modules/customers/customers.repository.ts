@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@torup/db";
+import type { Database, Enums } from "@torup/db";
 
 export function createCustomerRepo(client: SupabaseClient<Database>) {
   return {
@@ -17,7 +17,7 @@ export function createCustomerRepo(client: SupabaseClient<Database>) {
       return client.rpc("find_or_create_customer", {
         p_phone: input.phone,
         p_name: input.name || undefined,
-        p_language: input.language_preference ?? "he",
+        p_language: (input.language_preference ?? "he") as Enums<"supported_language">,
       });
     },
     async update(customerId: string, data: Record<string, unknown>) {

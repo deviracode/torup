@@ -23,6 +23,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@supabase/postgrest-js':
+        specifier: 2.101.1
+        version: 2.101.1
       '@supabase/supabase-js':
         specifier: ^2.49.0
         version: 2.101.1

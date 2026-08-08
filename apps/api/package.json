@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@supabase/postgrest-js": "2.101.1",
     "@supabase/supabase-js": "^2.49.0",
     "@torup/db": "workspace:*",
     "@torup/shared": "workspace:*",

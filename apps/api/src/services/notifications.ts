@@ -1,4 +1,5 @@
 import { createServiceClient } from "../lib/supabase";
+import type { Enums } from "@torup/db";
 import {
   sendInteractiveReminder,
   sendManagerApprovalRequest,
@@ -196,7 +197,7 @@ async function logNotification(params: {
   customer_id: string;
   appointment_id?: string;
   type: string;
-  channel: string;
+  channel: Enums<"notification_channel">;
   template_id: string;
   status: "sent" | "failed";
   error?: string;

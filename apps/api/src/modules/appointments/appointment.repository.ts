@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@torup/db";
+import type { Database, Enums } from "@torup/db";
 
 const APPOINTMENT_JOIN_SELECT =
   "*, services(name_he, name_ar, name_en, color), customers(name, phone)" as const;
@@ -44,7 +44,8 @@ export function createAppointmentRepo(
         const dayEnd = new Date(`${filters.date}T23:59:59${tz}`).toISOString();
         query = query.gte("start_time", dayStart).lte("start_time", dayEnd);
       }
-      if (filters?.status) query = query.eq("status", filters.status);
+      if (filters?.status)
+        query = query.eq("status", filters.status as Enums<"appointment_status">);
       if (filters?.staffId) query = query.eq("staff_id", filters.staffId);
 
       return query;
