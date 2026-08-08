@@ -1,12 +1,14 @@
 /**
  * Outbound message sending via Meta WhatsApp Cloud API.
  */
+import { createHmac } from "node:crypto";
 
 const GRAPH_API_URL = "https://graph.facebook.com/v21.0";
 
 export interface WhatsAppCredential {
   phoneNumberId: string;
   accessToken: string;
+  appSecret: string;
 }
 
 interface SendResult {
@@ -25,8 +27,11 @@ async function callApi(
   }
 
   try {
+    const appsecretProof = createHmac("sha256", credential.appSecret)
+      .update(credential.accessToken)
+      .digest("hex");
     const res = await fetch(
-      `${GRAPH_API_URL}/${credential.phoneNumberId}/messages`,
+      `${GRAPH_API_URL}/${credential.phoneNumberId}/messages?appsecret_proof=${appsecretProof}`,
       {
         method: "POST",
         headers: {
