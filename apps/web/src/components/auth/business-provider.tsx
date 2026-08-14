@@ -10,7 +10,12 @@ interface BusinessContextType {
   loading: boolean;
   businesses: Array<{ businessId: string; role: "owner" | "staff"; name: string }>;
   switchBusiness: (businessId: string) => void;
+  impersonating: { id: string; name: string } | null;
+  startImpersonation: (biz: { id: string; name: string }) => void;
+  stopImpersonation: () => void;
 }
+
+const IMPERSONATE_KEY = "impersonate_business";
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
@@ -26,6 +31,30 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   // this fetch on each renewal (which can itself trigger a refresh on 401) creates
   // a self-sustaining refresh/fetch loop.
   const userId = session?.user?.id ?? null;
+
+  const isSuperAdmin = session?.user?.user_metadata?.role === "super_admin";
+  const [impersonating, setImpersonating] = useState<{ id: string; name: string } | null>(null);
+
+  // Load persisted impersonation on mount. Only super-admins may impersonate;
+  // a tampering non-admin's injected key is ignored and cleared. The backend
+  // independently returns 403 on any business-scoped call, so this gate is
+  // UX-only defense-in-depth, not the security boundary.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(IMPERSONATE_KEY);
+    if (!raw) return;
+    if (!isSuperAdmin) {
+      window.localStorage.removeItem(IMPERSONATE_KEY);
+      setImpersonating(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as { id: string; name: string };
+      if (parsed?.id) setImpersonating(parsed);
+    } catch {
+      window.localStorage.removeItem(IMPERSONATE_KEY);
+    }
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!userId || !session?.access_token) {
@@ -66,8 +95,35 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     }
   }, [businesses]);
 
+  const startImpersonation = useCallback((biz: { id: string; name: string }) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(IMPERSONATE_KEY, JSON.stringify(biz));
+    }
+    setImpersonating(biz);
+  }, []);
+
+  const stopImpersonation = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(IMPERSONATE_KEY);
+    }
+    setImpersonating(null);
+  }, []);
+
+  const effectiveBusinessId = impersonating && isSuperAdmin ? impersonating.id : businessId;
+
   return (
-    <BusinessContext.Provider value={{ businessId, hasNoBusiness, loading, businesses, switchBusiness }}>
+    <BusinessContext.Provider
+      value={{
+        businessId: effectiveBusinessId,
+        hasNoBusiness: impersonating && isSuperAdmin ? false : hasNoBusiness,
+        loading,
+        businesses,
+        switchBusiness,
+        impersonating: isSuperAdmin ? impersonating : null,
+        startImpersonation,
+        stopImpersonation,
+      }}
+    >
       {children}
     </BusinessContext.Provider>
   );
