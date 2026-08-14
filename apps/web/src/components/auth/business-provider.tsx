@@ -35,26 +35,30 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = session?.user?.user_metadata?.role === "super_admin";
   const [impersonating, setImpersonating] = useState<{ id: string; name: string } | null>(null);
 
-  // Load persisted impersonation on mount. Only super-admins may impersonate;
-  // a tampering non-admin's injected key is ignored and cleared. The backend
-  // independently returns 403 on any business-scoped call, so this gate is
-  // UX-only defense-in-depth, not the security boundary.
+  // Load persisted impersonation once auth resolves. Only super-admins may
+  // impersonate; a tampering non-admin's injected key is ignored and cleared.
+  // The backend independently 403s non-admins on any business-scoped call, so
+  // this gate is UX-only defense-in-depth, not the security boundary.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(IMPERSONATE_KEY);
-    if (!raw) return;
+    if (!userId) return;
     if (!isSuperAdmin) {
       window.localStorage.removeItem(IMPERSONATE_KEY);
       setImpersonating(null);
       return;
     }
+    const raw = window.localStorage.getItem(IMPERSONATE_KEY);
+    if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as { id: string; name: string };
-      if (parsed?.id) setImpersonating(parsed);
+      if (typeof parsed.id === "string" && typeof parsed.name === "string") {
+        setImpersonating({ id: parsed.id, name: parsed.name });
+      } else {
+        window.localStorage.removeItem(IMPERSONATE_KEY);
+      }
     } catch {
       window.localStorage.removeItem(IMPERSONATE_KEY);
     }
-  }, [isSuperAdmin]);
+  }, [userId, isSuperAdmin]);
 
   useEffect(() => {
     if (!userId || !session?.access_token) {
