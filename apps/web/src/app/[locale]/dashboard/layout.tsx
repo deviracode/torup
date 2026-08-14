@@ -62,16 +62,14 @@ function ImpersonationBanner() {
 
   if (!impersonating) return null;
 
-  const handleExit = async () => {
-    try {
-      await apiFetch(
-        "/api/admin/stop-impersonate",
-        { method: "POST", body: JSON.stringify({ business_id: impersonating.id }) },
-        session?.access_token
-      );
-    } catch {
+  const handleExit = () => {
+    void apiFetch(
+      "/api/admin/stop-impersonate",
+      { method: "POST", body: JSON.stringify({ business_id: impersonating.id }) },
+      session?.access_token
+    ).catch(() => {
       // Audit-log call is best-effort; still exit locally.
-    }
+    });
     stopImpersonation();
     router.push(`/${locale}/admin`);
   };

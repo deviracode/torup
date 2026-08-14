@@ -67,7 +67,7 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex h-screen w-[220px] flex-col py-4 bg-[hsl(242_44%_10%)] border-e border-white/6 flex-shrink-0"
+        className="hidden md:flex h-full w-[220px] flex-col py-4 bg-[hsl(242_44%_10%)] border-e border-white/6 flex-shrink-0"
       >
         {/* Logo */}
         <div
