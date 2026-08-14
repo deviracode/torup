@@ -1,12 +1,12 @@
 import { Router, type Router as RouterType } from "express";
 import { getUserClient, getBusinessId } from "../lib/params";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
+import { requireAuth, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
 import { createNotificationRepo } from "../modules/notifications/notifications.repository";
 import { createNotificationService } from "../modules/notifications/notifications.service";
 
 const router: RouterType = Router({ mergeParams: true });
 
-router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+router.get("/", requireAuth, requireBusinessAccess, async (req: AuthenticatedRequest, res, next) => {
   try {
     const repo = createNotificationRepo(getUserClient(req));
     const svc = createNotificationService(repo);
