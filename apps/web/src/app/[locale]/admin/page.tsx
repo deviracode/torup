@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useBusiness } from "@/components/auth/business-provider";
 import { apiFetch } from "@/lib/api";
 import {
   Card, CardContent, Button, Badge, Input, Label,
@@ -58,6 +60,9 @@ export default function AdminBusinessesPage() {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const { session } = useAuth();
+  const router = useRouter();
+  const locale = useLocale();
+  const { startImpersonation } = useBusiness();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +70,6 @@ export default function AdminBusinessesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [showOnboard, setShowOnboard] = useState(false);
   const [editBusiness, setEditBusiness] = useState<Business | null>(null);
-  const [impersonating, setImpersonating] = useState<Business | null>(null);
 
   const [formData, setFormData] = useState({
     name: "", slug: "", category: "", phone: "", contact_phone: "", email: "", address: "", plan_id: "", owner_email: "",
@@ -144,24 +148,11 @@ export default function AdminBusinessesPage() {
         method: "POST",
         body: JSON.stringify({ business_id: biz.id }),
       }, token);
-      setImpersonating(biz);
+      startImpersonation({ id: biz.id, name: biz.name });
+      router.push(`/${locale}/dashboard`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to start impersonation");
     }
-  };
-
-  const handleStopImpersonate = async () => {
-    if (impersonating) {
-      try {
-        await apiFetch("/api/admin/stop-impersonate", {
-          method: "POST",
-          body: JSON.stringify({ business_id: impersonating.id }),
-        }, token);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to stop impersonation");
-      }
-    }
-    setImpersonating(null);
   };
 
   const handleDelete = async (biz: Business) => {
@@ -216,19 +207,6 @@ export default function AdminBusinessesPage() {
           {t("onboardBusiness")}
         </Button>
       </div>
-
-      {impersonating && (
-        <Card className="mb-4 border-orange-300 bg-orange-50">
-          <CardContent className="p-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-orange-800">
-              {t("impersonating")} <strong>{impersonating.name}</strong>
-            </span>
-            <Button variant="destructive" size="sm" onClick={handleStopImpersonate}>
-              {t("stopImpersonating")}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
