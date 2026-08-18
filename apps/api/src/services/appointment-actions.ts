@@ -54,6 +54,8 @@ export async function approveAppointment(appointmentId: string) {
     console.error("[Notification] approval failed:", err);
     return { sent: false, failed: true };
   });
+  // Reflects only the primary approved customer's notification — sibling
+  // slot_taken rejections below are notified independently and not reflected here.
   const customerNotified = notifyResult?.sent ?? false;
   await Promise.all(
     rejectedIds.map((id) =>
