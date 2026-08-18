@@ -77,6 +77,7 @@ describe("sendApprovalNotification", () => {
 describe("sendRejectionNotification", () => {
   beforeEach(() => {
     insertedRows.length = 0;
+    delete process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED;
   });
 
   it("sends slot_taken rejection with rebook_url in vars", async () => {
@@ -104,5 +105,26 @@ describe("sendRejectionNotification", () => {
     const result = await sendRejectionNotification("apt-1", "slot_taken");
 
     expect(result?.sent).toBe(true);
+  });
+
+  it("uses the rejection template when WHATSAPP_REJECTION_TEMPLATE_ENABLED is 'true'", async () => {
+    process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED = "true";
+    const { sendRejectionNotification } = await import("../services/notifications.js");
+    const result = await sendRejectionNotification("apt-1", "manual");
+
+    expect(result?.sent).toBe(true);
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0].status).toBe("sent");
+    expect(insertedRows[0].whatsapp_message_id).toBe("tmpl-msg-id-789");
+  });
+
+  it("stays on freeform text when WHATSAPP_REJECTION_TEMPLATE_ENABLED is unset", async () => {
+    const { sendRejectionNotification } = await import("../services/notifications.js");
+    const result = await sendRejectionNotification("apt-1", "manual");
+
+    expect(result?.sent).toBe(true);
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0].template_id).toBe("rejection_manual");
+    expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
   });
 });
