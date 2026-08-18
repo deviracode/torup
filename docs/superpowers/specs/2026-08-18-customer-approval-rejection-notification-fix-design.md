@@ -160,16 +160,20 @@ if (action === "approve") {
 }
 ```
 
-### 6. `apps/web/src/components/dashboard/pending-approvals-panel.tsx` — dashboard warning
-
-When the approve/reject API call's response includes
-`customerNotified: false`, show a warning toast (matching this file's
-existing toast usage patterns) telling the manager the customer wasn't
-notified and needs manual follow-up, instead of the normal success
-toast.
-
 ## Out of scope
 
+- **Dashboard UI surfacing of `customerNotified: false`.** There is no
+  toast/notification library in `apps/web` on this branch (no `sonner`
+  dependency, no equivalent — confirmed by search), and the current
+  `handleApprove`/`handleReject` in
+  `apps/web/src/app/[locale]/dashboard/page.tsx:374-388` silently
+  swallow all errors (`.catch(() => {})`), so there's no existing
+  pattern to extend either. Introducing a new UI dependency/pattern as
+  a side effect of this bug fix is out of scope. The `customerNotified`
+  field is still added to the API response (see #4) so it's available
+  for future UI work, but no frontend changes ship in this fix — the
+  WhatsApp-side honest messaging (#5), which the manager already relies
+  on day-to-day, is the actual fix she'll see.
 - Registering the rejection template (and deciding its final shape —
   one vs. two templates, URL button for rebook link) in WhatsApp
   Business Manager — external, non-code prerequisite.
