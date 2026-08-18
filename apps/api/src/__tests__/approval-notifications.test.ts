@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../services/whatsapp.js", () => ({
   sendInteractiveReminder: vi.fn(async () => null),
   sendWhatsAppMessage: vi.fn(async () => "msg-id-123"),
+  sendCustomerApprovalTemplate: vi.fn(async () => "tmpl-msg-id-456"),
+  sendCustomerRejectionTemplate: vi.fn(async () => "tmpl-msg-id-789"),
 }));
 
 const insertedRows: Array<Record<string, unknown>> = [];
@@ -39,9 +41,11 @@ vi.mock("../lib/supabase.js", () => ({
 describe("sendApprovalNotification", () => {
   beforeEach(() => {
     insertedRows.length = 0;
+    delete process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED;
   });
 
-  it("sends approval notification and logs status='sent' when WhatsApp succeeds", async () => {
+  it("falls back to freeform text and logs status='sent' when the template is explicitly disabled", async () => {
+    process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED = "false";
     const { sendApprovalNotification } = await import("../services/notifications.js");
     const result = await sendApprovalNotification("apt-1");
 
@@ -50,6 +54,17 @@ describe("sendApprovalNotification", () => {
     expect(insertedRows[0].status).toBe("sent");
     expect(insertedRows[0].template_id).toBe("approval");
     expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
+  });
+
+  it("uses the approved Meta template by default when the env var is unset", async () => {
+    const { sendApprovalNotification } = await import("../services/notifications.js");
+    const result = await sendApprovalNotification("apt-1");
+
+    expect(result?.sent).toBe(true);
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0].status).toBe("sent");
+    expect(insertedRows[0].template_id).toBe("approval");
+    expect(insertedRows[0].whatsapp_message_id).toBe("tmpl-msg-id-456");
   });
 
   it("is a thin wrapper that delegates to sendAppointmentNotification with template 'approval'", async () => {

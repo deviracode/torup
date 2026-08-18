@@ -284,10 +284,13 @@ export async function sendAppointmentNotification(
 }
 
 export async function sendApprovalNotification(appointmentId: string) {
-  // If the approved Meta template is enabled, use it to bypass the 24h conversation window.
-  // Templates appointment_confirmed_he / appointment_confirmed_ar must be registered in
-  // WhatsApp Business Manager. Enable with: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
-  const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED === "true";
+  // Use the approved Meta template by default to bypass the 24h conversation window —
+  // freeform text messages silently fail once 24h have passed since the customer's
+  // last inbound message, which is unrelated to how far away their appointment is.
+  // Templates appointment_confirmed_he / appointment_confirmed_ar are registered and
+  // approved in WhatsApp Business Manager. Set WHATSAPP_APPROVAL_TEMPLATE_ENABLED=false
+  // to force the old freeform behavior.
+  const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED !== "false";
   if (useTemplate) {
     const supabase = createServiceClient();
     const { data: appointment } = await supabase
