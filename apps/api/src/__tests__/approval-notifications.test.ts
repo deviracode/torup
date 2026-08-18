@@ -127,4 +127,50 @@ describe("sendRejectionNotification", () => {
     expect(insertedRows[0].template_id).toBe("rejection_manual");
     expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
   });
+
+  it("falls back to freeform text when the appointment has no usable customer phone, even with the template enabled", async () => {
+    process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED = "true";
+
+    // Override the supabase mock for this test only: simulate an appointment
+    // whose customer record has no phone number (e.g. an incomplete lookup).
+    // sendRejectionNotification's `customer?.phone && service` guard should
+    // fail and fall through to sendAppointmentNotification's freeform path
+    // (which only needs customer/service/business objects to be present,
+    // not a phone) instead of calling sendCustomerRejectionTemplate.
+    vi.doMock("../lib/supabase.js", () => ({
+      createServiceClient: () => ({
+        from: (_table: string) => ({
+          select: () => ({
+            eq: () => ({
+              single: async () => ({
+                data: {
+                  ...appointmentRow,
+                  customers: { ...appointmentRow.customers, phone: "" },
+                },
+              }),
+            }),
+          }),
+          insert: (row: Record<string, unknown>) => {
+            insertedRows.push(row);
+            return { error: null };
+          },
+        }),
+      }),
+    }));
+    vi.resetModules();
+
+    try {
+      const { sendRejectionNotification } = await import("../services/notifications.js");
+      const result = await sendRejectionNotification("apt-1", "manual");
+
+      expect(result?.sent).toBe(true);
+      expect(insertedRows).toHaveLength(1);
+      expect(insertedRows[0].template_id).toBe("rejection_manual");
+      // Freeform mock's return value, NOT the template mock's "tmpl-msg-id-789".
+      expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
+    } finally {
+      vi.doUnmock("../lib/supabase.js");
+      vi.resetModules();
+    }
+  });
 });
