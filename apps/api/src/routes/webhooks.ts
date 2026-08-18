@@ -89,7 +89,7 @@ router.post("/whatsapp", async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-async function handleManagerResponse(
+export async function handleManagerResponse(
   managerPhone: string,
   appointmentId: string,
   action: "approve" | "reject"
@@ -122,12 +122,18 @@ async function handleManagerResponse(
 
   if (action === "approve") {
     await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId);
-    await sendWhatsAppMessage(managerPhone, "✅ התור אושר! הלקוח יקבל הודעה.");
-    await sendApprovalNotification(appointmentId);
+    const result = await sendApprovalNotification(appointmentId);
+    const managerMsg = result?.sent
+      ? "✅ התור אושר! הלקוח יקבל הודעה."
+      : "✅ התור אושר, אך לא הצלחנו לשלוח הודעה ללקוח. יש ליצור איתו קשר ישירות.";
+    await sendWhatsAppMessage(managerPhone, managerMsg);
   } else {
     await supabase.from("appointments").update({ status: "cancelled" }).eq("id", appointmentId);
-    await sendWhatsAppMessage(managerPhone, "❌ התור נדחה. הלקוח יקבל הודעה.");
-    await sendRejectionNotification(appointmentId, "manual");
+    const result = await sendRejectionNotification(appointmentId, "manual");
+    const managerMsg = result?.sent
+      ? "❌ התור נדחה. הלקוח יקבל הודעה."
+      : "❌ התור נדחה, אך לא הצלחנו לשלוח הודעה ללקוח. יש ליצור איתו קשר ישירות.";
+    await sendWhatsAppMessage(managerPhone, managerMsg);
   }
 }
 
