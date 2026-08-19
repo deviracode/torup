@@ -62,8 +62,7 @@ describe("sendApprovalNotification", () => {
     delete process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED;
   });
 
-  it("falls back to freeform text and logs status='sent' when the template is explicitly disabled", async () => {
-    process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED = "false";
+  it("uses freeform text by default when the env var is unset (template pending Meta review as of 2026-08-20)", async () => {
     const { sendApprovalNotification } = await import("../services/notifications");
     const result = await sendApprovalNotification("apt-1");
 
@@ -74,7 +73,8 @@ describe("sendApprovalNotification", () => {
     expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
   });
 
-  it("uses the approved Meta template by default when the env var is unset", async () => {
+  it("uses the Meta template when explicitly enabled", async () => {
+    process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED = "true";
     const { sendApprovalNotification } = await import("../services/notifications");
     const result = await sendApprovalNotification("apt-1");
 
