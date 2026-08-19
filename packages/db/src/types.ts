@@ -281,6 +281,7 @@ export type Database = {
           allow_multiple_bookings: boolean
           bot_context: string | null
           category: string
+          contact_phone: string | null
           cover_url: string | null
           created_at: string
           default_language: Database["public"]["Enums"]["supported_language"]
@@ -300,6 +301,7 @@ export type Database = {
           allow_multiple_bookings?: boolean
           bot_context?: string | null
           category: string
+          contact_phone?: string | null
           cover_url?: string | null
           created_at?: string
           default_language?: Database["public"]["Enums"]["supported_language"]
@@ -319,6 +321,7 @@ export type Database = {
           allow_multiple_bookings?: boolean
           bot_context?: string | null
           category?: string
+          contact_phone?: string | null
           cover_url?: string | null
           created_at?: string
           default_language?: Database["public"]["Enums"]["supported_language"]

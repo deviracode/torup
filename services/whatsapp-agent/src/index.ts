@@ -278,10 +278,10 @@ const ALREADY_BOOKED_MSG: Record<"he" | "ar" | "en", string> = {
   en: "You already have an active booking 📌\nYou can request a new appointment only after the existing one ends or is cancelled. View it under \"My Appointments\".",
 };
 
-const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string) => string> = {
-  he: (t) => `השעה ${t} תפוסה אצלנו 🙈 אבל אל תדאגו, יש לנו עוד אפשרויות!`,
-  ar: (t) => `للأسف الساعة ${t} محجوزة 🙈 بس عنا خيارات ثانية!`,
-  en: (t) => `${t} is taken 🙈 but we have other options!`,
+const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) => string> = {
+  he: (t, d) => `⚠️ השעה ${t}:00 ב-${d} תפוסה. בחרו תאריך אחר:`,
+  ar: (t, d) => `⚠️ الساعة ${t}:00 بتاريخ ${d} محجوزة. اختر تاريخاً آخر:`,
+  en: (t, d) => `⚠️ ${t}:00 on ${d} is taken. Choose another date:`,
 };
 
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
@@ -781,10 +781,6 @@ async function resumeFromIntent(
   const slots = await getAvailableTimeSlots(ctx.biz.businessId, intent.service_id, intent.date);
 
   if (slots.length === 0) {
-    if (intent.time_hour !== null) {
-      const timeLabel = `${String(intent.time_hour).padStart(2, "0")}:00`;
-      await sendTextMessage(businessPhoneNumberId, from, SLOT_TAKEN_MSG[lang](timeLabel));
-    }
     const bf = BOOKING_FLOW_I18N[lang];
     await sendTextMessage(credential, from, bf.noDates);
     const dates = await findNextAvailableDates(ctx.biz.businessId, intent.service_id, ctx.maxFutureDays, lang);
@@ -792,8 +788,6 @@ async function resumeFromIntent(
       await sendButtonMessage(credential, from, `${serviceName} ✂️\n${bf.chooseDate}`,
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
-    } else {
-      await sendTextMessage(businessPhoneNumberId, from, bf.noDates);
     }
     return;
   }
@@ -827,11 +821,6 @@ async function resumeFromIntent(
         dates.map((d) => ({ id: `date_${d.date}`, title: d.label }))
       );
     }
-
-    // Same period empty — slots is guaranteed non-empty here (checked above),
-    // so there must be slots in other periods. Show period selection buttons.
-    const updatedSessionForPeriods = { ...session, booking: { step: "select_date" as const, serviceId: intent.service_id, serviceName, date: intent.date } };
-    await sendTimePeriodOrSlots(businessPhoneNumberId, from, businessPhoneNumberId, updatedSessionForPeriods, slots);
     return;
   }
 
@@ -1136,7 +1125,7 @@ async function handleIncomingMessage(
     if (interactionId === "menu_cancel") {
       const lang = session.language ?? "he";
       const managerPhone = (ctx.biz.contactPhone ?? ctx.biz.phone).replace(/[^0-9]/g, "");
-      await sendTextMessage(businessPhoneNumberId, from, CANCEL_REDIRECT_MSG[lang](managerPhone));
+      await sendTextMessage(credential, from, CANCEL_REDIRECT_MSG[lang](managerPhone));
       return;
     }
 
