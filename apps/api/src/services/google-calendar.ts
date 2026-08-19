@@ -108,7 +108,6 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
 
     for (const event of events) {
       if (!event.id || !event.start?.dateTime || !event.end?.dateTime) {
-        console.log(`[gcal/sync] skipping event id=${event.id} summary="${event.summary}" (all-day or missing times)`);
         continue;
       }
       const { error: upsertErr } = await supabase.from("google_calendar_events").upsert({
@@ -128,7 +127,6 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
 
     // Delete events no longer in Google (cancelled externally)
     const googleEventIds = events.map((e) => e.id!).filter(Boolean);
-    console.log(`[gcal/sync] keeping ${googleEventIds.length} event IDs:`, googleEventIds);
     let deleted = 0;
     if (googleEventIds.length > 0) {
       const { error: delErr, count } = await supabase
@@ -136,9 +134,13 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
         .delete({ count: "exact" })
         .eq("business_id", businessId)
         .not("google_event_id", "in", `(${googleEventIds.join(",")})`);
-      console.log(`[gcal/sync] delete result: count=${count} error=${delErr?.message}`);
-      if (!delErr) deleted = count ?? 0;
+      if (delErr) {
+        console.error(`[gcal/sync] delete failed for business ${businessId}:`, delErr.message);
+      } else {
+        deleted = count ?? 0;
+      }
     }
+    console.log(`[gcal/sync] businessId=${businessId} kept=${googleEventIds.length} deleted=${deleted}`);
 
     return { imported, deleted };
   } catch (err) {
