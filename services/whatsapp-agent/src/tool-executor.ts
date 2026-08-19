@@ -43,6 +43,10 @@ export async function executeTool(
 
       if (!appointments || appointments.length === 0) return "No upcoming appointments.";
 
+      // Never return raw start_time/end_time here — Claude has no timezone
+      // context and will misreport the hour (this caused a real bug: a
+      // 14:00 Israel-time appointment was read back to the customer as
+      // "11:00", the raw UTC hour). Always pre-format to Israel local time.
       const locale = language === "he" ? "he-IL" : language === "ar" ? "ar" : "en";
       const formatted = appointments.map((apt) => {
         const startDate = new Date(apt.start_time);
