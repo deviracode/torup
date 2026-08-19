@@ -1,0 +1,8 @@
+dist/
+
+# Compiled output must never land in src/ — it shadows the .ts sources when
+# tests import via ".js" specifiers (ESM). Only .ts belongs here.
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
