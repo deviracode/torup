@@ -42,7 +42,30 @@ export async function executeTool(
         .order("start_time");
 
       if (!appointments || appointments.length === 0) return "No upcoming appointments.";
-      return JSON.stringify(appointments);
+
+      const locale = language === "he" ? "he-IL" : language === "ar" ? "ar" : "en";
+      const formatted = appointments.map((apt) => {
+        const startDate = new Date(apt.start_time);
+        const service = apt.services as unknown as {
+          name_he: string; name_ar: string | null; name_en: string | null;
+        } | null;
+        const serviceName =
+          language === "ar" && service?.name_ar ? service.name_ar :
+          language === "en" && service?.name_en ? service.name_en :
+          service?.name_he ?? "";
+        return {
+          id: apt.id,
+          date: startDate.toLocaleDateString(locale, {
+            weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+          }),
+          time: startDate.toLocaleTimeString(locale, {
+            hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+          }),
+          status: apt.status,
+          service_name: serviceName,
+        };
+      });
+      return JSON.stringify(formatted);
     }
 
     default:
