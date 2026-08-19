@@ -1,14 +1,15 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useLocale } from "next-intl";
-import { AuthProvider } from "@/components/auth/auth-provider";
+import { usePathname, useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { AuthProvider, useAuth } from "@/components/auth/auth-provider";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { BusinessProvider, useBusiness } from "@/components/auth/business-provider";
+import { apiFetch } from "@/lib/api";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopBarProvider, useTopBar } from "@/components/dashboard/top-bar-context";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { pageVariants } from "@/components/motion";
-import { useAuth } from "@/components/auth/auth-provider";
 
 const PAGE_TITLES: Record<string, { he: string; en: string }> = {
   "/dashboard":            { he: "לוח שנה",    en: "Calendar"  },
@@ -52,25 +53,66 @@ function TopBar() {
   );
 }
 
+function ImpersonationBanner() {
+  const { impersonating, stopImpersonation } = useBusiness();
+  const { session } = useAuth();
+  const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("admin");
+
+  if (!impersonating) return null;
+
+  const handleExit = () => {
+    void apiFetch(
+      "/api/admin/stop-impersonate",
+      { method: "POST", body: JSON.stringify({ business_id: impersonating.id }) },
+      session?.access_token
+    ).catch(() => {
+      // Audit-log call is best-effort; still exit locally.
+    });
+    stopImpersonation();
+    router.push(`/${locale}/admin`);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-5 py-2 bg-orange-500/90 text-white text-sm font-medium flex-shrink-0">
+      <span>
+        {t("impersonating")} <strong>{impersonating.name}</strong>
+      </span>
+      <button
+        onClick={handleExit}
+        className="rounded-md bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-semibold"
+      >
+        {t("stopImpersonating")}
+      </button>
+    </div>
+  );
+}
+
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-col flex-1 md:overflow-hidden">
-        <TopBar />
-        <AnimatePresence mode="wait">
+    <div className="flex flex-col md:h-screen md:overflow-hidden">
+      <ImpersonationBanner />
+      <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-col flex-1 md:overflow-hidden">
+          <TopBar />
+          {/* Enter-only page transition. AnimatePresence mode="wait" + key={pathname}
+              was gating on the exit animation before mounting the next route, which
+              in the App Router (layout children swap without remounting the layout)
+              left the panel blank after navigation. Keying motion.main on pathname
+              still replays the enter animation per route without blocking mount. */}
           <motion.main
             key={pathname}
             variants={pageVariants}
             initial="initial"
             animate="animate"
-            exit="exit"
             className="flex-1 md:overflow-auto p-4 md:p-6"
           >
             {children}
           </motion.main>
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   );
@@ -84,9 +126,11 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <AuthGuard>
-        <TopBarProvider>
-          <DashboardShell>{children}</DashboardShell>
-        </TopBarProvider>
+        <BusinessProvider>
+          <TopBarProvider>
+            <DashboardShell>{children}</DashboardShell>
+          </TopBarProvider>
+        </BusinessProvider>
       </AuthGuard>
     </AuthProvider>
   );

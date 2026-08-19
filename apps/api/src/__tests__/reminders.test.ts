@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { validateTransition } from "@torup/shared";
-import { renderTemplate } from "../services/notifications.js";
+import { renderTemplate } from "../services/notifications";
 import express from "express";
 import request from "supertest";
 
 // ── Mocks for booking_confirmation suppression tests ──────────────────────────
 
-vi.mock("../middleware/auth.js", () => ({
+vi.mock("../middleware/auth", () => ({
   requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -16,8 +16,8 @@ const { mockSendAppointmentNotification, mockSendManagerNotification } = vi.hois
   mockSendManagerNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../services/notifications.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../services/notifications.js")>();
+vi.mock("../services/notifications", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/notifications")>();
   return {
     ...actual,
     sendAppointmentNotification: mockSendAppointmentNotification,
@@ -25,20 +25,24 @@ vi.mock("../services/notifications.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../services/google-calendar.js", () => ({
+vi.mock("../services/google-calendar", () => ({
   pushAppointmentToGoogle: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../lib/redis.js", () => ({
+vi.mock("../lib/redis", () => ({
   cacheGet: vi.fn().mockResolvedValue(null),
   cacheSet: vi.fn().mockResolvedValue(undefined),
   cacheClear: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../services/appointment-actions.js", () => ({
-  approveAppointment: vi.fn(),
-  rejectAppointment: vi.fn(),
-}));
+vi.mock("../modules/appointments/appointment.service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../modules/appointments/appointment.service")>();
+  return {
+    ...actual,
+    approveAppointment: vi.fn(),
+    rejectAppointment: vi.fn(),
+  };
+});
 
 // Supabase stub: services returns a valid service; appointments.insert returns a new row.
 const CREATED_APT_ID = "apt-booking-conf-test-001";
@@ -92,8 +96,9 @@ function makeSupabaseStubForPost(createdVia: string) {
   };
 }
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: vi.fn(),
+  createAnonClient: vi.fn(),
 }));
 
 describe("Reminder System", () => {
@@ -214,11 +219,11 @@ describe("Reminder System", () => {
 
   describe("Manual appointment booking_confirmation suppression", () => {
     async function buildPostApp(createdVia: string) {
-      const { createServiceClient } = await import("../lib/supabase.js");
-      (createServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeSupabaseStubForPost(createdVia)
-      );
-      const router = (await import("../routes/appointments.js")).default;
+      const { createServiceClient, createAnonClient } = await import("../lib/supabase");
+      const stub = makeSupabaseStubForPost(createdVia);
+      (createServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(stub);
+      (createAnonClient as ReturnType<typeof vi.fn>).mockReturnValue(stub);
+      const router = (await import("../routes/appointments")).default;
       const app = express();
       app.use(express.json());
       app.use("/api/businesses/:businessId/appointments", router);

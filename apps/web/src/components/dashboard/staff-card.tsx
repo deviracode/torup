@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { apiFetch } from "@/lib/api";
+import { Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Input,
+} from "@torup/ui";
+import { useApi } from "@/lib/use-api";
 
 interface Service {
   id: string;
@@ -26,26 +36,24 @@ export interface StaffMember {
   time_off_ranges: TimeOffRange[];
 }
 
-const inputCls =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
-
 export function StaffCard({
   member,
   services,
   businessId,
-  token,
   onUpdate,
   onRemove,
+  onEdit,
 }: {
   member: StaffMember;
   services: Service[];
   businessId: string;
-  token: string;
   onUpdate: (updated: StaffMember) => void;
   onRemove: (id: string) => void;
+  onEdit?: (member: StaffMember) => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const api = useApi();
 
   const [expanded, setExpanded] = useState(false);
   const [displayName, setDisplayName] = useState(
@@ -60,15 +68,24 @@ export function StaffCard({
 
   const today = new Date().toISOString().split("T")[0];
 
+  const displayLabel =
+    member.display_name || member.user?.user_metadata?.name || member.user?.email || t("unnamedStaffMember");
+
+  const initials = displayLabel
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   const saveName = async () => {
     if (!displayName.trim()) return;
     setSaving(true);
     setError("");
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}`,
-        { method: "PATCH", body: JSON.stringify({ display_name: displayName.trim() }) },
-        token
+        { method: "PATCH", body: JSON.stringify({ display_name: displayName.trim() }) }
       );
       onUpdate({ ...member, display_name: displayName.trim(), service_ids: serviceIds, time_off_ranges: timeOffRanges });
     } catch {
@@ -84,10 +101,9 @@ export function StaffCard({
       : [...serviceIds, serviceId];
     setServiceIds(next);
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/services`,
-        { method: "PUT", body: JSON.stringify({ service_ids: next }) },
-        token
+        { method: "PUT", body: JSON.stringify({ service_ids: next }) }
       );
       onUpdate({ ...member, service_ids: next, time_off_ranges: timeOffRanges });
     } catch {
@@ -105,16 +121,14 @@ export function StaffCard({
     setSaving(true);
     setError("");
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        { method: "POST", body: JSON.stringify({ start_date: timeOffStart, end_date: timeOffEnd }) },
-        token
+        { method: "POST", body: JSON.stringify({ start_date: timeOffStart, end_date: timeOffEnd }) }
       );
-      const result = await apiFetch<{ ranges: TimeOffRange[] }>(
-        `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        {},
-        token
+      const result = await api<{ ranges: TimeOffRange[] }>(
+        `/api/businesses/${businessId}/staff/${member.id}/time-off`
       );
+      if (!result) return;
       setTimeOffRanges(result.ranges);
       setTimeOffStart("");
       setTimeOffEnd("");
@@ -128,10 +142,9 @@ export function StaffCard({
 
   const removeTimeOff = async (range: TimeOffRange) => {
     try {
-      await apiFetch(
+      await api(
         `/api/businesses/${businessId}/staff/${member.id}/time-off`,
-        { method: "DELETE", body: JSON.stringify({ break_ids: range.break_ids }) },
-        token
+        { method: "DELETE", body: JSON.stringify({ break_ids: range.break_ids }) }
       );
       const next = timeOffRanges.filter((r) => r.id !== range.id);
       setTimeOffRanges(next);
@@ -141,39 +154,67 @@ export function StaffCard({
     }
   };
 
-  const displayLabel =
-    member.display_name || member.user?.user_metadata?.name || member.user?.email || member.user_id;
-
   return (
-    <div className="rounded-md border border-border bg-background">
+    <Card>
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-sm font-medium text-foreground hover:text-primary"
-          >
-            {expanded ? "▾" : "▸"} {displayLabel}
-          </button>
-          {member.user?.email && member.display_name && (
-            <span className="text-xs text-muted-foreground">{member.user.email}</span>
-          )}
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-              member.role === "owner" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
-            }`}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 text-start"
+        >
+          <Avatar>
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-foreground">{displayLabel}</span>
+            {member.user?.email && member.display_name && (
+              <span className="text-xs text-muted-foreground">{member.user.email}</span>
+            )}
+          </div>
+          <Badge
+            variant={member.role === "owner" ? "info" : "secondary"}
           >
             {t(member.role as "owner" | "staff")}
-          </span>
+          </Badge>
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        <div className="flex items-center gap-1">
+          {member.role !== "owner" && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEdit) {
+                    onEdit(member);
+                  } else {
+                    setExpanded(!expanded);
+                  }
+                }}
+                aria-label={tCommon("edit")}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemove(member.id)}
+                aria-label={tCommon("delete")}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
-        {member.role !== "owner" && (
-          <button onClick={() => onRemove(member.id)} className="text-red-500 text-xs hover:underline">
-            {tCommon("delete")}
-          </button>
-        )}
       </div>
 
       {expanded && (
-        <div className="border-t border-border px-4 py-4 space-y-5">
+        <CardContent className="border-t border-border px-4 py-4 space-y-5">
           {error && <p className="text-xs text-destructive">{error}</p>}
 
           <div>
@@ -181,19 +222,18 @@ export function StaffCard({
               {t("staffDisplayName")}
             </label>
             <div className="flex gap-2">
-              <input
-                type="text"
+              <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className={inputCls}
+                dir="auto"
               />
-              <button
+              <Button
                 onClick={saveName}
                 disabled={saving || !displayName.trim()}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                size="sm"
               >
                 {tCommon("save")}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -241,35 +281,35 @@ export function StaffCard({
             <div className="flex items-end gap-2 flex-wrap">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">{t("startDate")}</label>
-                <input
+                <Input
                   type="date"
                   min={today}
                   value={timeOffStart}
                   onChange={(e) => setTimeOffStart(e.target.value)}
-                  className={inputCls + " w-40"}
+                  className="w-40"
                 />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">{t("endDate")}</label>
-                <input
+                <Input
                   type="date"
                   min={timeOffStart || today}
                   value={timeOffEnd}
                   onChange={(e) => setTimeOffEnd(e.target.value)}
-                  className={inputCls + " w-40"}
+                  className="w-40"
                 />
               </div>
-              <button
+              <Button
                 onClick={addTimeOff}
                 disabled={saving || !timeOffStart || !timeOffEnd}
-                className="rounded-md bg-primary px-3 py-2 text-xs text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50"
+                size="sm"
               >
                 {tCommon("add")}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }

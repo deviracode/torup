@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/components/auth/auth-provider";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion, useAnimate } from "framer-motion";
 import Link from "next/link";
 
@@ -29,9 +30,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, name);
-      router.push(`/${locale}/dashboard`);
+      router.push(`/${locale}/welcome`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(translateAuthError(err as Error, t));
       animate(scope.current, { x: [0, 10, -10, 6, -6, 0] }, { duration: 0.4 });
     } finally {
       setLoading(false);
@@ -111,7 +112,7 @@ export default function RegisterPage() {
       </form>
 
       <p className="mt-5 text-center text-sm text-white/40">
-        <Link href={`/${locale}/login`} className="text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-[#818cf8] hover:text-white transition-colors">
           {t("login")}
         </Link>
       </p>

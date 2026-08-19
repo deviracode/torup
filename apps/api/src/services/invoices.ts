@@ -1,4 +1,4 @@
-import { createServiceClient } from "../lib/supabase.js";
+import { createServiceClient } from "../lib/supabase";
 
 /**
  * Invoice generation and storage.
@@ -106,7 +106,7 @@ export async function createSubscriptionInvoice(params: {
     type: "invoice",
     channel: "system",
     template_id: invoiceNumber,
-    status: invoice.status,
+    status: "logged",
     customer_id: null,
     sent_at: now.toISOString(),
     error: JSON.stringify(invoice),

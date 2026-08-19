@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import { DailyCalendar } from "@/components/dashboard/daily-calendar";
 import { WeeklyCalendar } from "@/components/dashboard/weekly-calendar";
 import { NewAppointmentForm } from "@/components/dashboard/new-appointment-form";
@@ -62,7 +62,7 @@ const STAT_CONFIG = [
     key: "total" as const,
     labelKey: "todayAppointments",
     icon: CalendarDays,
-    gradient: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+    gradient: "linear-gradient(135deg, #6366f1, #d4a24e)",
     drawerTitle: { he: "כל התורים להיום", en: "All Today's Appointments" },
     statusFilter: null as string[] | null,
   },
@@ -87,7 +87,7 @@ const STAT_CONFIG = [
     key: "pendingApproval" as const,
     labelKey: "pendingApproval",
     icon: AlertCircle,
-    gradient: "linear-gradient(135deg, #ef4444, #f472b6)",
+    gradient: "linear-gradient(135deg, #ef4444, #d4a24e)",
     drawerTitle: { he: "ממתינים לאישורך", en: "Awaiting Your Approval" },
     statusFilter: ["pending_approval"],
   },
@@ -129,8 +129,8 @@ function AppointmentDrawer({
         exit={{ x: isRtl ? "-100%" : "100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         onClick={(e) => e.stopPropagation()}
-        className={`absolute top-0 bottom-0 w-full max-w-md flex flex-col ${isRtl ? "left-0" : "right-0"}`}
-        style={{ background: "hsl(244 40% 10%)", borderLeft: isRtl ? "none" : "1px solid rgba(255,255,255,0.07)", borderRight: isRtl ? "1px solid rgba(255,255,255,0.07)" : "none" }}
+        className="absolute start-0 top-0 bottom-0 w-full max-w-md flex flex-col"
+        style={{ background: "hsl(244 40% 10%)", borderInlineStart: "1px solid rgba(255,255,255,0.07)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/7">
@@ -242,9 +242,9 @@ export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const locale = useLocale();
   const isRtl = locale === "he" || locale === "ar";
-  const { session } = useAuth();
+  const { businessId, hasNoBusiness, loading: bizLoading } = useBusiness();
+  const api = useApi();
   const [view, setView] = useState<"day" | "week">("day");
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [stats, setStats] = useState<DayStats>({
@@ -262,21 +262,12 @@ export default function DashboardPage() {
   const [calendarDate, setCalendarDate] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!session?.access_token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     const today = new Date().toISOString().split("T")[0];
 
     // Today's total + completed (date-scoped)
-    apiFetch<Array<{ status: string }>>(
-      `/api/businesses/${businessId}/appointments?date=${today}`,
-      {},
-      session.access_token
+    api<Array<{ status: string }>>(
+      `/api/businesses/${businessId}/appointments?date=${today}`
     ).then((apts) => {
       if (Array.isArray(apts)) {
         setStats((prev) => ({
@@ -285,30 +276,28 @@ export default function DashboardPage() {
           completed: apts.filter((a) => a.status === "completed").length,
         }));
       }
-    }).catch(() => {});
+    });
 
     // Pending = all future pending+confirmed (not just today)
     Promise.all([
-      apiFetch<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=pending`, {}, session.access_token).catch(() => [] as Array<{ id: string }>),
-      apiFetch<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=confirmed`, {}, session.access_token).catch(() => [] as Array<{ id: string }>),
+      api<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=pending`),
+      api<Array<{ id: string }>>(`/api/businesses/${businessId}/appointments?status=confirmed`),
     ]).then(([pending, confirmed]) => {
-      setStats((prev) => ({ ...prev, pending: pending.length + confirmed.length }));
+      setStats((prev) => ({ ...prev, pending: (pending?.length ?? 0) + (confirmed?.length ?? 0) }));
     });
 
     // Needs approval (all, not date-scoped)
-    apiFetch<Array<{ id: string }>>(
-      `/api/businesses/${businessId}/appointments?status=pending_approval`,
-      {},
-      session.access_token
+    api<Array<{ id: string }>>(
+      `/api/businesses/${businessId}/appointments?status=pending_approval`
     ).then((apts) => {
       if (Array.isArray(apts)) {
         setStats((prev) => ({ ...prev, pendingApproval: apts.length }));
       }
-    }).catch(() => {});
-  }, [businessId, session?.access_token, refreshKey]);
+    });
+  }, [businessId, refreshKey]);
 
   const openDrawer = async (filterKey: FilterKey) => {
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     setDrawerFilter(filterKey);
     setDrawerLoading(true);
     setDrawerAppts([]);
@@ -316,64 +305,46 @@ export default function DashboardPage() {
     const cfg = STAT_CONFIG.find((c) => c.key === filterKey)!;
     const today = new Date().toISOString().split("T")[0];
 
-    try {
-      if (cfg.statusFilter) {
-        // For specific status filters — fetch each status and merge
-        const results = await Promise.all(
-          cfg.statusFilter.map((status) =>
-            apiFetch<Appointment[]>(
-              `/api/businesses/${businessId}/appointments?status=${status}`,
-              {},
-              session.access_token!
-            ).catch(() => [] as Appointment[])
+    if (cfg.statusFilter) {
+      const results = await Promise.all(
+        cfg.statusFilter.map((status) =>
+          api<Appointment[]>(
+            `/api/businesses/${businessId}/appointments?status=${status}`
           )
-        );
-        setDrawerAppts(results.flat().sort((a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-        ));
-      } else {
-        // "total" — fetch today's all appointments
-        const r = await apiFetch<Appointment[]>(
-          `/api/businesses/${businessId}/appointments?date=${today}`,
-          {},
-          session.access_token!
-        );
-        setDrawerAppts(Array.isArray(r) ? r.sort((a, b) =>
-          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-        ) : []);
-      }
-    } catch {
-      setDrawerAppts([]);
-    } finally {
-      setDrawerLoading(false);
+        )
+      );
+      setDrawerAppts(results.flat().filter((r): r is Appointment => r !== null).sort((a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      ));
+    } else {
+      const r = await api<Appointment[]>(
+        `/api/businesses/${businessId}/appointments?date=${today}`
+      );
+      setDrawerAppts(Array.isArray(r) ? r.sort((a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      ) : []);
     }
+    setDrawerLoading(false);
   };
 
   const openSplitMode = async () => {
     if (splitMode) return;
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     setSplitMode(true);
     setSplitLoading(true);
     setSplitAppts([]);
-    try {
-      const r = await apiFetch<Appointment[]>(
-        `/api/businesses/${businessId}/appointments?status=pending_approval`,
-        {},
-        session.access_token
-      );
-      setSplitAppts(Array.isArray(r) ? r.sort((a, b) =>
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      ) : []);
-    } catch {
-      setSplitAppts([]);
-    } finally {
-      setSplitLoading(false);
-    }
+    const r = await api<Appointment[]>(
+      `/api/businesses/${businessId}/appointments?status=pending_approval`
+    );
+    setSplitAppts(Array.isArray(r) ? r.sort((a, b) =>
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    ) : []);
+    setSplitLoading(false);
   };
 
   const handleApprove = async (id: string, date?: string) => {
-    if (!businessId || !session?.access_token) return;
-    await apiFetch(`/api/businesses/${businessId}/appointments/${id}/approve`, { method: "POST" }, session.access_token).catch(() => {});
+    if (!businessId) return;
+    await api(`/api/businesses/${businessId}/appointments/${id}/approve`, { method: "POST" });
     if (date) setCalendarDate(date);
     setSplitAppts((prev) => prev.filter((a) => a.id !== id));
     setDrawerAppts((prev) => prev.filter((a) => a.id !== id));
@@ -381,8 +352,8 @@ export default function DashboardPage() {
   };
 
   const handleReject = async (id: string) => {
-    if (!businessId || !session?.access_token) return;
-    await apiFetch(`/api/businesses/${businessId}/appointments/${id}/reject`, { method: "POST" }, session.access_token).catch(() => {});
+    if (!businessId) return;
+    await api(`/api/businesses/${businessId}/appointments/${id}/reject`, { method: "POST" });
     setSplitAppts((prev) => prev.filter((a) => a.id !== id));
     setDrawerAppts((prev) => prev.filter((a) => a.id !== id));
     setRefreshKey((k) => k + 1);
@@ -473,38 +444,55 @@ export default function DashboardPage() {
       </div>
 
       {/* Calendar / Split view */}
-      {!businessId ? (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex gap-3 animate-pulse">
-              <div className="h-4 w-12 rounded bg-white/8" />
-              <div className="h-10 flex-1 rounded-lg bg-white/8" />
-            </div>
-          ))}
-        </div>
-      ) : splitMode ? (
-        <div className="flex gap-4 items-start">
-          <div className="flex-1 min-w-0">
-            {view === "day" ? (
-              <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
-            ) : (
-              <WeeklyCalendar key={`week-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
-            )}
+      {bizLoading || !businessId ? (
+        bizLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex gap-3 animate-pulse">
+                <div className="h-4 w-12 rounded bg-white/8" />
+                <div className="h-10 flex-1 rounded-lg bg-white/8" />
+              </div>
+            ))}
           </div>
-          <PendingApprovalsPanel
-            appointments={splitAppts}
-            loading={splitLoading}
-            isRtl={isRtl}
-            onClose={() => { setSplitMode(false); setCalendarDate(undefined); }}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onSelectDate={(date) => setCalendarDate(date)}
-          />
-        </div>
-      ) : view === "day" ? (
-        <DailyCalendar key={`day-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+        ) : (
+          <div className="rounded-xl border border-white/8 p-8 text-center" style={{ background: "rgba(255,255,255,0.04)" }}>
+            <p className="text-white/60 text-sm mb-2">Your account is not connected to a business yet.</p>
+            <a
+              href="https://wa.me/972524433123?text=%D7%94%D7%99%D7%99%2C%20%D7%99%D7%A6%D7%A8%D7%AA%D7%99%20%D7%97%D7%A9%D7%91%D7%95%D7%9F%20%D7%91-TorUp%20%D7%95%D7%90%D7%A0%D7%99%20%D7%A8%D7%95%D7%A6%D7%94%20%D7%9C%D7%94%D7%AA%D7%97%D7%91%D7%A8%20%D7%9C%D7%A2%D7%A1%D7%A7%20%D7%A9%D7%9C%D7%99"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2 text-sm font-bold text-white mt-3 hover:brightness-110"
+              style={{ background: "#25D366" }}
+            >
+              Contact us on WhatsApp
+            </a>
+          </div>
+        )
       ) : (
-        <WeeklyCalendar key={`week-${refreshKey}`} businessId={businessId} />
+        splitMode ? (
+          <div className="flex gap-4 items-start">
+            <div className="flex-1 min-w-0">
+              {view === "day" ? (
+                <DailyCalendar key={`day-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+              ) : (
+                <WeeklyCalendar key={`week-split-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+              )}
+            </div>
+            <PendingApprovalsPanel
+              appointments={splitAppts}
+              loading={splitLoading}
+              isRtl={isRtl}
+              onClose={() => { setSplitMode(false); setCalendarDate(undefined); }}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onSelectDate={(date) => setCalendarDate(date)}
+            />
+          </div>
+        ) : view === "day" ? (
+          <DailyCalendar key={`day-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+        ) : (
+          <WeeklyCalendar key={`week-${refreshKey}`} businessId={businessId} />
+        )
       )}
 
       {showNewAppt && businessId && (

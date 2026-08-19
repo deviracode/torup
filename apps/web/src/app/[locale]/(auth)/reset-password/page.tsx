@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -21,24 +22,17 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const establish = async () => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) setError(error.message);
-      } else if (window.location.hash.includes("access_token")) {
-        const hash = new URLSearchParams(window.location.hash.slice(1));
-        const access_token = hash.get("access_token");
-        const refresh_token = hash.get("refresh_token");
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
-        }
+    const check = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setReady(true);
+      } else {
+        setError(isRtl ? "קישור לא תקין או פג תוקף" : "Invalid or expired link");
+        setReady(true);
       }
-      setReady(true);
     };
-    establish();
-  }, [supabase]);
+    check();
+  }, [supabase, isRtl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +43,7 @@ export default function ResetPasswordPage() {
       if (error) throw error;
       setUpdated(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update password");
+      setError(translateAuthError(err as Error, t));
     } finally {
       setLoading(false);
     }
@@ -65,7 +59,7 @@ export default function ResetPasswordPage() {
           {isRtl ? "הסיסמה עודכנה" : "Password updated"}
         </h2>
         <p className="text-sm text-white/40 mb-6">{t("passwordUpdated" as any)}</p>
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </div>
@@ -120,7 +114,7 @@ export default function ResetPasswordPage() {
       </form>
 
       <p className="mt-5 text-center">
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </p>

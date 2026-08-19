@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -30,7 +31,7 @@ export default function ForgotPasswordPage() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset link");
+      setError(translateAuthError(err as Error, t));
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export default function ForgotPasswordPage() {
           {isRtl ? "נשלח!" : "Check your email"}
         </h2>
         <p className="text-sm text-white/40 mb-6">{t("resetLinkSent" as any)}</p>
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </div>
@@ -95,7 +96,7 @@ export default function ForgotPasswordPage() {
       </form>
 
       <p className="mt-5 text-center">
-        <Link href={`/${locale}/login`} className="text-sm text-[#a78bfa] hover:text-white transition-colors">
+        <Link href={`/${locale}/login`} className="text-sm text-[#818cf8] hover:text-white transition-colors">
           {t("backToLogin" as any)}
         </Link>
       </p>

@@ -1,4 +1,4 @@
-import { createServiceClient } from "../lib/supabase.js";
+import { createServiceClient } from "../lib/supabase";
 
 /**
  * Subscription lifecycle management.
@@ -116,7 +116,7 @@ export async function extendTrial(
     .eq("status", "trial")
     .single();
 
-  if (!sub) return;
+  if (!sub || !sub.trial_ends_at) return;
 
   const currentEnd = new Date(sub.trial_ends_at);
   const newEnd = new Date(currentEnd.getTime() + additionalDays * 24 * 60 * 60 * 1000);
@@ -146,7 +146,14 @@ export async function checkPlanLimits(
 
   if (!sub) return { withinLimits: false, reason: "No active subscription" };
 
-  const plan = (sub as unknown as { plans: { max_staff: number; max_appointments_monthly: number } }).plans;
+interface SubscriptionWithPlan {
+  status: string;
+  plans: { max_staff: number; max_appointments_monthly: number };
+}
+
+// ... (previous code context retained by the surrounding lines)
+
+  const plan = (sub as unknown as SubscriptionWithPlan).plans;
 
   // Check staff count
   const { count: staffCount } = await supabase

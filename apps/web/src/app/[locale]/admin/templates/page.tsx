@@ -63,11 +63,11 @@ export default function AdminTemplatesPage() {
 
       <div className="space-y-4">
         {templates.map((template) => (
-          <div key={template.id} className="rounded-lg border border-gray-200 bg-white p-5">
+          <div key={template.id} className="rounded-lg border border-border bg-background p-5">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h3 className="font-medium">{template.name}</h3>
-                <span className="text-xs text-gray-400">{template.type} • {template.id}</span>
+                <span className="text-xs text-muted-foreground">{template.type} • {template.id}</span>
               </div>
               <button
                 onClick={() => setEditingId(editingId === template.id ? null : template.id)}
@@ -78,7 +78,7 @@ export default function AdminTemplatesPage() {
             </div>
 
             {editingId === template.id && editingTemplate && (
-              <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
+              <div className="mt-4 space-y-3 border-t border-border pt-4">
                 {/* Language tabs */}
                 <div className="flex gap-1">
                   {(["he", "ar", "en"] as const).map((lang) => (
@@ -86,7 +86,7 @@ export default function AdminTemplatesPage() {
                       key={lang}
                       onClick={() => setEditLang(lang)}
                       className={`px-3 py-1 text-xs font-medium rounded ${
-                        editLang === lang ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        editLang === lang ? "bg-red-600 text-white" : "bg-muted text-muted-foreground hover:bg-accent"
                       }`}
                     >
                       {lang.toUpperCase()}
@@ -99,10 +99,10 @@ export default function AdminTemplatesPage() {
                   onChange={(e) => handleBodyChange(e.target.value)}
                   rows={4}
                   dir={editLang === "en" ? "ltr" : "rtl"}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:border-red-500 focus:outline-none"
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm font-mono focus:border-red-500 focus:outline-none"
                 />
 
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   Variables: {"{customer_name}"}, {"{business_name}"}, {"{service_name}"}, {"{date}"}, {"{time}"}
                 </div>
 

@@ -1,276 +1,56 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase.js";
-import { getBusinessId, getParam } from "../lib/params.js";
-import {
-  requireAuth,
-  requireRole,
-  requireBusinessAccess,
-  type AuthenticatedRequest,
-} from "../middleware/auth.js";
-import { AppError } from "../middleware/error-handler.js";
-import { cacheGet, cacheSet, cacheClear } from "../lib/redis.js";
+import { createServiceClient } from "../lib/supabase";
+import { getBusinessId, getParam, getUserClient } from "../lib/params";
+import { requireAuth, requireRole, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
+import { AppError } from "../middleware/error-handler";
+import { createConfigRepo } from "../modules/configuration/configuration.repository";
+import { createConfigService } from "../modules/configuration/configuration.service";
 
 const router: RouterType = Router({ mergeParams: true });
 
-// GET /businesses/:businessId/working-hours
+function publicSvc() { return createConfigService(createConfigRepo(createServiceClient())); }
+function authSvc(req: AuthenticatedRequest) { return createConfigService(createConfigRepo(getUserClient(req))); }
+
+// ── Working Hours ──
 router.get("/working-hours", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const businessId = getBusinessId(req);
-    const key = `wh:${businessId}`;
-    const cached = await cacheGet(key);
-    if (cached) return res.json(JSON.parse(cached));
-
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("working_hours")
-      .select("*")
-      .eq("business_id", businessId)
-      .order("day_of_week");
-
-    if (error) throw new AppError(500, error.message);
-    await cacheSet(key, JSON.stringify(data), 300); // 5 min — changes rarely
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await publicSvc().getWorkingHours(getBusinessId(req))); } catch (err) { next(err); }
+});
+router.put("/working-hours", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { res.json(await authSvc(req).setWorkingHours(getBusinessId(req), req.body)); } catch (err) { next(err); }
 });
 
-// PUT /businesses/:businessId/working-hours
-router.put(
-  "/working-hours",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const businessId = getBusinessId(req);
-
-      await supabase
-        .from("working_hours")
-        .delete()
-        .eq("business_id", businessId)
-        .is("staff_id", null);
-
-      const rows = (req.body as Record<string, unknown>[]).map((row) => ({
-        ...row,
-        business_id: businessId,
-      }));
-
-      const { data, error } = await supabase
-        .from("working_hours")
-        .insert(rows)
-        .select();
-
-      if (error) throw new AppError(400, error.message);
-      await cacheClear(`wh:${businessId}`);
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// GET /businesses/:businessId/breaks
+// ── Breaks ──
 router.get("/breaks", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("breaks")
-      .select("*")
-      .eq("business_id", getBusinessId(req))
-      .order("created_at");
-
-    if (error) throw new AppError(500, error.message);
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await publicSvc().getBreaks(getBusinessId(req))); } catch (err) { next(err); }
+});
+router.post("/breaks", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { res.status(201).json(await authSvc(req).addBreak(getBusinessId(req), req.body)); } catch (err) { next(err); }
+});
+router.delete("/breaks/:breakId", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { await authSvc(req).removeBreak(getParam(req, "breakId"), getBusinessId(req)); res.status(204).send(); } catch (err) { next(err); }
 });
 
-// POST /businesses/:businessId/breaks
-router.post(
-  "/breaks",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("breaks")
-        .insert({ ...req.body, business_id: getBusinessId(req) })
-        .select()
-        .single();
-
-      if (error) throw new AppError(400, error.message);
-      res.status(201).json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// DELETE /businesses/:businessId/breaks/:breakId
-router.delete(
-  "/breaks/:breakId",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { error } = await supabase
-        .from("breaks")
-        .delete()
-        .eq("id", getParam(req, "breakId"))
-        .eq("business_id", getBusinessId(req));
-
-      if (error) throw new AppError(400, error.message);
-      res.status(204).send();
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// GET /businesses/:businessId/booking-rules
+// ── Booking Rules ──
 router.get("/booking-rules", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("booking_rules")
-      .select("*")
-      .eq("business_id", getBusinessId(req))
-      .single();
-
-    if (error) throw new AppError(404, "Booking rules not found");
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await publicSvc().getBookingRules(getBusinessId(req))); } catch (err) { next(err); }
+});
+router.put("/booking-rules", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { res.json(await authSvc(req).setBookingRules(getBusinessId(req), req.body)); } catch (err) { next(err); }
 });
 
-// PUT /businesses/:businessId/booking-rules
-router.put(
-  "/booking-rules",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("booking_rules")
-        .upsert({ ...req.body, business_id: getBusinessId(req) })
-        .select()
-        .single();
-
-      if (error) throw new AppError(400, error.message);
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// GET /businesses/:businessId/reminder-settings
+// ── Reminder Settings ──
 router.get("/reminder-settings", requireAuth, requireBusinessAccess, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("reminder_settings")
-      .select("*")
-      .eq("business_id", getBusinessId(req))
-      .order("minutes_before");
-
-    if (error) throw new AppError(500, error.message);
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await authSvc(req).getReminderSettings(getBusinessId(req))); } catch (err) { next(err); }
 });
-
-// POST /businesses/:businessId/reminder-settings
-router.post(
-  "/reminder-settings",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { minutes_before } = req.body;
-      if (!minutes_before || typeof minutes_before !== "number" || minutes_before <= 0) {
-        throw new AppError(400, "minutes_before must be a positive integer");
-      }
-
-      const { data, error } = await supabase
-        .from("reminder_settings")
-        .insert({ business_id: getBusinessId(req), minutes_before })
-        .select()
-        .single();
-
-      if (error) {
-        if (error.code === "23505") throw new AppError(409, "Reminder interval already exists");
-        throw new AppError(400, error.message);
-      }
-      res.status(201).json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// PATCH /businesses/:businessId/reminder-settings/:reminderId
-router.patch(
-  "/reminder-settings/:reminderId",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { is_active } = req.body;
-      if (typeof is_active !== "boolean") throw new AppError(400, "is_active must be a boolean");
-
-      const { data, error } = await supabase
-        .from("reminder_settings")
-        .update({ is_active })
-        .eq("id", getParam(req, "reminderId"))
-        .eq("business_id", getBusinessId(req))
-        .select()
-        .single();
-
-      if (error) throw new AppError(400, error.message);
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// DELETE /businesses/:businessId/reminder-settings/:reminderId
-router.delete(
-  "/reminder-settings/:reminderId",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { error } = await supabase
-        .from("reminder_settings")
-        .delete()
-        .eq("id", getParam(req, "reminderId"))
-        .eq("business_id", getBusinessId(req));
-
-      if (error) throw new AppError(400, error.message);
-      res.status(204).send();
-    } catch (err) {
-      next(err);
-    }
-  }
-);
+router.post("/reminder-settings", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { res.status(201).json(await authSvc(req).addReminderSetting(getBusinessId(req), req.body.minutes_before)); } catch (err) { next(err); }
+});
+router.patch("/reminder-settings/:reminderId", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (typeof req.body.is_active !== "boolean") throw new AppError(400, "is_active must be a boolean");
+  try { res.json(await authSvc(req).editReminderSetting(getParam(req, "reminderId"), getBusinessId(req), req.body.is_active)); } catch (err) { next(err); }
+});
+router.delete("/reminder-settings/:reminderId", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { await authSvc(req).removeReminderSetting(getParam(req, "reminderId"), getBusinessId(req)); res.status(204).send(); } catch (err) { next(err); }
+});
 
 export default router;

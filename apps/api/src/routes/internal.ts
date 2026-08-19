@@ -1,7 +1,37 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { processReminders, sendManagerNotification } from "../services/notifications.js";
-import { syncGoogleCalendar } from "../services/google-calendar.js";
-import { approveAppointment, rejectAppointment } from "../services/appointment-actions.js";
+import { processReminders, sendManagerNotification } from "../services/notifications";
+import { syncGoogleCalendar } from "../services/google-calendar";
+import { createAppointmentRepo } from "../modules/appointments/appointment.repository";
+import { createAppointmentService, type AppointmentDeps } from "../modules/appointments/appointment.service";
+import { cacheGet, cacheSet, cacheClear } from "../lib/redis";
+import { pushAppointmentToGoogle } from "../services/google-calendar";
+import {
+  sendAppointmentNotification,
+  sendApprovalNotification,
+  sendRejectionNotification,
+} from "../services/notifications";
+
+const deps: AppointmentDeps = {
+  cache: { get: cacheGet, set: cacheSet, clear: cacheClear },
+  notify: {
+    sendAppointment: sendAppointmentNotification,
+    sendManager: sendManagerNotification,
+    sendApproval: sendApprovalNotification,
+    sendRejection: sendRejectionNotification as AppointmentDeps["notify"]["sendRejection"],
+  },
+  gcal: { pushAppointment: pushAppointmentToGoogle },
+};
+
+let _internalService: ReturnType<typeof createAppointmentService> | null = null;
+
+async function internalService() {
+  if (!_internalService) {
+    const { createServiceClient } = await import("../lib/supabase");
+    const repo = createAppointmentRepo(createServiceClient());
+    _internalService = createAppointmentService(repo, deps);
+  }
+  return _internalService;
+}
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -41,7 +71,8 @@ router.post("/notify-manager", requireInternalSecret, async (req: Request, res: 
 router.post("/appointments/:appointmentId/approve", requireInternalSecret, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const appointmentId = req.params.appointmentId as string;
-    const result = await approveAppointment(appointmentId);
+    const svc = await internalService();
+    const result = await svc.approve(appointmentId);
     res.json(result);
   } catch (err) {
     next(err);
@@ -51,7 +82,8 @@ router.post("/appointments/:appointmentId/approve", requireInternalSecret, async
 router.post("/appointments/:appointmentId/reject", requireInternalSecret, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const appointmentId = req.params.appointmentId as string;
-    const result = await rejectAppointment(appointmentId);
+    const svc = await internalService();
+    const result = await svc.reject(appointmentId);
     res.json(result);
   } catch (err) {
     next(err);
@@ -60,7 +92,7 @@ router.post("/appointments/:appointmentId/reject", requireInternalSecret, async 
 
 router.post("/google-calendar/sync", requireInternalSecret, async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const supabase = (await import("../lib/supabase.js")).createServiceClient();
+    const supabase = (await import("../lib/supabase")).createServiceClient();
     const { data: tokens } = await supabase
       .from("google_calendar_tokens")
       .select("business_id")

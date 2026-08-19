@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import {
   Card, CardContent, Button, Badge, Input, Label, Skeleton,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@torup/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { formatILS } from "@/lib/format";
 
 interface ServiceCategory {
   id: string;
@@ -40,10 +41,10 @@ export default function ServicesPage() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const { session } = useAuth();
+  const { businessId } = useBusiness();
+  const api = useApi();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -56,28 +57,21 @@ export default function ServicesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!session?.access_token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [session?.access_token]);
-
   const fetchServices = useCallback(async () => {
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     setLoading(true);
     try {
       const [svcResult, catResult] = await Promise.all([
-        apiFetch<Service[] | { categories: ServiceCategory[]; services: Service[] }>(
-          `/api/businesses/${businessId}/services`, {}, session.access_token
+        api<Service[] | { categories: ServiceCategory[]; services: Service[] }>(
+          `/api/businesses/${businessId}/services`
         ),
-        apiFetch<ServiceCategory[]>(`/api/businesses/${businessId}/categories`, {}, session.access_token),
+        api<ServiceCategory[]>(`/api/businesses/${businessId}/categories`),
       ]);
-      setServices(Array.isArray(svcResult) ? svcResult : (svcResult.services || []));
+      setServices(svcResult ? (Array.isArray(svcResult) ? svcResult : (svcResult.services || [])) : []);
       setCategories(catResult || []);
     } catch { setServices([]); }
     finally { setLoading(false); }
-  }, [businessId, session?.access_token]);
+  }, [businessId]);
 
   useEffect(() => { if (businessId) fetchServices(); }, [businessId, fetchServices]);
 
@@ -110,9 +104,9 @@ export default function ServicesPage() {
     try {
       const body = { ...formData, name_ar: formData.name_ar || null, name_en: formData.name_en || null, description_he: formData.description_he || null, category_id: formData.category_id || null };
       if (editingService) {
-        await apiFetch(`/api/businesses/${businessId}/services/${editingService.id}`, { method: "PATCH", body: JSON.stringify(body) }, session?.access_token || "");
+        await api(`/api/businesses/${businessId}/services/${editingService.id}`, { method: "PATCH", body: JSON.stringify(body) });
       } else {
-        await apiFetch(`/api/businesses/${businessId}/services`, { method: "POST", body: JSON.stringify(body) }, session?.access_token || "");
+        await api(`/api/businesses/${businessId}/services`, { method: "POST", body: JSON.stringify(body) });
       }
       setShowForm(false);
       fetchServices();
@@ -124,14 +118,14 @@ export default function ServicesPage() {
   const handleDelete = async (serviceId: string) => {
     if (!businessId || !confirm(t("deleteServiceConfirm"))) return;
     try {
-      await apiFetch(`/api/businesses/${businessId}/services/${serviceId}`, { method: "DELETE" }, session?.access_token || "");
+      await api(`/api/businesses/${businessId}/services/${serviceId}`, { method: "DELETE" });
       fetchServices();
     } catch {}
   };
 
   const handleToggleActive = async (service: Service) => {
     if (!businessId) return;
-    await apiFetch(`/api/businesses/${businessId}/services/${service.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !service.is_active }) }, session?.access_token || "").catch(() => {});
+    await api(`/api/businesses/${businessId}/services/${service.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !service.is_active }) }).catch(() => {});
     fetchServices();
   };
 
@@ -197,7 +191,7 @@ export default function ServicesPage() {
                       {service.duration_minutes}
                       {service.buffer_minutes > 0 && <span className="text-muted-foreground"> +{service.buffer_minutes}</span>}
                     </TableCell>
-                    <TableCell>₪{service.price}</TableCell>
+                    <TableCell>{formatILS(service.price)}</TableCell>
                     <TableCell>
                       <Badge
                         variant={service.is_active ? "success" : "outline"}
@@ -252,30 +246,35 @@ export default function ServicesPage() {
             <div className="space-y-2">
               <Label>{t("descriptionHe")}</Label>
               <textarea value={formData.description_he} onChange={(e) => setFormData({ ...formData, description_he: e.target.value })} rows={2}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+                dir="auto"
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-start" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("min")} *</Label>
                 <Input type="number" required min={5} value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
+                  className="text-end" />
               </div>
               <div className="space-y-2">
                 <Label>{t("buffer")} ({t("min")})</Label>
                 <Input type="number" min={0} value={formData.buffer_minutes}
-                  onChange={(e) => setFormData({ ...formData, buffer_minutes: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, buffer_minutes: Number(e.target.value) })}
+                  className="text-end" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>₪ {t("price")}</Label>
                 <Input type="number" min={0} value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                  className="text-end" />
               </div>
               <div className="space-y-2">
                 <Label>{t("capacity")}</Label>
                 <Input type="number" min={1} value={formData.max_capacity}
-                  onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })} />
+                  onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })}
+                  className="text-end" />
               </div>
             </div>
             {categories.length > 0 && (

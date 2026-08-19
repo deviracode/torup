@@ -1,9 +1,19 @@
 import type { Metadata } from "next";
+import { Heebo } from "next/font/google";
 import { NextIntlClientProvider, useMessages } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { RadixDirectionProvider } from "@/components/radix-direction-provider";
 import { routing } from "@/i18n/routing";
+import { Toaster } from "sonner";
 import "../globals.css";
+
+const heebo = Heebo({
+  subsets: ["hebrew", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heebo",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "TorUp - Smart Appointment Management",
@@ -35,11 +45,16 @@ export default async function LocaleLayout({
   const dir = getDirection(locale);
 
   return (
-    <html lang={locale} dir={dir}>
+    <html lang={locale} dir={dir} className={heebo.variable}>
       <body>
-        <NextIntlClientProvider messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+        {/* Radix primitives default to LTR internally — feed them the page
+            direction so Tabs/Select/DropdownMenu/Popover mirror RTL. */}
+        <RadixDirectionProvider dir={dir}>
+          <NextIntlClientProvider messages={messages}>
+            {children}
+          <Toaster richColors position="top-right" />
+          </NextIntlClientProvider>
+        </RadixDirectionProvider>
       </body>
     </html>
   );

@@ -25,7 +25,7 @@ interface GCalEvent {
   end_time: string;
 }
 
-const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
+const inputCls = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-start";
 
 export function GCalConvertModal({
   event,
@@ -152,7 +152,7 @@ export function GCalConvertModal({
             ) : showNewCustomer ? (
               <div className="space-y-2">
                 <input type="text" required placeholder={t("customerName")} value={newName}
-                  onChange={(e) => setNewName(e.target.value)} className={inputCls} />
+                  onChange={(e) => setNewName(e.target.value)} dir="auto" className={inputCls} />
                 <input type="tel" required placeholder={t("customerPhone")} value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)} className={inputCls} dir="ltr" />
                 <button type="button" onClick={() => setShowNewCustomer(false)} className="text-xs text-primary hover:underline">
@@ -162,7 +162,8 @@ export function GCalConvertModal({
             ) : (
               <div className="space-y-2">
                 <input type="text" placeholder={t("searchCustomer")} value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)} className={inputCls} />
+                  autoComplete="off" data-1p-ignore data-lpignore="true"
+                  onChange={(e) => setCustomerSearch(e.target.value)} dir="auto" className={inputCls} />
                 {customers.length > 0 && (
                   <div className="max-h-32 overflow-y-auto rounded-md border border-border bg-background">
                     {customers.map((c) => (
@@ -185,7 +186,7 @@ export function GCalConvertModal({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">{t("notes")}</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputCls} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} dir="auto" className={inputCls} />
           </div>
 
           {/* Actions */}

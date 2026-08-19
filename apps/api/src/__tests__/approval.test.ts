@@ -2,14 +2,29 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import request from "supertest";
 
+// Spy handle for the userClient injected via requireAuth.
+// Captured here so individual tests can assert .from was called.
+let userClientFromSpy: ReturnType<typeof vi.fn>;
+
 // Bypass auth for these route-level tests.
-vi.mock("../middleware/auth.js", () => ({
-  requireAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+vi.mock("../middleware/auth", () => ({
+  requireAuth: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    // NOTE: This stub is a functional mock — it does NOT model RLS.
+    // RLS correctness is covered by the Task 5 integration test.
+    // The spy on .from exists solely to catch a handler reverting off the
+    // user client (back to createServiceClient()) without the test noticing.
+    const stub = makeSupabaseStub();
+    const originalFrom = stub.from.bind(stub);
+    userClientFromSpy = vi.fn((...args: Parameters<typeof originalFrom>) => originalFrom(...args));
+    stub.from = userClientFromSpy;
+    req.ctx = { userClient: stub };
+    next();
+  },
   requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 // Stub WhatsApp + notification dispatch (fire-and-forget, irrelevant to assertions).
-vi.mock("../services/whatsapp.js", () => ({
+vi.mock("../services/whatsapp", () => ({
   sendInteractiveReminder: vi.fn(async () => null),
   sendWhatsAppMessage: vi.fn(async () => null),
 }));
@@ -142,17 +157,20 @@ function makeSupabaseStub() {
   };
 }
 
-vi.mock("../lib/supabase.js", () => ({
+vi.mock("../lib/supabase", () => ({
   createServiceClient: () => makeSupabaseStub(),
 }));
 
 describe("POST /appointments/:id/approve and /reject", () => {
   beforeEach(() => {
     store = freshStore();
+    // Reset spy between tests (spy is created fresh in requireAuth on each request,
+    // but resetting the module-level reference keeps things predictable).
+    userClientFromSpy = vi.fn();
   });
 
   async function buildApp() {
-    const router = (await import("../routes/appointments.js")).default;
+    const router = (await import("../routes/appointments")).default;
     const app = express();
     app.use(express.json());
     app.use("/api/businesses/:businessId/appointments", (req, _res, next) => {
@@ -174,6 +192,10 @@ describe("POST /appointments/:id/approve and /reject", () => {
     expect(res.body.approved).toBe(TARGET_ID);
     expect(res.body.rejected).toContain(OVERLAP_ID);
     expect(res.body.rejected).not.toContain(NON_OVERLAP_ID);
+
+    // Guard: the handler must have issued the guard query through the RLS user client.
+    // If the handler reverts to createServiceClient() this spy will not be called and the assertion fails.
+    expect(userClientFromSpy).toHaveBeenCalledWith("appointments");
   });
 
   it("reject cancels only the target and leaves siblings alone", async () => {
@@ -185,6 +207,10 @@ describe("POST /appointments/:id/approve and /reject", () => {
     expect(store[OVERLAP_ID].status).toBe("cancelled");
     expect(store[TARGET_ID].status).toBe("pending_approval");
     expect(store[NON_OVERLAP_ID].status).toBe("pending_approval");
+
+    // Guard: the handler must have issued the guard query through the RLS user client.
+    // If the handler reverts to createServiceClient() this spy will not be called and the assertion fails.
+    expect(userClientFromSpy).toHaveBeenCalledWith("appointments");
   });
 
   it("returns 409 when approving an already-confirmed appointment", async () => {

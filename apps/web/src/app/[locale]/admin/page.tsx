@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
+import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useBusiness } from "@/components/auth/business-provider";
 import { apiFetch } from "@/lib/api";
 import {
   Card, CardContent, Button, Badge, Input, Label,
@@ -21,6 +24,7 @@ interface Business {
   phone: string | null;
   contact_phone: string | null;
   email: string | null;
+  owner_email: string | null;
   is_active: boolean;
   created_at: string;
   address: string | null;
@@ -56,6 +60,9 @@ export default function AdminBusinessesPage() {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
   const { session } = useAuth();
+  const router = useRouter();
+  const locale = useLocale();
+  const { startImpersonation } = useBusiness();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +70,6 @@ export default function AdminBusinessesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [showOnboard, setShowOnboard] = useState(false);
   const [editBusiness, setEditBusiness] = useState<Business | null>(null);
-  const [impersonating, setImpersonating] = useState<Business | null>(null);
 
   const [formData, setFormData] = useState({
     name: "", slug: "", category: "", phone: "", contact_phone: "", email: "", address: "", plan_id: "", owner_email: "",
@@ -131,7 +137,9 @@ export default function AdminBusinessesPage() {
         body: JSON.stringify({ is_active: !biz.is_active }),
       }, token);
       fetchBusinesses();
-    } catch {}
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update status");
+    }
   };
 
   const handleImpersonate = async (biz: Business) => {
@@ -140,18 +148,11 @@ export default function AdminBusinessesPage() {
         method: "POST",
         body: JSON.stringify({ business_id: biz.id }),
       }, token);
-      setImpersonating(biz);
-    } catch {}
-  };
-
-  const handleStopImpersonate = async () => {
-    if (impersonating) {
-      await apiFetch("/api/admin/stop-impersonate", {
-        method: "POST",
-        body: JSON.stringify({ business_id: impersonating.id }),
-      }, token).catch(() => {});
+      startImpersonation({ id: biz.id, name: biz.name });
+      router.push(`/${locale}/dashboard`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start impersonation");
     }
-    setImpersonating(null);
   };
 
   const handleDelete = async (biz: Business) => {
@@ -168,7 +169,7 @@ export default function AdminBusinessesPage() {
     if (!editBusiness) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/admin/businesses/${editBusiness.id}`, {
+      const result = await apiFetch<{ temp_password?: string | null }>(`/api/admin/businesses/${editBusiness.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: editBusiness.name,
@@ -178,8 +179,15 @@ export default function AdminBusinessesPage() {
           contact_phone: editBusiness.contact_phone || null,
           email: editBusiness.email,
           address: editBusiness.address,
+          owner_email: editBusiness.owner_email,
         }),
       }, token);
+      if (result?.temp_password) {
+        await navigator.clipboard.writeText(result.temp_password).catch(() => {});
+        alert(
+          `New owner created.\n\nOwner login:\nEmail: ${editBusiness.owner_email}\nTemp password (copied to clipboard): ${result.temp_password}`
+        );
+      }
       setEditBusiness(null);
       fetchBusinesses();
     } catch {} finally { setSaving(false); }
@@ -199,19 +207,6 @@ export default function AdminBusinessesPage() {
           {t("onboardBusiness")}
         </Button>
       </div>
-
-      {impersonating && (
-        <Card className="mb-4 border-orange-300 bg-orange-50">
-          <CardContent className="p-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-orange-800">
-              {t("impersonating")} <strong>{impersonating.name}</strong>
-            </span>
-            <Button variant="destructive" size="sm" onClick={handleStopImpersonate}>
-              {t("stopImpersonating")}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
@@ -271,7 +266,9 @@ export default function AdminBusinessesPage() {
                     <TableRow key={biz.id}>
                       <TableCell className="font-medium">{biz.name}</TableCell>
                       <TableCell className="text-muted-foreground">{biz.slug}</TableCell>
-                      <TableCell className="text-muted-foreground">{biz.category || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {BUSINESS_CATEGORIES.find((c) => c.value === biz.category)?.label_he || biz.category || "—"}
+                      </TableCell>
                       <TableCell>
                         {sub ? (
                           <Badge variant={SUB_VARIANT[sub.status] || "outline"}>
@@ -358,7 +355,7 @@ export default function AdminBusinessesPage() {
                 <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} dir="ltr" />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>Contact Email</Label>
                 <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} dir="ltr" />
               </div>
             </div>
@@ -426,13 +423,18 @@ export default function AdminBusinessesPage() {
                 <Input value={editBusiness?.phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, phone: e.target.value })} dir="ltr" />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={editBusiness?.email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, email: e.target.value })} dir="ltr" />
+                <Label>Contact Email</Label>
+                <Input type="email" value={editBusiness?.email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, email: e.target.value })} dir="ltr" />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Contact Phone</Label>
               <Input value={editBusiness?.contact_phone || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, contact_phone: e.target.value })} dir="ltr" placeholder="Optional" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("ownerEmail")}</Label>
+              <Input type="email" value={editBusiness?.owner_email || ""} onChange={(e) => editBusiness && setEditBusiness({ ...editBusiness, owner_email: e.target.value })} dir="ltr" />
+              <p className="text-xs text-muted-foreground">Changing the owner email reassigns ownership of this business to that account.</p>
             </div>
           </div>
           <DialogFooter className="pt-2">

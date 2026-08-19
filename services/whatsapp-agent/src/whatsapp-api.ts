@@ -1,8 +1,15 @@
 /**
  * Outbound message sending via Meta WhatsApp Cloud API.
  */
+import { createHmac } from "node:crypto";
 
 const GRAPH_API_URL = "https://graph.facebook.com/v21.0";
+
+export interface WhatsAppCredential {
+  phoneNumberId: string;
+  accessToken: string;
+  appSecret: string;
+}
 
 interface SendResult {
   messaging_product: string;
@@ -11,22 +18,24 @@ interface SendResult {
 }
 
 async function callApi(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   body: Record<string, unknown>
 ): Promise<SendResult | null> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!token) {
-    console.error("WHATSAPP_ACCESS_TOKEN not set");
+  if (!credential.accessToken) {
+    console.error("No WhatsApp access token provided for", credential.phoneNumberId);
     return null;
   }
 
   try {
+    const appsecretProof = createHmac("sha256", credential.appSecret)
+      .update(credential.accessToken)
+      .digest("hex");
     const res = await fetch(
-      `${GRAPH_API_URL}/${phoneNumberId}/messages`,
+      `${GRAPH_API_URL}/${credential.phoneNumberId}/messages?appsecret_proof=${appsecretProof}`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${credential.accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -53,11 +62,11 @@ async function callApi(
  * Send a plain text message.
  */
 export async function sendTextMessage(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   text: string
 ): Promise<SendResult | null> {
-  return callApi(phoneNumberId, {
+  return callApi(credential, {
     to,
     type: "text",
     text: { body: text },
@@ -68,12 +77,12 @@ export async function sendTextMessage(
  * Send an interactive button message (up to 3 buttons).
  */
 export async function sendButtonMessage(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   bodyText: string,
   buttons: { id: string; title: string }[]
 ): Promise<SendResult | null> {
-  return callApi(phoneNumberId, {
+  return callApi(credential, {
     to,
     type: "interactive",
     interactive: {
@@ -93,7 +102,7 @@ export async function sendButtonMessage(
  * Send an interactive list message (for service selection etc).
  */
 export async function sendListMessage(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   to: string,
   bodyText: string,
   buttonText: string,
@@ -102,7 +111,7 @@ export async function sendListMessage(
     rows: { id: string; title: string; description?: string }[];
   }[]
 ): Promise<SendResult | null> {
-  return callApi(phoneNumberId, {
+  return callApi(credential, {
     to,
     type: "interactive",
     interactive: {
@@ -120,10 +129,10 @@ export async function sendListMessage(
  * Mark a message as read.
  */
 export async function markAsRead(
-  phoneNumberId: string,
+  credential: WhatsAppCredential,
   messageId: string
 ): Promise<void> {
-  await callApi(phoneNumberId, {
+  await callApi(credential, {
     status: "read",
     message_id: messageId,
   });

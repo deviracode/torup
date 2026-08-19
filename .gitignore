@@ -5,8 +5,19 @@ dist/
 .env
 .env.local
 .env.*.local
+# Supabase config-push env files (real values); keep the .example templates
+.env.staging
+.env.production
+!.env.*.example
 *.tsbuildinfo
 coverage/
 .DS_Store
 .vercel
 .claude/*.worktrees/
+.claude/settings.local.json
+.worktrees/
+.playwright-mcp/
+
+# Supabase CLI local state (machine-specific: linked ref, versions, pooler url)
+**/supabase/.temp/
+**/supabase/.branches/

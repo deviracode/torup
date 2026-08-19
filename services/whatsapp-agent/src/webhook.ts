@@ -18,10 +18,11 @@ export function verifySignature(
       .update(payload)
       .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (signatureBuffer.length !== expectedBuffer.length) return false;
+
+  return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 }
 
 export interface WhatsAppStatusUpdate {

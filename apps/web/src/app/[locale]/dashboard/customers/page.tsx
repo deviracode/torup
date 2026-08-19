@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/components/auth/auth-provider";
-import { apiFetch } from "@/lib/api";
+import { useBusiness } from "@/components/auth/business-provider";
+import { useApi } from "@/lib/use-api";
 import {
   Card, CardContent, Input, Button, Skeleton,
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
@@ -24,7 +24,8 @@ export default function CustomersPage() {
   const t = useTranslations("dashboard");
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const { session } = useAuth();
+  const { businessId } = useBusiness();
+  const api = useApi();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,27 +35,17 @@ export default function CustomersPage() {
   const [editLang, setEditLang] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [businessId, setBusinessId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!session?.access_token) return;
-    apiFetch<{ id: string }>("/api/businesses/me", {}, session.access_token)
-      .then((r) => { if (r.id) setBusinessId(r.id); })
-      .catch(() => {});
-  }, [session?.access_token]);
 
   const fetchCustomers = useCallback(async () => {
-    if (!businessId || !session?.access_token) return;
+    if (!businessId) return;
     setLoading(true);
-    try {
-      const query = search ? `?search=${encodeURIComponent(search)}` : "";
-      const result = await apiFetch<Customer[] | { customers: Customer[] }>(
-        `/api/businesses/${businessId}/customers${query}`, {}, session.access_token
-      );
-      setCustomers(Array.isArray(result) ? result : (result.customers || []));
-    } catch { setCustomers([]); }
-    finally { setLoading(false); }
-  }, [businessId, search, session?.access_token]);
+    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const result = await api<Customer[] | { customers: Customer[] }>(
+      `/api/businesses/${businessId}/customers${query}`
+    );
+    setCustomers(Array.isArray(result) ? result : (result?.customers || []));
+    setLoading(false);
+  }, [businessId, search]);
 
   useEffect(() => { if (businessId) fetchCustomers(); }, [businessId, fetchCustomers]);
 
@@ -72,22 +63,21 @@ export default function CustomersPage() {
   }
 
   async function handleSave() {
-    if (!selectedCustomer || !businessId || !session?.access_token) return;
+    if (!selectedCustomer || !businessId) return;
     setSaving(true);
     setSaveError(null);
-    try {
-      const updated = await apiFetch<Customer>(
-        `/api/businesses/${businessId}/customers/${selectedCustomer.id}`,
-        { method: "PATCH", body: JSON.stringify({ name: editName, phone: editPhone, language_preference: editLang }) },
-        session.access_token
-      );
-      setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
-      closeEdit();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : tCommon("error"));
-    } finally {
+    const updated = await api<Customer>(
+      `/api/businesses/${businessId}/customers/${selectedCustomer.id}`,
+      { method: "PATCH", body: JSON.stringify({ name: editName, phone: editPhone, language_preference: editLang }) }
+    );
+    if (!updated) {
+      setSaveError(tCommon("error"));
       setSaving(false);
+      return;
     }
+    setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+    closeEdit();
+    setSaving(false);
   }
 
   return (
@@ -103,6 +93,9 @@ export default function CustomersPage() {
           placeholder={t("searchCustomer")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           className="ps-9"
         />
       </div>

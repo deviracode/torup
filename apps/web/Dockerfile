@@ -3,15 +3,29 @@ RUN npm install -g pnpm@10
 
 FROM base AS builder
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
-COPY packages/shared/ packages/shared/
-COPY packages/db/ packages/db/
-COPY packages/ui/ packages/ui/
-COPY packages/i18n/ packages/i18n/
-COPY apps/web/ apps/web/
 
+# 1. Copy only manifests + lockfile first. This layer — and the pnpm install
+#    below — is cached and only re-runs when a package.json or the lockfile
+#    changes, not on every source edit.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/db/package.json     packages/db/
+COPY packages/ui/package.json     packages/ui/
+COPY packages/i18n/package.json   packages/i18n/
+COPY apps/web/package.json        apps/web/
+
+# 2. Install deps. This layer is cached and only re-runs when a package.json or
+#    the lockfile changes (the COPYs above), not on every source edit.
 RUN pnpm install --frozen-lockfile --filter=@torup/web...
 
+# 3. Now copy source. Edits here no longer bust the install layer above.
+COPY packages/shared/ packages/shared/
+COPY packages/db/     packages/db/
+COPY packages/ui/     packages/ui/
+COPY packages/i18n/   packages/i18n/
+COPY apps/web/        apps/web/
+
+# 4. Build workspace deps, then the app.
 WORKDIR /app/packages/shared
 RUN pnpm run build
 WORKDIR /app/packages/db

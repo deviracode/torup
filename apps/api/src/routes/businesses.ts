@@ -1,88 +1,39 @@
 import { Router, type Router as RouterType, type Request, type Response, type NextFunction } from "express";
-import { createServiceClient } from "../lib/supabase.js";
-import {
-  requireAuth,
-  requireRole,
-  requireBusinessAccess,
-  type AuthenticatedRequest,
-} from "../middleware/auth.js";
-import { AppError } from "../middleware/error-handler.js";
+import { createAnonClient, createServiceClient } from "../lib/supabase";
+import { getUserClient } from "../lib/params";
+import { requireAuth, requireRole, requireBusinessAccess, type AuthenticatedRequest } from "../middleware/auth";
+import { AppError } from "../middleware/error-handler";
+import { createBusinessRepo } from "../modules/businesses/businesses.repository";
+import { createBusinessService } from "../modules/businesses/businesses.service";
 
 const router: RouterType = Router();
 
-// GET /businesses/me — Auth: get current user's business
-router.get(
-  "/me",
-  requireAuth,
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      if (!req.businessId) {
-        throw new AppError(404, "No business found for this user");
-      }
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("businesses")
-        .select("*")
-        .eq("id", req.businessId)
-        .single();
-
-      if (error || !data) throw new AppError(404, "Business not found");
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
-
-// GET /businesses/:slugOrId — Public/Auth: get business by slug or UUID
-router.get("/:slugOrId", async (req: Request, res: Response, next: NextFunction) => {
+router.get("/me", requireAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const supabase = createServiceClient();
-    const param = req.params.slugOrId as string;
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param);
+    const memberships = req.ctx?.memberships ?? [];
+    const primaryBusinessId = req.businessId || req.query.business_id as string || memberships[0]?.businessId;
 
-    let query = supabase.from("businesses").select("*");
+    if (!primaryBusinessId) throw new AppError(404, "No business found for this user");
 
-    if (isUUID) {
-      query = query.eq("id", param);
-    } else {
-      query = query.eq("slug", param).eq("is_active", true);
-    }
+    const business = await createBusinessService(createBusinessRepo(getUserClient(req))).getCurrent(primaryBusinessId);
 
-    const { data, error } = await query.single();
+    const enrichedMemberships = await Promise.all(
+      memberships.map(async (m) => {
+        const { data } = await createBusinessRepo(createServiceClient()).findById(m.businessId);
+        return { businessId: m.businessId, role: m.role, name: (data as any)?.name ?? m.businessId };
+      })
+    );
 
-    if (error || !data) {
-      throw new AppError(404, "Business not found");
-    }
-
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+    res.json({ ...business, memberships: enrichedMemberships });
+  } catch (err) { next(err); }
 });
 
-// PATCH /businesses/:id — Owner: update business
-router.patch(
-  "/:id",
-  requireAuth,
-  requireBusinessAccess,
-  requireRole("business_owner", "super_admin"),
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("businesses")
-        .update(req.body)
-        .eq("id", req.params.id)
-        .select()
-        .single();
+router.get("/:slugOrId", async (req: Request, res: Response, next: NextFunction) => {
+  try { res.json(await createBusinessService(createBusinessRepo(createAnonClient())).getBySlugOrId(req.params.slugOrId as string)); } catch (err) { next(err); }
+});
 
-      if (error) throw new AppError(400, error.message);
-      res.json(data);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
+router.patch("/:id", requireAuth, requireBusinessAccess, requireRole("business_owner", "super_admin"), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try { res.json(await createBusinessService(createBusinessRepo(getUserClient(req))).edit(req.params.id as string, req.body)); } catch (err) { next(err); }
+});
 
 export default router;
