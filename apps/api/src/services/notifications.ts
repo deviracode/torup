@@ -7,6 +7,7 @@ import {
   sendWhatsAppMessage,
   sendCustomerReminderTemplate,
   sendCustomerApprovalTemplate,
+  sendCustomerRejectionTemplate,
   type WhatsAppCredential,
 } from "./whatsapp";
 import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
@@ -331,10 +332,13 @@ export async function sendAppointmentNotification(
 }
 
 export async function sendApprovalNotification(appointmentId: string) {
-  // If the approved Meta template is enabled, use it to bypass the 24h conversation window.
-  // Templates appointment_confirmed_he / appointment_confirmed_ar must be registered in
-  // WhatsApp Business Manager. Enable with: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
-  const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED === "true";
+  // Use the approved Meta template by default to bypass the 24h conversation window —
+  // freeform text messages silently fail once 24h have passed since the customer's
+  // last inbound message, which is unrelated to how far away their appointment is.
+  // Templates appointment_confirmed_he / appointment_confirmed_ar are registered and
+  // approved in WhatsApp Business Manager. Set WHATSAPP_APPROVAL_TEMPLATE_ENABLED=false
+  // to force the old freeform behavior.
+  const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED !== "false";
   if (useTemplate) {
     const supabase = createServiceClient();
     const { data: appointment } = await supabase
@@ -402,6 +406,77 @@ export async function sendRejectionNotification(
   kind: "slot_taken" | "manual"
 ) {
   const templateId = kind === "slot_taken" ? "rejection_slot_taken" : "rejection_manual";
+
+  // Opt-in: only active once appointment_rejected_he/ar are registered and approved
+  // in WhatsApp Business Manager. Until then this falls through to freeform text
+  // below, which is subject to Meta's 24h conversation-window restriction — see
+  // sendApprovalNotification's comment for why that matters.
+  const useTemplate = process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED === "true";
+  if (useTemplate) {
+    const supabase = createServiceClient();
+    const { data: appointment } = await supabase
+      .from("appointments")
+      .select(
+        "id, business_id, customer_id, start_time, " +
+        "customers(id, name, phone, language_preference), " +
+        "services(name_he, name_ar, name_en), " +
+        "businesses(name)"
+      )
+      .eq("id", appointmentId)
+      .single();
+
+    if (appointment) {
+      const apt = appointment as unknown as {
+        id: string; business_id: string; customer_id: string; start_time: string;
+        customers: { id: string; name: string; phone: string; language_preference: string };
+        services: { name_he: string; name_ar: string | null; name_en: string | null };
+        businesses: { name: string };
+      };
+      const customer = apt.customers;
+      const service = apt.services;
+      if (customer?.phone && service) {
+        const lang = customer.language_preference || "he";
+        const serviceName = lang === "ar" && service.name_ar ? service.name_ar :
+          lang === "en" && service.name_en ? service.name_en : service.name_he;
+        const startDate = new Date(apt.start_time);
+        const date = startDate.toLocaleDateString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
+          weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+        });
+        const time = startDate.toLocaleTimeString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
+          hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+        });
+        const credential = await resolveBusinessCredential(apt.business_id);
+        const msgId = credential
+          ? await sendCustomerRejectionTemplate(
+              credential,
+              customer.phone,
+              { customerName: customer.name, serviceName, date, time },
+              lang
+            )
+          : null;
+        await logNotification({
+          business_id: apt.business_id,
+          customer_id: customer.id,
+          appointment_id: appointmentId,
+          type: templateId,
+          channel: "whatsapp",
+          template_id: templateId,
+          status: msgId ? "sent" : "failed",
+          whatsapp_message_id: msgId,
+          error: msgId
+            ? undefined
+            : credential
+            ? "Template send failed — check logs for Meta API error"
+            : `WhatsApp not configured for business ${apt.business_id}`,
+        });
+        if (!msgId) {
+          console.error(`[Notification] FAILED rejection template → ${customer.phone} | appointment ${appointmentId}`);
+        }
+        return { sent: !!msgId, failed: !msgId };
+      }
+    }
+  }
+
   // Inject rebook_url into vars by piggy-backing on sendAppointmentNotification:
   // it builds vars from the appointment row. We add rebook_url here through a
   // small wrapper that loads the service id and constructs the link.

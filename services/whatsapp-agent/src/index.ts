@@ -872,7 +872,18 @@ async function handleIncomingMessage(
         headers: { "Content-Type": "application/json", "x-internal-secret": secret },
       });
       if (r.ok) {
-        await sendTextMessage(credential, from, action === "approve" ? "✅ התור אושר ונשלחה הודעה ללקוח" : "❌ התור נדחה ונשלחה הודעה ללקוח");
+        // Tell the manager honestly whether the customer notification actually sent.
+        const result = (await r.json().catch(() => null)) as { customerNotified?: boolean } | null;
+        const notified = result?.customerNotified ?? false;
+        const msg =
+          action === "approve"
+            ? notified
+              ? "✅ התור אושר ונשלחה הודעה ללקוח"
+              : "✅ התור אושר, אך לא הצלחנו לשלוח הודעה ללקוח. יש ליצור איתו קשר ישירות."
+            : notified
+              ? "❌ התור נדחה ונשלחה הודעה ללקוח"
+              : "❌ התור נדחה, אך לא הצלחנו לשלוח הודעה ללקוח. יש ליצור איתו קשר ישירות.";
+        await sendTextMessage(credential, from, msg);
       } else {
         const body = await r.text().catch(() => "");
         console.error(`[manager-action] ${action} failed: ${r.status} ${body}`);

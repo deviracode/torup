@@ -368,3 +368,73 @@ export async function sendCustomerApprovalTemplate(
 
   return data.messages?.[0]?.id ?? null;
 }
+
+/**
+ * Send an approved appointment-rejected template to the customer, bypassing Meta's 24h window.
+ * Uses appointment_rejected_ar for Arabic, appointment_rejected_he for all other languages.
+ * Parameter order must match the approved templates: customer_name, service_name, date, time.
+ *
+ * Unlike the freeform rejection message, this template does not include a rebook_url —
+ * whoever registers it in WhatsApp Business Manager should decide whether to add a URL
+ * button component for that, and whether slot-taken vs. manual rejections need separate
+ * templates (this covers both with one generic message).
+ *
+ * Templates must be registered and approved in WhatsApp Business Manager before this works.
+ * Enable via env var: WHATSAPP_REJECTION_TEMPLATE_ENABLED=true
+ */
+export async function sendCustomerRejectionTemplate(
+  credential: WhatsAppCredential,
+  to: string,
+  params: { customerName: string; serviceName: string; date: string; time: string },
+  language: string
+): Promise<string | null> {
+  const templateName = language === "ar" ? "appointment_rejected_ar" : "appointment_rejected_he";
+
+  if (!hasCredential(credential)) {
+    console.log(`[WhatsApp] (dev mode) Customer rejection template "${templateName}" to: ${to}`, params);
+    return `dev_msg_${Date.now()}`;
+  }
+
+  const res = await fetch(
+    `${WHATSAPP_API_URL}/${credential.phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${credential.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: normalizePhone(to),
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: params.customerName },
+                { type: "text", text: params.serviceName },
+                { type: "text", text: params.date },
+                { type: "text", text: params.time },
+              ],
+            },
+          ],
+        },
+      }),
+    }
+  );
+
+  const data = (await res.json()) as WhatsAppResponse;
+
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] API error (customer rejection template "${templateName}") to ${to} — HTTP ${res.status}: ` +
+      `code=${data.error?.code} type=${data.error?.type} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+
+  return data.messages?.[0]?.id ?? null;
+}

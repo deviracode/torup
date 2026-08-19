@@ -18,8 +18,13 @@ export interface AppointmentDeps {
       options?: Record<string, unknown>
     ) => Promise<unknown>;
     sendManager: (appointmentId: string) => Promise<unknown>;
-    sendApproval: (appointmentId: string) => Promise<unknown>;
-    sendRejection: (appointmentId: string, reason: string) => Promise<unknown>;
+    sendApproval: (
+      appointmentId: string
+    ) => Promise<{ sent: boolean; failed: boolean } | undefined | void>;
+    sendRejection: (
+      appointmentId: string,
+      reason: string
+    ) => Promise<{ sent: boolean; failed: boolean } | undefined | void>;
   };
   gcal: {
     pushAppointment: (appointmentId: string) => Promise<void>;
@@ -306,9 +311,13 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
 
       await deps.cache.clear(`appts:${businessId}:*`);
 
-      await deps.notify
+      const notifyResult = await deps.notify
         .sendApproval(appointmentId)
-        .catch((err) => console.error("[Notification] approval failed:", err));
+        .catch((err) => {
+          console.error("[Notification] approval failed:", err);
+          return { sent: false, failed: true };
+        });
+      const customerNotified = notifyResult?.sent ?? false;
       await Promise.all(
         rejectedIds.map((id) =>
           deps.notify
@@ -325,7 +334,7 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
           .pushAppointment(id)
           .catch((err) => console.error("[gcal] pushAppointment failed:", err));
 
-      return { approved: appointmentId, rejected: rejectedIds };
+      return { approved: appointmentId, rejected: rejectedIds, customerNotified };
     },
 
     async reject(appointmentId: string) {
@@ -352,15 +361,19 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
 
       await deps.cache.clear(`appts:${businessId}:*`);
 
-      await deps.notify
+      const notifyResult = await deps.notify
         .sendRejection(appointmentId, "manual")
-        .catch((err) => console.error("[Notification] manual rejection failed:", err));
+        .catch((err) => {
+          console.error("[Notification] manual rejection failed:", err);
+          return { sent: false, failed: true };
+        });
+      const customerNotified = notifyResult?.sent ?? false;
 
       deps.gcal
         .pushAppointment(appointmentId)
         .catch((err) => console.error("[gcal] pushAppointment failed:", err));
 
-      return { rejected: appointmentId };
+      return { rejected: appointmentId, customerNotified };
     },
   };
 }
