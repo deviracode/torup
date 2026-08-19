@@ -50,9 +50,13 @@ export async function approveAppointment(appointmentId: string) {
   await cacheClear(`appts:${businessId}:*`);
 
   // Must be awaited — on Vercel, fire-and-forget work is killed once the response is sent.
-  await sendApprovalNotification(appointmentId).catch((err) =>
-    console.error("[Notification] approval failed:", err)
-  );
+  const notifyResult = await sendApprovalNotification(appointmentId).catch((err) => {
+    console.error("[Notification] approval failed:", err);
+    return { sent: false, failed: true };
+  });
+  // Reflects only the primary approved customer's notification — sibling
+  // slot_taken rejections below are notified independently and not reflected here.
+  const customerNotified = notifyResult?.sent ?? false;
   await Promise.all(
     rejectedIds.map((id) =>
       sendRejectionNotification(id, "slot_taken").catch((err) =>
@@ -65,7 +69,7 @@ export async function approveAppointment(appointmentId: string) {
   pushAppointmentToGoogle(appointmentId).catch(() => {});
   for (const id of rejectedIds) pushAppointmentToGoogle(id).catch(() => {});
 
-  return { approved: appointmentId, rejected: rejectedIds };
+  return { approved: appointmentId, rejected: rejectedIds, customerNotified };
 }
 
 // Reject (cancel) a pending_approval appointment.
@@ -92,11 +96,13 @@ export async function rejectAppointment(appointmentId: string) {
 
   await cacheClear(`appts:${businessId}:*`);
 
-  await sendRejectionNotification(appointmentId, "manual").catch((err) =>
-    console.error("[Notification] manual rejection failed:", err)
-  );
+  const notifyResult = await sendRejectionNotification(appointmentId, "manual").catch((err) => {
+    console.error("[Notification] manual rejection failed:", err);
+    return { sent: false, failed: true };
+  });
+  const customerNotified = notifyResult?.sent ?? false;
 
   pushAppointmentToGoogle(appointmentId).catch(() => {});
 
-  return { rejected: appointmentId };
+  return { rejected: appointmentId, customerNotified };
 }
