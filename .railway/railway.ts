@@ -56,6 +56,9 @@ export default defineRailway((ctx) => {
       NODE_ENV: "production",
       PORT: "3001",
       WORKER_ENABLED: "true",
+      // Worker runs the reminder/manager notification path, which resolves and
+      // decrypts per-tenant WhatsApp credentials — needs the same key as api/agent.
+      ENCRYPTION_KEY: preserve(),
       INTERNAL_SECRET: preserve(),
       SUPABASE_URL: preserve(),
       SUPABASE_ANON_KEY: preserve(),
