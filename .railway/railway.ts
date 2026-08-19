@@ -6,9 +6,13 @@ export default defineRailway((ctx) => {
   // (background jobs / inbound webhooks would be dropped).
   const sleepWhenIdle = ctx.isEnvironment("staging");
 
+  // Prod tracks `main` (PR #3 merged); staging keeps tracking the feature branch
+  // for ongoing development.
+  const deployBranch = ctx.isEnvironment("staging") ? "torup-tenant-env" : "main";
+
   const api = service("torup-api", {
     source: github("deviracode/torup", {
-      branch: "torup-tenant-env",
+      branch: deployBranch,
     }),
     build: {
       builder: "DOCKERFILE",
@@ -41,7 +45,7 @@ export default defineRailway((ctx) => {
 
   const worker = service("torup-worker", {
     source: github("deviracode/torup", {
-      branch: "torup-tenant-env",
+      branch: deployBranch,
     }),
     build: {
       builder: "DOCKERFILE",
@@ -67,7 +71,7 @@ export default defineRailway((ctx) => {
 
   const agent = service("torup-whatsapp", {
     source: github("deviracode/torup", {
-      branch: "torup-tenant-env",
+      branch: deployBranch,
     }),
     build: {
       builder: "DOCKERFILE",
@@ -91,7 +95,7 @@ export default defineRailway((ctx) => {
 
   const web = service("torup-web", {
     source: github("deviracode/torup", {
-      branch: "torup-tenant-env",
+      branch: deployBranch,
     }),
     build: {
       builder: "DOCKERFILE",
