@@ -23,7 +23,7 @@ flagged in `docs/ENVIRONMENTS.md` as a wrong/removed target.
 (Torup `main` branch). So the Railway `SUPABASE_URL` is misconfigured. This
 migration therefore has **two coupled cutovers**:
 1. Point prod Railway at the correct Supabase project (`xewiqmxzhxlhmgspairk`).
-2. Bring `xewiqmxzhxlhmgspairk`'s schema up to the branch (migrations 00025–00029)
+2. Bring `xewiqmxzhxlhmgspairk`'s schema up to the branch (migrations 00025–00030)
    and push its auth config.
 
 **⚠️ Before flipping the Supabase URL, verify `xewiqmxzhxlhmgspairk`
@@ -75,8 +75,9 @@ baseline (00024):
 | `00027_whatsapp_credentials_per_tenant_meta.sql` | Adds `app_secret`, `verify_token` columns | Additive |
 | `00028_customer_rpc_and_policy_revoke.sql` | Adds `find_or_create_customer` SECURITY DEFINER RPC; **drops** the open anon customers SELECT policy from 00025 | Net PII-safe; depends on `supported_language` enum |
 | `00029_notification_log_system_values.sql` | notification_log system values | Small |
+| `00030_add_contact_phone.sql` | `ALTER TABLE businesses ADD COLUMN contact_phone TEXT` (from `main`, renumbered from `00025` during the rebase to avoid colliding with `00025_rls_gap_closure`) | Additive; branch code depends on this column |
 
-**All five are additive or policy-only — no destructive DDL, no data drops.**
+**All six are additive or policy-only — no destructive DDL, no data drops.**
 But every one assumes the prod baseline already has 00001–00024's objects
 (`get_user_business_ids`, `is_super_admin`, `notifications_log`,
 `service_categories`, `staff_services`, `subscriptions`, `supported_language`).
@@ -134,10 +135,10 @@ supabase migration list --linked                         # applied migrations on
 Still linked to prod. Point the CLI at the branch migrations dir and preview:
 ```bash
 cat supabase/.temp/project-ref            # MUST read xewiqmxzhxlhmgspairk now
-supabase migration list --linked          # confirms which of 00025–00029 are missing
+supabase migration list --linked          # confirms which of 00025–00030 are missing
 supabase db push --linked --dry-run --workdir packages/db/supabase
 ```
-- Read the dry-run output. Confirm only 00025–00029 (whatever's missing) would
+- Read the dry-run output. Confirm only 00025–00030 (whatever's missing) would
   apply and that no unexpected object is referenced that prod lacks.
 - If the dry-run errors on a missing dependency (e.g. `get_user_business_ids`),
   STOP — prod baseline is behind staging and needs the intermediate migrations
@@ -147,7 +148,7 @@ supabase db push --linked --dry-run --workdir packages/db/supabase
 ```bash
 cat supabase/.temp/project-ref            # re-confirm xewiqmxzhxlhmgspairk
 supabase db push --linked --yes --workdir packages/db/supabase
-supabase migration list --linked          # verify 00025–00029 now applied
+supabase migration list --linked          # verify 00025–00030 now applied
 ```
 - Verify `whatsapp_credentials` exists with `app_secret`/`verify_token` columns,
   and that the open `Public can read customers` policy is **absent** (00028
