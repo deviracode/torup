@@ -20,6 +20,7 @@ interface BusinessProfile {
   slug: string;
   description: string | null;
   phone: string | null;
+  contact_phone: string | null;
   email: string | null;
   address: string | null;
   bot_context: string | null;
@@ -50,6 +51,7 @@ export default function ProfileTab() {
           name: profile.name,
           description: profile.description,
           phone: profile.phone,
+          contact_phone: profile.contact_phone,
           email: profile.email,
           address: profile.address,
           bot_context: profile.bot_context,
@@ -98,6 +100,15 @@ export default function ProfileTab() {
           <Input
             value={profile.phone || ""}
             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+            dir="ltr"
+          />
+        </Field>
+        <Field label={t("contactPhone")} hint={t("contactPhoneDesc")}>
+          <Input
+            value={profile.contact_phone || ""}
+            onChange={(e) =>
+              setProfile({ ...profile, contact_phone: e.target.value })
+            }
             dir="ltr"
           />
         </Field>
