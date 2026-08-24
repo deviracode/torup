@@ -100,7 +100,14 @@ app.post("/webhook/:businessId", async (req, res) => {
   for (const msg of messages) {
     if (msg.businessPhoneNumberId !== credential.phoneNumberId) {
       // Path businessId and inbound payload's phone number must agree —
-      // otherwise this could be a replayed/misrouted payload.
+      // otherwise this could be a replayed/misrouted payload. Log both
+      // values: this guard has silently dropped real messages before
+      // with zero trace, making it indistinguishable from "no message
+      // ever arrived."
+      console.warn(
+        `[Webhook] phone_number_id mismatch for business ${credential.businessId} — ` +
+        `payload=${msg.businessPhoneNumberId} stored=${credential.phoneNumberId} — message dropped.`
+      );
       continue;
     }
     try {
