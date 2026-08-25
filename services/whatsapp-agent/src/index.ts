@@ -303,6 +303,14 @@ const CATEGORY_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: s
   en: { prompt: "Choose a category:", button: "Show Categories", section: "Categories", more: "More services" },
 };
 
+function truncateTitle(text: string, max = 24): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  const trimmed = lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut;
+  return `${trimmed.trimEnd()}…`;
+}
+
 async function sendCategoryList(
   credential: WhatsAppCredential,
   to: string,
@@ -313,7 +321,7 @@ async function sendCategoryList(
   const i18n = CATEGORY_LIST_I18N[language];
   const rows = categories.map((c) => ({
     id: `category_${c.id}`,
-    title: (language === "ar" && c.name_ar ? c.name_ar : language === "en" && c.name_en ? c.name_en : c.name_he).slice(0, 24),
+    title: truncateTitle((language === "ar" && c.name_ar ? c.name_ar : language === "en" && c.name_en ? c.name_en : c.name_he)),
     description: "",
   }));
   if (hasUncategorized) {
@@ -328,7 +336,7 @@ async function sendServiceList(credential: WhatsAppCredential, to: string, servi
     const name = (language === "ar" && s.name_ar ? s.name_ar : language === "en" && s.name_en ? s.name_en : s.name_he) || s.name_he || "";
     return {
       id: `service_${s.id || s.name_he}`,
-      title: name.slice(0, 24),
+      title: truncateTitle(name),
       description: s.price_type === "discuss"
         ? `${s.duration_minutes} ${i18n.min} • ${i18n.discuss}`
         : `${s.duration_minutes} ${i18n.min} • ₪${s.price}`,
