@@ -21,6 +21,7 @@ interface Appointment {
   start_time: string;
   end_time: string;
   status: string;
+  cancellation_reason?: string | null;
   notes: string | null;
   created_via: string;
   customer_confirmed?: boolean | null;
@@ -38,8 +39,11 @@ const STATUS_COLORS: Record<string, string> = {
   no_show:          "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
+// Auto-cancelled-on-approve conflicts stay visible (dimmed, with a reason
+// badge) instead of silently disappearing like a normal cancellation.
 const HIDDEN_STATUSES = new Set(["cancelled", "no_show"]);
-const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status);
+const isSlotTaken = (a: Appointment) => a.status === "cancelled" && a.cancellation_reason === "slot_taken";
+const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status) || isSlotTaken(a);
 
 const ROW_HEIGHT = 60; // px per hour (= 1px per minute)
 
@@ -376,8 +380,9 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                   }
 
                   const { apt } = event;
+                  const slotTaken = isSlotTaken(apt);
                   const svcStyle = serviceColorStyle(apt.services?.color);
-                  const sc = STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending;
+                  const sc = slotTaken ? STATUS_COLORS.cancelled : (STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending);
                   const st = new Date(apt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                   const et = new Date(apt.end_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                   return (
@@ -389,9 +394,10 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                       onDragEnd={() => setDraggingId(null)}
                       style={{
                         ...posStyle,
-                        ...(svcStyle ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
+                        ...(svcStyle && !slotTaken ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
                       }}
-                      className={`rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all overflow-hidden ${svcStyle ? "" : sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
+                      title={slotTaken ? tStatus("slotTaken") : undefined}
+                      className={`rounded-lg border-s-[3px] px-3 py-1.5 text-start text-xs font-medium hover:brightness-110 transition-all overflow-hidden ${svcStyle && !slotTaken ? "" : sc} ${slotTaken ? "line-through" : ""} ${draggingId === apt.id ? "opacity-50" : ""}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold truncate">{apt.customers?.name || t("unknownCustomer")}</span>
@@ -405,7 +411,7 @@ export function DailyCalendar({ businessId, controlledDate }: { businessId: stri
                         <div className="opacity-80 truncate mt-0.5">
                           {apt.services?.name_he || ""}
                           {apt.services?.name_he ? " · " : ""}
-                          {tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status === "pending_approval" ? "pendingApproval" : apt.status)}
+                          {slotTaken ? tStatus("slotTaken") : tStatus(apt.status === "in_progress" ? "inProgress" : apt.status === "no_show" ? "noShow" : apt.status === "pending_approval" ? "pendingApproval" : apt.status)}
                         </div>
                       )}
                       {apt.notes && height >= 56 && (

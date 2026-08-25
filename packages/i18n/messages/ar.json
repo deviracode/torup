@@ -296,7 +296,8 @@
     "inProgress": "قيد التنفيذ",
     "completed": "مكتمل",
     "cancelled": "ملغي",
-    "noShow": "لم يحضر"
+    "noShow": "لم يحضر",
+    "slotTaken": "تم حجز الموعد من قبل عميل آخر"
   },
   "billing": {
     "currentPlan": "الخطة الحالية",

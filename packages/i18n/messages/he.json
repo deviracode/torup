@@ -296,7 +296,8 @@
     "inProgress": "בתהליך",
     "completed": "הושלם",
     "cancelled": "בוטל",
-    "noShow": "לא הגיע"
+    "noShow": "לא הגיע",
+    "slotTaken": "התור נתפס על ידי הזמנה אחרת"
   },
   "authErrors": {
     "invalidCredentials": "פרטי התחברות שגויים",

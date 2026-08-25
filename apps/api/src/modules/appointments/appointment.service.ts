@@ -306,7 +306,10 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
 
       const rejectedIds = (overlapping || []).map((r) => r.id);
       if (rejectedIds.length > 0) {
-        const { error: rejErr } = await repo.updateIn("id", rejectedIds, { status: "cancelled" });
+        const { error: rejErr } = await repo.updateIn("id", rejectedIds, {
+          status: "cancelled",
+          cancellation_reason: "slot_taken",
+        });
         if (rejErr) throw new AppError(400, rejErr.message);
       }
 

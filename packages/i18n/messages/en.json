@@ -296,7 +296,8 @@
     "inProgress": "In Progress",
     "completed": "Completed",
     "cancelled": "Cancelled",
-    "noShow": "No Show"
+    "noShow": "No Show",
+    "slotTaken": "Slot taken by another booking"
   },
   "billing": {
     "currentPlan": "Current plan",
