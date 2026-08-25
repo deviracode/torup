@@ -64,6 +64,8 @@
     "bookNow": "קבע תור",
     "confirmBooking": "אשר את התור",
     "bookingConfirmed": "התור אושר!",
+    "bookingPendingApproval": "בקשת התור נשלחה!",
+    "bookingPendingApprovalNote": "בעל העסק יאשר את התור בקרוב. תקבל/י הודעה בוואטסאפ ברגע שהוא יאושר.",
     "noSlotsAvailable": "אין תורים פנויים",
     "duration": "משך",
     "price": "מחיר",

@@ -64,6 +64,8 @@
     "bookNow": "احجز الآن",
     "confirmBooking": "تأكيد الحجز",
     "bookingConfirmed": "تم تأكيد الحجز!",
+    "bookingPendingApproval": "تم إرسال طلب الحجز!",
+    "bookingPendingApprovalNote": "سيقوم صاحب العمل بتأكيد الحجز قريباً. ستصلك رسالة واتساب فور الموافقة.",
     "noSlotsAvailable": "لا توجد مواعيد متاحة",
     "duration": "المدة",
     "price": "السعر",

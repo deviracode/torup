@@ -255,7 +255,7 @@ describe("Reminder System", () => {
       expect(mockSendManagerNotification).not.toHaveBeenCalled();
     });
 
-    it("DOES call sendAppointmentNotification with booking_confirmation when created_via is web", async () => {
+    it("DOES call sendAppointmentNotification with booking_pending_approval when created_via is web", async () => {
       const app = await buildPostApp("web");
       const res = await request(app)
         .post(`/api/businesses/${BUSINESS_ID_BC}/appointments`)
@@ -270,7 +270,7 @@ describe("Reminder System", () => {
       await new Promise((r) => setTimeout(r, 50));
       expect(mockSendAppointmentNotification).toHaveBeenCalledWith(
         CREATED_APT_ID,
-        "booking_confirmation"
+        "booking_pending_approval"
       );
       expect(mockSendManagerNotification).toHaveBeenCalledWith(CREATED_APT_ID);
     });

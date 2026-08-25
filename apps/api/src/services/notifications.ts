@@ -85,6 +85,11 @@ const templates: Record<string, Record<string, string>> = {
     ar: "أهلين {customer_name}، تأكد دورك عند {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}",
     en: "Hi {customer_name}, your appointment at {business_name} is confirmed!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
   },
+  booking_pending_approval: {
+    he: "📩 בקשת התור שלך ב-{business_name} התקבלה!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\n⏳ ממתין לאישור בעל העסק. נשלח לך הודעה ברגע שזה יאושר.",
+    ar: "📩 تم استلام طلب حجزك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\n⏳ بانتظار موافقة صاحب العمل. سنرسل لك رسالة فور الموافقة.",
+    en: "📩 Your booking request at {business_name} was received!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\n⏳ Awaiting the business owner's approval. We'll message you the moment it's approved.",
+  },
   cancellation: {
     he: "התור שלך ב-{business_name} בתאריך {date} בשעה {time} בוטל.",
     ar: "التغى دورك عند {business_name} يوم {date_weekday}، تاريخ {date_numeric} الساعه {time}.",
