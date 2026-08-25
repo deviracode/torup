@@ -73,6 +73,8 @@ interface TemplateVars {
   business_name: string;
   service_name: string;
   date: string;
+  date_weekday?: string;
+  date_numeric?: string;
   time: string;
   rebook_url?: string;
 }
@@ -85,7 +87,7 @@ const templates: Record<string, Record<string, string>> = {
   },
   cancellation: {
     he: "התור שלך ב-{business_name} בתאריך {date} בשעה {time} בוטל.",
-    ar: "اتلغى دورك عند {business_name} يوم {date} الساعة {time}.",
+    ar: "التغى دورك عند {business_name} يوم {date_weekday}، تاريخ {date_numeric} الساعه {time}.",
     en: "Your appointment at {business_name} on {date} at {time} has been cancelled.",
   },
   reschedule: {
@@ -121,6 +123,8 @@ function fillTemplate(template: string, vars: TemplateVars): string {
     .replace(/{business_name}/g, vars.business_name)
     .replace(/{service_name}/g, vars.service_name)
     .replace(/{date}/g, vars.date)
+    .replace(/{date_weekday}/g, vars.date_weekday || "")
+    .replace(/{date_numeric}/g, vars.date_numeric || "")
     .replace(/{time}/g, vars.time)
     .replace(/{rebook_url}/g, vars.rebook_url || "");
 }
@@ -261,6 +265,16 @@ export async function sendAppointmentNotification(
       weekday: "short",
       month: "short",
       day: "numeric",
+      timeZone: "Asia/Jerusalem",
+    }),
+    date_weekday: startDate.toLocaleDateString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
+      weekday: "long",
+      timeZone: "Asia/Jerusalem",
+    }),
+    date_numeric: startDate.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
       timeZone: "Asia/Jerusalem",
     }),
     time: startDate.toLocaleTimeString(lang === "he" ? "he-IL" : lang === "ar" ? "ar" : "en", {
