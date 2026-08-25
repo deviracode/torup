@@ -13,6 +13,7 @@ import {
   Input,
 } from "@torup/ui";
 import { useApi } from "@/lib/use-api";
+import { toLocalDateString } from "@/lib/format";
 
 interface Service {
   id: string;
@@ -66,7 +67,7 @@ export function StaffCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = toLocalDateString(new Date());
 
   const displayLabel =
     member.display_name || member.user?.user_metadata?.name || member.user?.email || t("unnamedStaffMember");

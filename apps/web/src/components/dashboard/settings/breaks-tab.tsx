@@ -6,6 +6,7 @@ import { useBusiness } from "@/components/auth/business-provider";
 import { useApi } from "@/lib/use-api";
 import { toast } from "sonner";
 import { Trash2, Coffee } from "lucide-react";
+import { toLocalDateString } from "@/lib/format";
 import {
   Button,
   Badge,
@@ -215,9 +216,7 @@ export default function BreaksTab() {
                 onChange={(date) =>
                   setNewBreak({
                     ...newBreak,
-                    specific_date: date
-                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-                      : "",
+                    specific_date: date ? toLocalDateString(date) : "",
                   })
                 }
                 placeholder={t("selectDate")}

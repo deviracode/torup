@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
-import { formatILS } from "@/lib/format";
+import { formatILS, toLocalDateString } from "@/lib/format";
 
 interface Service {
   id: string;
@@ -199,7 +199,7 @@ export function BookingFlow({
   const dates = Array.from({ length: maxFutureDays }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
-    return d.toISOString().split("T")[0];
+    return toLocalDateString(d);
   });
 
   const BackBtn = ({ onClick, label }: { onClick: () => void; label: string }) => (
