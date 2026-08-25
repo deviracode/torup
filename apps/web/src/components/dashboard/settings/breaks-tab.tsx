@@ -216,7 +216,7 @@ export default function BreaksTab() {
                   setNewBreak({
                     ...newBreak,
                     specific_date: date
-                      ? date.toISOString().slice(0, 10)
+                      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
                       : "",
                   })
                 }
