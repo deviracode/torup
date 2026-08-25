@@ -34,7 +34,10 @@ function service(req: AuthenticatedRequest) {
 }
 
 function publicService() {
-  const repo = createAppointmentRepo(createAnonClient());
+  // Reads stay on the anon client (RLS-scoped); the service-role client is
+  // only used inside repo.create() for the insert+RETURNING, since anon has
+  // no SELECT policy on appointments (see appointment.repository.ts).
+  const repo = createAppointmentRepo(createAnonClient(), createServiceClient());
   return createAppointmentService(repo, deps);
 }
 

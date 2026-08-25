@@ -1,4 +1,5 @@
 import { validateTransition, canCancel, type AppointmentStatus } from "@torup/shared";
+import type { Enums } from "@torup/db";
 import { AppError } from "../../middleware/error-handler";
 import { type createAppointmentRepo } from "./appointment.repository";
 
@@ -116,8 +117,8 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         notes: notes || null,
-        created_via: created_via || "web",
-        status: created_via === "manual" && status ? status : "pending",
+        created_via: (created_via || "web") as Enums<"booking_source">,
+        status: (created_via === "manual" && status ? status : "pending") as Enums<"appointment_status">,
       });
 
       if (error) throw new AppError(400, error.message);
