@@ -31,7 +31,14 @@ interface Business {
   id: string;
   name: string;
   phone: string;
+  contact_phone?: string | null;
+  social_links?: Record<string, string> | null;
   slug: string;
+}
+
+/** WhatsApp target: explicit social_links.whatsapp, else contact_phone, else the main phone. */
+function getWhatsAppNumber(business: Business): string {
+  return business.social_links?.whatsapp || business.contact_phone || business.phone;
 }
 
 interface TimeSlot {
@@ -147,7 +154,7 @@ export function BookingFlow({
 
   const handleServiceSelect = (service: Service) => {
     if (service.price_type === "discuss") {
-      window.open(`https://wa.me/${toInternationalPhone(business.phone)}`, "_blank");
+      window.open(`https://wa.me/${toInternationalPhone(getWhatsAppNumber(business))}`, "_blank");
       return;
     }
     setSelectedService(service);
@@ -440,7 +447,7 @@ export function BookingFlow({
           </div>
           {business.phone && (
             <a
-              href={`https://wa.me/${toInternationalPhone(business.phone)}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
+              href={`https://wa.me/${toInternationalPhone(getWhatsAppNumber(business))}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:border-green-400 hover:text-green-700 transition-all"
