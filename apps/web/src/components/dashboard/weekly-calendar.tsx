@@ -20,6 +20,7 @@ interface Appointment {
   start_time: string;
   end_time: string;
   status: string;
+  cancellation_reason?: string | null;
   notes: string | null;
   created_via: string;
   customers?: { name: string; phone: string };
@@ -36,8 +37,11 @@ const STATUS_COLORS: Record<string, string> = {
   no_show:          "bg-red-500/15 border-red-400/60 text-red-300",
 };
 
+// Auto-cancelled-on-approve conflicts stay visible (dimmed, with a reason
+// badge) instead of silently disappearing like a normal cancellation.
 const HIDDEN_STATUSES = new Set(["cancelled", "no_show"]);
-const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status);
+const isSlotTaken = (a: Appointment) => a.status === "cancelled" && a.cancellation_reason === "slot_taken";
+const isVisible = (a: Appointment) => !HIDDEN_STATUSES.has(a.status) || isSlotTaken(a);
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
 const ROW_HEIGHT = 48; // px per hour (= 0.8px per minute)
@@ -116,6 +120,7 @@ function ilMinuteOfDay(isoStr: string): number {
 
 export function WeeklyCalendar({ businessId, controlledDate }: { businessId: string; controlledDate?: string }) {
   const t = useTranslations("dashboard");
+  const tStatus = useTranslations("appointments");
   const { session } = useAuth();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(controlledDate ? new Date(controlledDate + "T12:00:00") : new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -367,8 +372,9 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                       }
 
                       const { apt } = event;
+                      const slotTaken = isSlotTaken(apt);
                       const svcStyle = serviceColorStyle(apt.services?.color);
-                      const sc = STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending;
+                      const sc = slotTaken ? STATUS_COLORS.cancelled : (STATUS_COLORS[apt.status] ?? STATUS_COLORS.pending);
                       const time = new Date(apt.start_time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
                       return (
                         <button
@@ -379,13 +385,16 @@ export function WeeklyCalendar({ businessId, controlledDate }: { businessId: str
                           onDragEnd={() => setDraggingId(null)}
                           style={{
                             ...posStyle,
-                            ...(svcStyle ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
+                            ...(svcStyle && !slotTaken ? { background: svcStyle.background, borderLeftColor: svcStyle.borderLeftColor, color: svcStyle.color } : {}),
                           }}
-                          className={`rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden hover:brightness-110 transition-all ${svcStyle ? "" : sc} ${draggingId === apt.id ? "opacity-50" : ""}`}
+                          title={slotTaken ? tStatus("slotTaken") : undefined}
+                          className={`rounded border-s-2 px-1.5 py-0.5 text-start text-xs overflow-hidden hover:brightness-110 transition-all ${svcStyle && !slotTaken ? "" : sc} ${slotTaken ? "line-through" : ""} ${draggingId === apt.id ? "opacity-50" : ""}`}
                         >
                           <div className="font-semibold truncate">{time} {apt.customers?.name || ""}</div>
-                          {height >= 36 && apt.services?.name_he && (
-                            <div className="opacity-85 truncate text-[10px]">{apt.services.name_he}</div>
+                          {height >= 36 && (
+                            <div className="opacity-85 truncate text-[10px]">
+                              {slotTaken ? tStatus("slotTaken") : apt.services?.name_he}
+                            </div>
                           )}
                           {apt.notes && height >= 54 && <span className="opacity-70 ms-1" title={apt.notes}>📝</span>}
                         </button>

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Enums } from "@torup/db";
+import type { Database, Enums, TablesInsert } from "@torup/db";
 
 const APPOINTMENT_JOIN_SELECT =
   "*, services(name_he, name_ar, name_en, color), customers(name, phone)" as const;
@@ -57,10 +57,15 @@ export function createAppointmentRepo(
       return query.single();
     },
 
-    async create(data: Record<string, unknown>) {
-      return primary
+    async create(data: TablesInsert<"appointments">) {
+      // Uses `svc` (service role when provided) because the INSERT's RETURNING
+      // clause requires the row to also pass a SELECT policy — anon has no
+      // SELECT policy on appointments, so with the anon client this fails with
+      // "new row violates row-level security policy" even though the WITH
+      // CHECK for the insert itself passes.
+      return svc
         .from("appointments")
-        .insert(data as never)
+        .insert(data)
         .select(APPOINTMENT_JOIN_SELECT)
         .single();
     },

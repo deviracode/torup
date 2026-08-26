@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Badge, Button, Separator, Card, CardContent } from "@torup/ui";
 import { User, Scissors, CalendarDays, FileText, Clock, Phone, Bell } from "lucide-react";
-import { formatILS } from "@/lib/format";
+import { formatILS, toLocalDateString } from "@/lib/format";
 
 interface Appointment {
   id: string;
@@ -476,7 +476,7 @@ export function AppointmentModal({
                   <label className="block text-xs font-medium text-muted-foreground mb-1">{t("selectDate")}</label>
                   <input
                     type="date"
-                    min={new Date().toISOString().split("T")[0]}
+                    min={toLocalDateString(new Date())}
                     value={rescheduleDate}
                     onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSlot(""); }}
                     className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"

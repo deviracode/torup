@@ -68,6 +68,7 @@ export type Database = {
       appointments: {
         Row: {
           business_id: string
+          cancellation_reason: string | null
           created_at: string
           created_via: Database["public"]["Enums"]["booking_source"]
           customer_confirmed: boolean | null
@@ -84,6 +85,7 @@ export type Database = {
         }
         Insert: {
           business_id: string
+          cancellation_reason?: string | null
           created_at?: string
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null
@@ -100,6 +102,7 @@ export type Database = {
         }
         Update: {
           business_id?: string
+          cancellation_reason?: string | null
           created_at?: string
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null

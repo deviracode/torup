@@ -64,6 +64,8 @@
     "bookNow": "احجز الآن",
     "confirmBooking": "تأكيد الحجز",
     "bookingConfirmed": "تم تأكيد الحجز!",
+    "bookingPendingApproval": "تم إرسال طلب الحجز!",
+    "bookingPendingApprovalNote": "سيقوم صاحب العمل بتأكيد الحجز قريباً. ستصلك رسالة واتساب فور الموافقة.",
     "noSlotsAvailable": "لا توجد مواعيد متاحة",
     "duration": "المدة",
     "price": "السعر",
@@ -296,7 +298,8 @@
     "inProgress": "قيد التنفيذ",
     "completed": "مكتمل",
     "cancelled": "ملغي",
-    "noShow": "لم يحضر"
+    "noShow": "لم يحضر",
+    "slotTaken": "تم حجز الموعد من قبل عميل آخر"
   },
   "billing": {
     "currentPlan": "الخطة الحالية",

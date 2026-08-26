@@ -12,6 +12,7 @@ import { TopBarSlot } from "@/components/dashboard/top-bar-slot";
 import { motion, useSpring, useTransform, useMotionValue, useReducedMotion, AnimatePresence } from "framer-motion";
 import { staggerContainer, springItem } from "@/components/motion";
 import { CalendarDays, Clock, CheckCircle2, AlertCircle, Plus, X, ChevronRight, User, Scissors } from "lucide-react";
+import { toLocalDateString } from "@/lib/format";
 import { PendingApprovalsPanel } from "@/components/dashboard/pending-approvals-panel";
 
 interface DayStats {
@@ -263,7 +264,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!businessId) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateString(new Date());
 
     // Today's total + completed (date-scoped)
     api<Array<{ status: string }>>(
@@ -303,7 +304,7 @@ export default function DashboardPage() {
     setDrawerAppts([]);
 
     const cfg = STAT_CONFIG.find((c) => c.key === filterKey)!;
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateString(new Date());
 
     if (cfg.statusFilter) {
       const results = await Promise.all(

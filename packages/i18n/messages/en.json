@@ -64,6 +64,8 @@
     "bookNow": "Book Now",
     "confirmBooking": "Confirm Booking",
     "bookingConfirmed": "Booking Confirmed!",
+    "bookingPendingApproval": "Booking Request Sent!",
+    "bookingPendingApprovalNote": "The business owner will confirm it shortly. You'll get a WhatsApp message once approved.",
     "noSlotsAvailable": "No slots available",
     "duration": "Duration",
     "price": "Price",
@@ -296,7 +298,8 @@
     "inProgress": "In Progress",
     "completed": "Completed",
     "cancelled": "Cancelled",
-    "noShow": "No Show"
+    "noShow": "No Show",
+    "slotTaken": "Slot taken by another booking"
   },
   "billing": {
     "currentPlan": "Current plan",

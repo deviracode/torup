@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
-import { formatILS } from "@/lib/format";
+import { formatILS, toLocalDateString } from "@/lib/format";
 
 interface Service {
   id: string;
@@ -199,7 +199,7 @@ export function BookingFlow({
   const dates = Array.from({ length: maxFutureDays }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
-    return d.toISOString().split("T")[0];
+    return toLocalDateString(d);
   });
 
   const BackBtn = ({ onClick, label }: { onClick: () => void; label: string }) => (
@@ -411,8 +411,8 @@ export function BookingFlow({
             <Check className="h-8 w-8 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{t("bookingConfirmed")}</h2>
-            <p className="text-gray-500 mt-1 text-sm">נשלח אליך אישור בוואטסאפ</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t("bookingPendingApproval")}</h2>
+            <p className="text-gray-500 mt-1 text-sm">{t("bookingPendingApprovalNote")}</p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 text-start shadow-sm">
             <p className="font-semibold text-gray-900">{selectedService && getServiceName(selectedService, locale)}</p>

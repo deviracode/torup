@@ -1,4 +1,5 @@
 import { validateTransition, canCancel, type AppointmentStatus } from "@torup/shared";
+import type { Enums } from "@torup/db";
 import { AppError } from "../../middleware/error-handler";
 import { type createAppointmentRepo } from "./appointment.repository";
 
@@ -108,6 +109,13 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
 
       await checkSlotCapacity(businessId, service_id, startDate, service);
 
+      const isManual = created_via === "manual";
+      // Public bookings (web, or any non-manual source) always land as
+      // pending_approval, same as WhatsApp bookings — a manager must approve
+      // before the appointment is actually confirmed. Only manual/staff-
+      // created appointments (dashboard) skip this gate.
+      const finalStatus = isManual ? status || "pending" : "pending_approval";
+
       const { data, error } = await repo.create({
         business_id: businessId,
         service_id,
@@ -116,18 +124,18 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         notes: notes || null,
-        created_via: created_via || "web",
-        status: created_via === "manual" && status ? status : "pending",
+        created_via: (created_via || "web") as Enums<"booking_source">,
+        status: finalStatus as Enums<"appointment_status">,
       });
 
       if (error) throw new AppError(400, error.message);
 
       if (data?.id) {
         await deps.cache.clear(`appts:${businessId}:*`);
-        if (created_via !== "manual") {
+        if (!isManual) {
           deps.notify
-            .sendAppointment(data.id, "booking_confirmation")
-            .catch((err) => console.error("[Notification] booking_confirmation failed:", err));
+            .sendAppointment(data.id, "booking_pending_approval")
+            .catch((err) => console.error("[Notification] booking_pending_approval failed:", err));
           deps.notify
             .sendManager(data.id)
             .catch((err) => console.error("[Notification] manager failed:", err));
@@ -305,7 +313,10 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
 
       const rejectedIds = (overlapping || []).map((r) => r.id);
       if (rejectedIds.length > 0) {
-        const { error: rejErr } = await repo.updateIn("id", rejectedIds, { status: "cancelled" });
+        const { error: rejErr } = await repo.updateIn("id", rejectedIds, {
+          status: "cancelled",
+          cancellation_reason: "slot_taken",
+        });
         if (rejErr) throw new AppError(400, rejErr.message);
       }
 
