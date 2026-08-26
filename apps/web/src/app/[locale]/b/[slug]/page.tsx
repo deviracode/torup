@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { MapPin, Phone } from "lucide-react";
 import { BookingFlow } from "@/components/booking/booking-flow";
+import { toInternationalPhone } from "@/lib/format";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const TORUP_SITE_URL = "https://torup.pandacode.co.il";
@@ -92,11 +93,11 @@ export default async function BookingPage({
   const wazeLink: string | undefined =
     business.social_links?.waze ||
     (business.address ? `https://waze.com/ul?q=${encodeURIComponent(business.address)}&navigate=yes` : undefined);
-  const whatsappLink: string | undefined =
-    business.social_links?.whatsapp ||
-    (business.contact_phone || business.phone
-      ? `https://wa.me/${(business.contact_phone || business.phone).replace(/[^0-9]/g, "")}`
-      : undefined);
+  const whatsappNumber: string | undefined =
+    business.social_links?.whatsapp || business.contact_phone || business.phone || undefined;
+  const whatsappLink: string | undefined = whatsappNumber
+    ? `https://wa.me/${toInternationalPhone(whatsappNumber)}`
+    : undefined;
   const telLink: string | undefined = business.phone ? `tel:${business.phone}` : undefined;
 
   return (

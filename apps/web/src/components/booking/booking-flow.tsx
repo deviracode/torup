@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
-import { formatILS, toLocalDateString } from "@/lib/format";
+import { formatILS, toLocalDateString, toInternationalPhone } from "@/lib/format";
 import { pageVariants } from "@/components/motion";
 
 interface Service {
@@ -141,7 +141,7 @@ export function BookingFlow({
 
   const handleServiceSelect = (service: Service) => {
     if (service.price_type === "discuss") {
-      window.open(`https://wa.me/${business.phone.replace(/[^0-9]/g, "")}`, "_blank");
+      window.open(`https://wa.me/${toInternationalPhone(business.phone)}`, "_blank");
       return;
     }
     setSelectedService(service);
@@ -434,7 +434,7 @@ export function BookingFlow({
           </div>
           {business.phone && (
             <a
-              href={`https://wa.me/${business.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
+              href={`https://wa.me/${toInternationalPhone(business.phone)}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:border-green-400 hover:text-green-700 transition-all"

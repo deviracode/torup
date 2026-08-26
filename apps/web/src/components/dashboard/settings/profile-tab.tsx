@@ -175,7 +175,7 @@ export default function ProfileTab() {
             placeholder="https://waze.com/ul/..."
           />
         </Field>
-        <Field label={t("whatsappLink")} hint={t("whatsappLinkHint")}>
+        <Field label={t("whatsappNumber")} hint={t("whatsappNumberHint")}>
           <Input
             value={profile.social_links?.whatsapp || ""}
             onChange={(e) =>
@@ -185,7 +185,7 @@ export default function ProfileTab() {
               })
             }
             dir="ltr"
-            placeholder="https://wa.me/972501234567"
+            placeholder="050-1234567"
           />
         </Field>
       </FormSection>
