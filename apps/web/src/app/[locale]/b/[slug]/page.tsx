@@ -98,7 +98,8 @@ export default async function BookingPage({
   const whatsappLink: string | undefined = whatsappNumber
     ? `https://wa.me/${toInternationalPhone(whatsappNumber)}`
     : undefined;
-  const telLink: string | undefined = business.phone ? `tel:${business.phone}` : undefined;
+  const displayPhone: string | undefined = business.contact_phone || business.phone || undefined;
+  const telLink: string | undefined = displayPhone ? `tel:${displayPhone}` : undefined;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -167,7 +168,7 @@ export default async function BookingPage({
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow"
               >
                 <Phone className="h-[18px] w-[18px] shrink-0 text-indigo-500" />
-                <span dir="ltr">{business.phone}</span>
+                <span dir="ltr">{displayPhone}</span>
               </a>
             )}
             {whatsappLink && (
