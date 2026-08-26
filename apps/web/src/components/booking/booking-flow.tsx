@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
 import { formatILS, toLocalDateString } from "@/lib/format";
+import { pageVariants } from "@/components/motion";
 
 interface Service {
   id: string;
@@ -221,12 +223,21 @@ export function BookingFlow({
         : [];
 
   return (
-    <div className="space-y-6">
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-200/50 sm:p-6">
       {step !== "confirmed" && <StepIndicator current={step} locale={locale} onStepClick={setStep} />}
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
+        <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
       )}
+
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={`${step}-${selectedCategory ?? ""}`}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
 
       {/* Category picker (when categories exist and none selected yet) */}
       {step === "service" && hasCategories && selectedCategory === null && (
@@ -434,6 +445,9 @@ export function BookingFlow({
           )}
         </div>
       )}
+
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
