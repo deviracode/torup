@@ -105,7 +105,10 @@ export default async function BookingPage({
       {/* Hero banner */}
       <div className="relative">
         <div
-          className="h-40 w-full sm:h-56"
+          // Matches the recommended upload size (1600×600, an 8:3 ratio) so a
+          // correctly-sized banner shows with no cropping, capped so it
+          // doesn't get excessively tall on very wide screens.
+          className="aspect-[8/3] max-h-[420px] w-full min-h-[140px]"
           style={
             business.cover_url
               ? {
