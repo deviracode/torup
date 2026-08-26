@@ -104,25 +104,28 @@ export default async function BookingPage({
     <main className="min-h-screen bg-slate-50">
       {/* Hero banner */}
       <div className="relative">
-        <div
-          // Matches the recommended upload size (1600×600, an 8:3 ratio) so a
-          // correctly-sized banner always shows with zero cropping — no
-          // max-height cap, since that would clip the image on wide screens.
-          className="aspect-[8/3] w-full min-h-[140px]"
-          style={
-            business.cover_url
-              ? {
-                  backgroundImage: `url(${business.cover_url})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : {
-                  background:
-                    "linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #d4a24e 130%)",
-                }
-          }
-        >
-          <div className="h-full w-full bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
+        {/* Width capped to the same column as the page content below — this
+            keeps the aspect-[8/3] banner (matching the recommended 1600×600
+            upload) at a sane height on wide screens instead of stretching
+            full-bleed to the viewport, which made it enormous. */}
+        <div className="mx-auto max-w-2xl">
+          <div
+            className="aspect-[8/3] w-full min-h-[140px]"
+            style={
+              business.cover_url
+                ? {
+                    backgroundImage: `url(${business.cover_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : {
+                    background:
+                      "linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #d4a24e 130%)",
+                  }
+            }
+          >
+            <div className="h-full w-full bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
+          </div>
         </div>
 
         <div className="mx-auto max-w-2xl px-4">
