@@ -104,28 +104,22 @@ export default async function BookingPage({
     <main className="min-h-screen bg-slate-50">
       {/* Hero banner */}
       <div className="relative">
-        {/* Width capped to the same column as the page content below — this
-            keeps the aspect-[8/3] banner (matching the recommended 1600×600
-            upload) at a sane height on wide screens instead of stretching
-            full-bleed to the viewport, which made it enormous. */}
-        <div className="mx-auto max-w-2xl">
-          <div
-            className="aspect-[8/3] w-full min-h-[140px]"
-            style={
-              business.cover_url
-                ? {
-                    backgroundImage: `url(${business.cover_url})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }
-                : {
-                    background:
-                      "linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #d4a24e 130%)",
-                  }
-            }
-          >
-            <div className="h-full w-full bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
-          </div>
+        <div
+          className="h-40 w-full sm:h-56"
+          style={
+            business.cover_url
+              ? {
+                  backgroundImage: `url(${business.cover_url})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : {
+                  background:
+                    "linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #d4a24e 130%)",
+                }
+          }
+        >
+          <div className="h-full w-full bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
         </div>
 
         <div className="mx-auto max-w-2xl px-4">
