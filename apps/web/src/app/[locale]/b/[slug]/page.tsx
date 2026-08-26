@@ -1,11 +1,19 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { MapPin, Phone, MessageCircle } from "lucide-react";
+import { MapPin, Phone } from "lucide-react";
 import { BookingFlow } from "@/components/booking/booking-flow";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const TORUP_SITE_URL = "https://torup.pandacode.co.il";
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.06c-.24.68-1.4 1.3-1.93 1.38-.5.08-1.13.11-1.82-.12-.42-.13-.96-.32-1.65-.62-2.9-1.25-4.79-4.17-4.94-4.36-.14-.19-1.18-1.57-1.18-3 0-1.42.75-2.12 1.02-2.41.26-.29.58-.36.77-.36.19 0 .39 0 .55.01.18.01.42-.07.65.5.24.58.81 2 .88 2.15.07.15.12.32.02.52-.1.19-.15.31-.29.48-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.76 1.25 1.64 2.02 1.13.99 2.08 1.3 2.37 1.44.29.15.46.13.63-.05.17-.19.72-.83.91-1.12.19-.29.38-.24.63-.14.26.1 1.63.77 1.91.91.29.15.48.22.55.34.07.13.07.72-.17 1.4Z" />
+    </svg>
+  );
+}
 
 interface ServiceCategory {
   id: string;
@@ -81,7 +89,9 @@ export default async function BookingPage({
   const { services, categories } = await getServices(business.id);
   const t = await getTranslations({ locale, namespace: "booking" });
 
-  const wazeLink: string | undefined = business.social_links?.waze || undefined;
+  const wazeLink: string | undefined =
+    business.social_links?.waze ||
+    (business.address ? `https://waze.com/ul?q=${encodeURIComponent(business.address)}&navigate=yes` : undefined);
   const whatsappLink: string | undefined =
     business.social_links?.whatsapp ||
     (business.contact_phone || business.phone
@@ -144,19 +154,19 @@ export default async function BookingPage({
                 href={wazeLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-sky-300 hover:text-sky-700 hover:shadow"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 hover:shadow"
               >
-                <MapPin className="h-4 w-4" />
+                <MapPin className="h-[18px] w-[18px] shrink-0 text-sky-500" />
                 {t("waze")}
               </a>
             )}
             {telLink && (
               <a
                 href={telLink}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-indigo-300 hover:text-indigo-700 hover:shadow"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow"
               >
-                <Phone className="h-4 w-4" />
-                {business.phone}
+                <Phone className="h-[18px] w-[18px] shrink-0 text-indigo-500" />
+                <span dir="ltr">{business.phone}</span>
               </a>
             )}
             {whatsappLink && (
@@ -164,9 +174,9 @@ export default async function BookingPage({
                 href={whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-emerald-300 hover:text-emerald-700 hover:shadow"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow"
               >
-                <MessageCircle className="h-4 w-4" />
+                <WhatsAppIcon className="h-[18px] w-[18px] shrink-0 text-emerald-500" />
                 {t("whatsapp")}
               </a>
             )}
@@ -187,8 +197,10 @@ export default async function BookingPage({
 
       {/* Platform footer */}
       <div className="mx-auto max-w-2xl px-4 pb-10 pt-2">
-        <Link
-          href={`/${locale}`}
+        <a
+          href={TORUP_SITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-slate-600"
         >
           <span>{t("poweredBy")}</span>
@@ -196,7 +208,7 @@ export default async function BookingPage({
             <span className="text-teal-600">Tor</span>
             <span className="text-orange-400">Up</span>
           </span>
-        </Link>
+        </a>
       </div>
     </main>
   );

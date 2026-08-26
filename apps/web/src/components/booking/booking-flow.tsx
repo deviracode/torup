@@ -230,7 +230,7 @@ export function BookingFlow({
         <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
       )}
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={`${step}-${selectedCategory ?? ""}`}
         variants={pageVariants}
