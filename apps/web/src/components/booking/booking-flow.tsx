@@ -49,6 +49,12 @@ function getServiceName(service: Service, locale: string) {
   return service.name_he;
 }
 
+/** Formats a "YYYY-MM-DD" date string as "DD/MM/YYYY" for display. */
+function formatDateDMY(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function getCategoryName(cat: ServiceCategory, locale: string) {
   if (locale === "ar" && cat.name_ar) return cat.name_ar;
   if (locale === "en" && cat.name_en) return cat.name_en;
@@ -342,7 +348,7 @@ export function BookingFlow({
       {/* Step 3: Time */}
       {step === "time" && (
         <div>
-          <BackBtn onClick={() => setStep("date")} label={selectedDate} />
+          <BackBtn onClick={() => setStep("date")} label={formatDateDMY(selectedDate)} />
           <h2 className="text-lg font-bold text-gray-900 mb-4">{t("selectTime")}</h2>
           {slots.length === 0 ? (
             <p className="text-gray-500 text-center py-8">{t("noSlotsAvailable")}</p>
@@ -395,7 +401,7 @@ export function BookingFlow({
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">סיכום</p>
               <p className="font-semibold text-gray-900">{selectedService && getServiceName(selectedService, locale)}</p>
               <p className="text-sm text-gray-500 mt-1">
-                {selectedDate} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
+                {formatDateDMY(selectedDate)} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
               </p>
               <p className="text-sm text-gray-500">
                 {selectedService?.duration_minutes} {t("minutes")}
@@ -428,7 +434,7 @@ export function BookingFlow({
           <div className="rounded-xl border border-gray-200 bg-white p-4 text-start shadow-sm">
             <p className="font-semibold text-gray-900">{selectedService && getServiceName(selectedService, locale)}</p>
             <p className="text-sm text-gray-500 mt-1">
-              {selectedDate} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
+              {formatDateDMY(selectedDate)} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
             </p>
             <p className="text-sm text-gray-500">{business.name}</p>
           </div>
