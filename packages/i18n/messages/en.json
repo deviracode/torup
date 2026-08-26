@@ -255,7 +255,7 @@
     "logo": "Logo",
     "logoHint": "Shown on your booking page and in message previews.",
     "bannerImage": "Banner image",
-    "bannerImageHint": "A wide cover photo shown at the top of your booking page. Recommended 1600×600.",
+    "bannerImageHint": "A wide cover photo shown at the top of your booking page. Recommended 1920×224.",
     "uploadImage": "Upload",
     "changeImage": "Change",
     "removeImage": "Remove",
