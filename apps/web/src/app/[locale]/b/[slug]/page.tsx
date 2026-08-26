@@ -105,7 +105,7 @@ export default async function BookingPage({
       {/* Hero banner */}
       <div className="relative">
         <div
-          className="h-48 w-full sm:h-64"
+          className="h-40 w-full sm:h-64"
           style={
             business.cover_url
               ? {
