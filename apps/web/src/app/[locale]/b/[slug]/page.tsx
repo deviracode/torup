@@ -106,9 +106,9 @@ export default async function BookingPage({
       <div className="relative">
         <div
           // Matches the recommended upload size (1600×600, an 8:3 ratio) so a
-          // correctly-sized banner shows with no cropping, capped so it
-          // doesn't get excessively tall on very wide screens.
-          className="aspect-[8/3] max-h-[420px] w-full min-h-[140px]"
+          // correctly-sized banner always shows with zero cropping — no
+          // max-height cap, since that would clip the image on wide screens.
+          className="aspect-[8/3] w-full min-h-[140px]"
           style={
             business.cover_url
               ? {
