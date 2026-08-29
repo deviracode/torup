@@ -8,7 +8,6 @@ import type {
   TimeSlot,
   SlotSuggestion,
 } from "./types.js";
-import { DEFAULT_SLOT_INTERVAL_MINUTES } from "../constants.js";
 
 /**
  * Parse "HH:mm" string to minutes since midnight
@@ -143,7 +142,13 @@ export function getAvailableSlots(
   breaks: BreakPeriod[],
   existingAppointments: ExistingAppointment[],
   bookingRules?: BookingRulesConfig,
-  intervalMinutes: number = DEFAULT_SLOT_INTERVAL_MINUTES
+  // Defaults to packing slots back-to-back by the service's own duration +
+  // buffer (e.g. a 45-min service offers 13:00, 13:45, 14:30, ...) rather
+  // than a fixed cadence unrelated to the service — a fixed default here
+  // previously let getSuggestedSlots() (which omits this argument) generate
+  // mutually-overlapping candidate slots for any service whose duration
+  // wasn't a multiple of DEFAULT_SLOT_INTERVAL_MINUTES.
+  intervalMinutes: number = service.durationMinutes + service.bufferMinutes
 ): TimeSlot[] {
   const workableRanges = getWorkableRanges(dateStr, workingHours, breaks);
   if (workableRanges.length === 0) return [];
