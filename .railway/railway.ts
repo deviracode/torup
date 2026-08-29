@@ -40,6 +40,9 @@ export default defineRailway((ctx) => {
       PAYPLUS_PAGE_UID: preserve(),
       PAYPLUS_SECRET_KEY: preserve(),
       PAYPLUS_TERMINAL_UID: preserve(),
+      // Flip once the "manager_new_booking" WhatsApp template is approved —
+      // see sendManagerNotification()'s comment in notifications.ts.
+      WHATSAPP_MANAGER_TEMPLATE_APPROVED: preserve(),
     },
   });
 
