@@ -12,10 +12,13 @@ describe("DatePicker", () => {
     const onChange = vi.fn();
     render(<DatePicker value={undefined} onChange={onChange} />);
     await user.click(screen.getByRole("button"));
-    // click today's date cell (the day button inside the gridcell — jsdom
-    // hit-testing cannot reach the button through the td)
-    const today = new Date().getDate().toString();
-    const cell = screen.getByRole("gridcell", { name: today });
+    // Click today's date cell. Matching by bare day number (e.g. "26") is
+    // ambiguous whenever an adjacent month's outside-day shares the same
+    // number in the visible grid — react-day-picker's gridcell carries the
+    // full ISO date in data-day, which is never ambiguous.
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const cell = document.querySelector(`[data-day="${todayIso}"]`)!;
     await user.click(cell.querySelector("button")!);
     expect(onChange).toHaveBeenCalled();
   });
