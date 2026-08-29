@@ -107,7 +107,11 @@ export default defineRailway((ctx) => {
       builder: "DOCKERFILE",
       dockerfilePath: "apps/web/Dockerfile",
     },
-    healthcheck: "/",
+    // "/" always 307-redirects to a locale (e.g. "/he") via the i18n
+    // middleware, which Railway's healthcheck prober does not treat as
+    // healthy — every real deploy failed on this until switched to a
+    // dedicated 200-OK endpoint outside the [locale] segment.
+    healthcheck: "/api/health",
     deploy: { sleepApplication: sleepWhenIdle },
     env: {
       NODE_ENV: "production",
