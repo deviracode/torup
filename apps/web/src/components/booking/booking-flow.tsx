@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "@/lib/api";
 import { Check, ArrowRight, ArrowLeft, Clock, Banknote, MessageCircle, ChevronLeft } from "lucide-react";
-import { formatILS, toLocalDateString } from "@/lib/format";
+import { formatILS, toLocalDateString, toInternationalPhone } from "@/lib/format";
+import { pageVariants } from "@/components/motion";
 
 interface Service {
   id: string;
@@ -29,7 +31,14 @@ interface Business {
   id: string;
   name: string;
   phone: string;
+  contact_phone?: string | null;
+  social_links?: Record<string, string> | null;
   slug: string;
+}
+
+/** WhatsApp target: explicit social_links.whatsapp, else contact_phone, else the main phone. */
+function getWhatsAppNumber(business: Business): string {
+  return business.social_links?.whatsapp || business.contact_phone || business.phone;
 }
 
 interface TimeSlot {
@@ -45,6 +54,12 @@ function getServiceName(service: Service, locale: string) {
   if (locale === "ar" && service.name_ar) return service.name_ar;
   if (locale === "en" && service.name_en) return service.name_en;
   return service.name_he;
+}
+
+/** Formats a "YYYY-MM-DD" date string as "DD/MM/YYYY" for display. */
+function formatDateDMY(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function getCategoryName(cat: ServiceCategory, locale: string) {
@@ -139,7 +154,7 @@ export function BookingFlow({
 
   const handleServiceSelect = (service: Service) => {
     if (service.price_type === "discuss") {
-      window.open(`https://wa.me/${business.phone.replace(/[^0-9]/g, "")}`, "_blank");
+      window.open(`https://wa.me/${toInternationalPhone(getWhatsAppNumber(business))}`, "_blank");
       return;
     }
     setSelectedService(service);
@@ -221,12 +236,21 @@ export function BookingFlow({
         : [];
 
   return (
-    <div className="space-y-6">
+    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-lg shadow-slate-200/50 sm:p-6">
       {step !== "confirmed" && <StepIndicator current={step} locale={locale} onStepClick={setStep} />}
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
+        <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-600">{error}</div>
       )}
+
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={`${step}-${selectedCategory ?? ""}`}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
 
       {/* Category picker (when categories exist and none selected yet) */}
       {step === "service" && hasCategories && selectedCategory === null && (
@@ -331,7 +355,7 @@ export function BookingFlow({
       {/* Step 3: Time */}
       {step === "time" && (
         <div>
-          <BackBtn onClick={() => setStep("date")} label={selectedDate} />
+          <BackBtn onClick={() => setStep("date")} label={formatDateDMY(selectedDate)} />
           <h2 className="text-lg font-bold text-gray-900 mb-4">{t("selectTime")}</h2>
           {slots.length === 0 ? (
             <p className="text-gray-500 text-center py-8">{t("noSlotsAvailable")}</p>
@@ -384,7 +408,7 @@ export function BookingFlow({
               <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400 mb-2">סיכום</p>
               <p className="font-semibold text-gray-900">{selectedService && getServiceName(selectedService, locale)}</p>
               <p className="text-sm text-gray-500 mt-1">
-                {selectedDate} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
+                {formatDateDMY(selectedDate)} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
               </p>
               <p className="text-sm text-gray-500">
                 {selectedService?.duration_minutes} {t("minutes")}
@@ -417,13 +441,13 @@ export function BookingFlow({
           <div className="rounded-xl border border-gray-200 bg-white p-4 text-start shadow-sm">
             <p className="font-semibold text-gray-900">{selectedService && getServiceName(selectedService, locale)}</p>
             <p className="text-sm text-gray-500 mt-1">
-              {selectedDate} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
+              {formatDateDMY(selectedDate)} · {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString(localeStr, { hour: "2-digit", minute: "2-digit", hour12: false })}
             </p>
             <p className="text-sm text-gray-500">{business.name}</p>
           </div>
           {business.phone && (
             <a
-              href={`https://wa.me/${business.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
+              href={`https://wa.me/${toInternationalPhone(getWhatsAppNumber(business))}?text=${encodeURIComponent(locale === "he" ? `שלום, קבעתי תור ב-${business.name}` : `Hi, I booked an appointment at ${business.name}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:border-green-400 hover:text-green-700 transition-all"
@@ -434,6 +458,9 @@ export function BookingFlow({
           )}
         </div>
       )}
+
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

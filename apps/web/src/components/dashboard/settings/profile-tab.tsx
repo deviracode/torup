@@ -13,17 +13,21 @@ import {
   Button,
   Skeleton,
 } from "@torup/ui";
+import { ImageUploadField } from "./image-upload-field";
 
 interface BusinessProfile {
   id: string;
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
   phone: string | null;
   contact_phone: string | null;
   email: string | null;
   address: string | null;
   bot_context: string | null;
+  social_links: Record<string, string> | null;
 }
 
 export default function ProfileTab() {
@@ -50,11 +54,14 @@ export default function ProfileTab() {
         body: JSON.stringify({
           name: profile.name,
           description: profile.description,
+          logo_url: profile.logo_url,
+          cover_url: profile.cover_url,
           phone: profile.phone,
           contact_phone: profile.contact_phone,
           email: profile.email,
           address: profile.address,
           bot_context: profile.bot_context,
+          social_links: profile.social_links,
         }),
       });
       toast.success(t("saved"));
@@ -95,6 +102,33 @@ export default function ProfileTab() {
         </Field>
       </FormSection>
 
+      <FormSection title={t("profileBrandingTitle")}>
+        <ImageUploadField
+          label={t("logo")}
+          hint={t("logoHint")}
+          value={profile.logo_url}
+          onChange={(url) => setProfile({ ...profile, logo_url: url })}
+          businessId={businessId!}
+          fileKey="logo"
+          shape="circle"
+          uploadLabel={t("uploadImage")}
+          changeLabel={t("changeImage")}
+          removeLabel={t("removeImage")}
+        />
+        <ImageUploadField
+          label={t("bannerImage")}
+          hint={t("bannerImageHint")}
+          value={profile.cover_url}
+          onChange={(url) => setProfile({ ...profile, cover_url: url })}
+          businessId={businessId!}
+          fileKey="banner"
+          shape="wide"
+          uploadLabel={t("uploadImage")}
+          changeLabel={t("changeImage")}
+          removeLabel={t("removeImage")}
+        />
+      </FormSection>
+
       <FormSection title={t("profileContactTitle")}>
         <Field label={t("phone")}>
           <Input
@@ -126,6 +160,32 @@ export default function ProfileTab() {
             onChange={(e) =>
               setProfile({ ...profile, address: e.target.value })
             }
+          />
+        </Field>
+        <Field label={t("wazeLink")} hint={t("wazeLinkHint")}>
+          <Input
+            value={profile.social_links?.waze || ""}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                social_links: { ...profile.social_links, waze: e.target.value },
+              })
+            }
+            dir="ltr"
+            placeholder="https://waze.com/ul/..."
+          />
+        </Field>
+        <Field label={t("whatsappNumber")} hint={t("whatsappNumberHint")}>
+          <Input
+            value={profile.social_links?.whatsapp || ""}
+            onChange={(e) =>
+              setProfile({
+                ...profile,
+                social_links: { ...profile.social_links, whatsapp: e.target.value },
+              })
+            }
+            dir="ltr"
+            placeholder="050-1234567"
           />
         </Field>
       </FormSection>
