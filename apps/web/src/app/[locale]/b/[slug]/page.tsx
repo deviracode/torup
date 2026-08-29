@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import { BookingFlow } from "@/components/booking/booking-flow";
+import { ShareButton } from "@/components/booking/share-button";
 import { toInternationalPhone } from "@/lib/format";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -149,6 +150,8 @@ export default async function BookingPage({
         >
           <div className="h-full w-full bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
         </div>
+
+        <ShareButton businessName={business.name} className="absolute end-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-all hover:bg-black/45" />
 
         <div className="mx-auto max-w-2xl px-4">
           <div className="-mt-10 flex items-end gap-4 sm:-mt-12">

@@ -72,7 +72,9 @@
     "minutes": "دقائق",
     "poweredBy": "بدعم من",
     "waze": "Waze",
-    "whatsapp": "واتساب"
+    "whatsapp": "واتساب",
+    "share": "مشاركة",
+    "linkCopied": "تم نسخ الرابط!"
   },
   "dashboard": {
     "today": "اليوم",

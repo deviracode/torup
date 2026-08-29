@@ -72,7 +72,9 @@
     "minutes": "דקות",
     "poweredBy": "מופעל על ידי",
     "waze": "Waze",
-    "whatsapp": "וואטסאפ"
+    "whatsapp": "וואטסאפ",
+    "share": "שיתוף",
+    "linkCopied": "הקישור הועתק!"
   },
   "dashboard": {
     "today": "היום",

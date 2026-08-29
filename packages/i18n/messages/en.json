@@ -72,7 +72,9 @@
     "minutes": "minutes",
     "poweredBy": "Powered by",
     "waze": "Waze",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "share": "Share",
+    "linkCopied": "Link copied!"
   },
   "dashboard": {
     "today": "Today",
