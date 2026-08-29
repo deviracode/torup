@@ -112,7 +112,12 @@ export default defineRailway((ctx) => {
     env: {
       NODE_ENV: "production",
       PORT: "3000",
-      HOSTNAME: "0.0.0.0",
+      // "::" binds dual-stack (IPv4 + IPv6). "0.0.0.0" is IPv4-only, which
+      // made the app unreachable to Railway's healthcheck prober whenever it
+      // connects over IPv6 — this literal service variable overrides the
+      // Dockerfile's own ENV HOSTNAME at container runtime, so it has to be
+      // fixed here too, not just in the Dockerfile.
+      HOSTNAME: "::",
       NEXT_PUBLIC_SUPABASE_URL: preserve(),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: preserve(),
       NEXT_PUBLIC_API_URL: "https://${{torup-api.RAILWAY_PUBLIC_DOMAIN}}",
