@@ -57,5 +57,9 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 
 EXPOSE 3000
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# "::" binds dual-stack (both IPv4 and IPv6). "0.0.0.0" is IPv4-only, which
+# left the app unreachable to Railway's healthcheck prober — every other
+# service in this repo (Express, via app.listen(port) with no host) binds
+# dual-stack by default, this one has to opt in explicitly.
+ENV HOSTNAME="::"
 CMD ["node", "apps/web/server.js"]
