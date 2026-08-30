@@ -156,16 +156,39 @@ export function getAvailableSlots(
   const slotDuration = service.durationMinutes + service.bufferMinutes;
   const now = new Date();
   const slots: TimeSlot[] = [];
+  const dayStart = createDateTime(dateStr, 0);
 
   for (const range of workableRanges) {
     const rangeStartMin = timeToMinutes(range.start);
     const rangeEndMin = timeToMinutes(range.end);
 
+    // A fixed-cadence grid from the range's own start leaves a dead gap
+    // whenever a run of back-to-back appointments ends on a time that isn't
+    // on that grid (e.g. a lunch break shifts the grid's phase) — the
+    // business owner's capacity is free again, but no slot ever offers it
+    // until the next grid point. So every existing appointment's end time
+    // (clamped to this range) is also a candidate slot start, in addition
+    // to the fixed grid, matching how a human would actually book: as soon
+    // as the previous appointment ends.
+    const candidateStarts = new Set<number>();
     for (
       let startMin = rangeStartMin;
       startMin + service.durationMinutes <= rangeEndMin;
       startMin += intervalMinutes
     ) {
+      candidateStarts.add(startMin);
+    }
+    for (const apt of existingAppointments) {
+      const endMin = Math.round((apt.endTime.getTime() - dayStart.getTime()) / 60000);
+      if (
+        endMin >= rangeStartMin &&
+        endMin + service.durationMinutes <= rangeEndMin
+      ) {
+        candidateStarts.add(endMin);
+      }
+    }
+
+    for (const startMin of Array.from(candidateStarts).sort((a, b) => a - b)) {
       const slotStart = createDateTime(dateStr, startMin);
       const slotEnd = createDateTime(dateStr, startMin + service.durationMinutes);
       const slotEndWithBuffer = createDateTime(dateStr, startMin + slotDuration);

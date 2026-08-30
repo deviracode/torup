@@ -327,6 +327,37 @@ describe("getAvailableSlots", () => {
       expect(slots[i].start.getTime()).toBeGreaterThanOrEqual(slots[i - 1].end.getTime());
     }
   });
+
+  it("offers a slot exactly when a prior appointment ends, even off-grid", () => {
+    // Regression test: production case (Somar, 2026-08-31). A single break
+    // at 12:00-12:30 splits the working day into two ranges; the second
+    // range's fixed 45-min grid (12:30, 13:15, ...) doesn't land on 13:00,
+    // the moment a prior back-to-back appointment actually frees up —
+    // wasting real capacity between 13:00 and the next grid slot at 13:15.
+    const eyebrows: ServiceConfig = {
+      durationMinutes: 45,
+      bufferMinutes: 0,
+      maxCapacity: 1,
+    };
+    const workingHours: WorkingDay[] = [
+      { dayOfWeek: 0, ranges: [{ start: "09:00", end: "17:00" }], isClosed: false },
+    ];
+    const breaks: BreakPeriod[] = [
+      { type: "recurring", dayOfWeek: 0, start: "12:00", end: "12:30" },
+    ];
+    const appointments: ExistingAppointment[] = [
+      {
+        startTime: new Date("2026-04-05T12:30:00"),
+        endTime: new Date("2026-04-05T13:00:00"),
+      },
+    ];
+
+    const slots = getAvailableSlots("2026-04-05", eyebrows, workingHours, breaks, appointments);
+
+    expect(slots.some((s) => s.start.getTime() === new Date("2026-04-05T13:00:00").getTime())).toBe(
+      true
+    );
+  });
 });
 
 describe("getSuggestedSlots", () => {
