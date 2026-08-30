@@ -352,6 +352,7 @@
     "attendanceRejected": "Thanks for letting us know. The appointment has been marked cancelled.",
     "noLongerActive": "This appointment is no longer active.",
     "pickerComingSoon": "Picking a new time will be available soon.",
+    "noSlots": "No available times on this date.",
     "back": "Back"
   }
 }

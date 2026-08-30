@@ -28,6 +28,7 @@ describe("appointment-link service", () => {
     const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
     const result = await svc.verifyAndGet("tok123", "0501234567");
     expect(result.id).toBe("apt-1");
+    expect(result.serviceId).toBe("svc-1");
     expect((result as any).customerPhone).toBeUndefined(); // never leak the raw phone back
   });
 

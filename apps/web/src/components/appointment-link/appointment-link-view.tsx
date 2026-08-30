@@ -9,6 +9,7 @@ interface AppointmentSummary {
   id: string;
   businessId: string;
   businessName: string;
+  serviceId: string;
   serviceName: string;
   startTime: string;
   status: string;
@@ -191,6 +192,7 @@ function ChangeRequestButtons({
     return (
       <DateTimePicker
         businessId={appointment.businessId}
+        serviceId={appointment.serviceId}
         onSelect={async (slotStart) => {
           setSubmitting(true);
           try {

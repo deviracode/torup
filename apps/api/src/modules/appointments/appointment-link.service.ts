@@ -16,6 +16,7 @@ export interface AppointmentLinkSummary {
   id: string;
   businessId: string;
   businessName: string;
+  serviceId: string;
   serviceName: string;
   startTime: string;
   status: string;
@@ -50,6 +51,7 @@ export function createAppointmentLinkService(repo: Repo, deps: AppointmentLinkSe
       id: apt.id,
       businessId: apt.business_id,
       businessName: apt.businesses.name,
+      serviceId: apt.service_id,
       serviceName,
       startTime: apt.start_time,
       status: apt.status,
