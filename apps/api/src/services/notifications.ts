@@ -617,6 +617,7 @@ export async function sendChangeRequestOwnerNotification(requestId: string) {
     .single();
 
   if (!appointment || !business?.phone) return;
+  if (!appointment.customers || !appointment.services) return;
 
   const customer = appointment.customers as unknown as { name: string };
   const service = appointment.services as unknown as { name_he: string };
@@ -685,6 +686,7 @@ export async function sendAttendanceOwnerNotification(
     .eq("id", appointment.business_id)
     .single();
   if (!business?.phone) return;
+  if (!appointment.customers || !appointment.services) return;
 
   const customer = appointment.customers as unknown as { name: string };
   const service = appointment.services as unknown as { name_he: string };
@@ -752,6 +754,7 @@ export async function sendChangeRequestResolutionNotification(
     .eq("id", request.appointment_id)
     .single();
   if (!appointment) return;
+  if (!appointment.customers) return;
 
   const customer = appointment.customers as unknown as {
     id: string; name: string; phone: string; language_preference: string;

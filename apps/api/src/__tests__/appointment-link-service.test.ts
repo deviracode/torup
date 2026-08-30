@@ -67,7 +67,7 @@ describe("appointment-link service", () => {
 
   it("setAttendance reject updates status=cancelled, customer_confirmed=false", async () => {
     const repo = makeRepo(ROW);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn().mockResolvedValue(undefined) });
     await svc.setAttendance("tok123", "0501234567", "reject");
     expect(repo.updateAttendance).toHaveBeenCalledWith("apt-1", "cancelled", false);
   });

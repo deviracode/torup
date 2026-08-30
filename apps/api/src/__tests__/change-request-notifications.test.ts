@@ -52,7 +52,28 @@ describe("change-request notifications", () => {
     });
     const { sendChangeRequestOwnerNotification } = await import("../services/notifications");
     await sendChangeRequestOwnerNotification("req-1");
-    expect(mockSendWhatsAppMessage).toHaveBeenCalled();
+    expect(mockSendWhatsAppMessage).toHaveBeenCalledWith(expect.anything(), "972501111111", expect.any(String));
+  });
+
+  it("sendChangeRequestOwnerNotification does not throw when the appointment's customer/service relation is null", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "appointment_change_requests") {
+        return chain({ id: "req-1", type: "cancel", appointment_id: "apt-1", business_id: "biz-1" });
+      }
+      if (table === "appointments") {
+        return chain({ id: "apt-1", start_time: "2099-01-01T10:00:00Z", customers: null, services: null });
+      }
+      if (table === "businesses") {
+        return chain({ name: "Studio", phone: "972501111111" });
+      }
+      if (table === "whatsapp_credentials") {
+        return chain(credentialRow);
+      }
+      return chain(null);
+    });
+    const { sendChangeRequestOwnerNotification } = await import("../services/notifications");
+    await expect(sendChangeRequestOwnerNotification("req-1")).resolves.not.toThrow();
+    expect(mockSendWhatsAppMessage).not.toHaveBeenCalled();
   });
 
   it("sendAttendanceOwnerNotification sends to the business's phone", async () => {
@@ -76,7 +97,31 @@ describe("change-request notifications", () => {
     });
     const { sendAttendanceOwnerNotification } = await import("../services/notifications");
     await sendAttendanceOwnerNotification("apt-1", "confirm");
-    expect(mockSendWhatsAppMessage).toHaveBeenCalled();
+    expect(mockSendWhatsAppMessage).toHaveBeenCalledWith(expect.anything(), "972501111111", expect.any(String));
+  });
+
+  it("sendAttendanceOwnerNotification does not throw when the appointment's customer/service relation is null", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "appointments") {
+        return chain({
+          id: "apt-1",
+          business_id: "biz-1",
+          start_time: "2099-01-01T10:00:00Z",
+          customers: null,
+          services: null,
+        });
+      }
+      if (table === "businesses") {
+        return chain({ name: "Studio", phone: "972501111111" });
+      }
+      if (table === "whatsapp_credentials") {
+        return chain(credentialRow);
+      }
+      return chain(null);
+    });
+    const { sendAttendanceOwnerNotification } = await import("../services/notifications");
+    await expect(sendAttendanceOwnerNotification("apt-1", "confirm")).resolves.not.toThrow();
+    expect(mockSendWhatsAppMessage).not.toHaveBeenCalled();
   });
 
   it("sendChangeRequestResolutionNotification sends to the customer's phone", async () => {

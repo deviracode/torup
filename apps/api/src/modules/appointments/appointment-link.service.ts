@@ -60,7 +60,7 @@ export function createAppointmentLinkService(repo: Repo, deps: AppointmentLinkSe
     const apt = await loadVerified(token, phone);
     const status = decision === "confirm" ? "confirmed" : "cancelled";
     await repo.updateAttendance(apt.id, status, decision === "confirm");
-    await deps.notifyOwnerOfAttendance(apt.id, decision);
+    deps.notifyOwnerOfAttendance(apt.id, decision).catch((err) => console.error("[Notification] attendance owner notify failed:", err));
     return { status };
   }
 
