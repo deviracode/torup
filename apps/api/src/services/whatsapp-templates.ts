@@ -67,28 +67,63 @@ interface GraphErrorResponse {
   error?: { message: string; type: string; code: number; error_subcode?: number; fbtrace_id?: string };
 }
 
+async function graphGet<T>(path: string, accessToken: string): Promise<T | null> {
+  const res = await fetch(`${WHATSAPP_API_URL}/${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = (await res.json()) as T & GraphErrorResponse;
+  if (!res.ok || data.error) {
+    console.error(
+      `[WhatsApp] GET ${path.split("?")[0]} failed — HTTP ${res.status}: ` +
+      `code=${data.error?.code} msg="${data.error?.message}"`
+    );
+    return null;
+  }
+  return data;
+}
+
 /**
- * Resolve the WhatsApp Business Account id that owns a phone number. Needed
- * because credentials are stored per phone-number-id, but template
- * create/list is a WABA-level operation.
+ * Best-effort resolution of the WhatsApp Business Account id that owns a
+ * given phone number, for tokens where it's discoverable via the Graph API.
+ *
+ * There is no "whatsapp_business_account_id" field on the phone-number node
+ * (Graph API rejects it: "Tried accessing nonexisting field"). A System
+ * User token's /debug_token granular_scopes only carries target_ids when the
+ * grant was asset-restricted — a broadly-granted System User has none to
+ * read, and me/businesses can also come back empty for a System User token
+ * even when business_management is granted (confirmed against a real
+ * production token). There is no known reliable way to derive the WABA id
+ * from just a phone_number_id + System User token in that case — callers
+ * without one should pass an explicit wabaId to provisionTemplates instead
+ * (get it from WhatsApp Business Manager, same lookup already documented in
+ * .claude/skills/connect-whatsapp-business/SKILL.md step 1).
+ *
+ * Where it *is* discoverable (e.g. a user access token with me/businesses
+ * populated), this walks me/businesses -> owned_whatsapp_business_accounts
+ * -> phone_numbers and matches on phoneNumberId.
  */
 export async function resolveWabaId(
   phoneNumberId: string,
   accessToken: string
 ): Promise<string | null> {
-  const res = await fetch(
-    `${WHATSAPP_API_URL}/${phoneNumberId}?fields=whatsapp_business_account_id`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const data = (await res.json()) as GraphErrorResponse & { whatsapp_business_account_id?: string };
-  if (!res.ok || data.error) {
-    console.error(
-      `[WhatsApp] Failed to resolve WABA id for phone_number_id ${phoneNumberId} — HTTP ${res.status}: ` +
-      `code=${data.error?.code} msg="${data.error?.message}"`
+  const businesses = await graphGet<{ data: { id: string }[] }>("me/businesses", accessToken);
+  for (const business of businesses?.data ?? []) {
+    const wabas = await graphGet<{ data: { id: string }[] }>(
+      `${business.id}/owned_whatsapp_business_accounts`,
+      accessToken
     );
-    return null;
+    for (const waba of wabas?.data ?? []) {
+      const phones = await graphGet<{ data: { id: string }[] }>(`${waba.id}/phone_numbers`, accessToken);
+      if (phones?.data?.some((p) => p.id === phoneNumberId)) {
+        return waba.id;
+      }
+    }
   }
-  return data.whatsapp_business_account_id ?? null;
+  console.error(
+    `[WhatsApp] Could not resolve WABA id for phone_number_id ${phoneNumberId} via Graph API — ` +
+    `pass an explicit wabaId (from WhatsApp Business Manager) instead`
+  );
+  return null;
 }
 
 export type TemplateSubmitResult =
@@ -149,9 +184,10 @@ async function submitTemplate(
  * during onboarding, and inspect the per-template results for a bulk backfill.
  */
 export async function provisionTemplates(
-  credential: WhatsAppCredential
+  credential: WhatsAppCredential,
+  explicitWabaId?: string
 ): Promise<{ wabaId: string; results: TemplateSubmitResult[] } | { wabaId: null; results: [] }> {
-  const wabaId = await resolveWabaId(credential.phoneNumberId, credential.accessToken);
+  const wabaId = explicitWabaId ?? (await resolveWabaId(credential.phoneNumberId, credential.accessToken));
   if (!wabaId) return { wabaId: null, results: [] };
 
   const results: TemplateSubmitResult[] = [];

@@ -12,6 +12,10 @@
  *   # scope to one business:
  *   ... npx tsx scripts/backfill-whatsapp-templates.ts --business-id <uuid>
  *   ... npx tsx scripts/backfill-whatsapp-templates.ts --business-name "Somar Eyebrow Art"
+ *   # skip Graph API WABA-id resolution (unreliable for broadly-scoped System
+ *   # User tokens — see resolveWabaId's docstring) and pass it explicitly,
+ *   # from WhatsApp Business Manager. Requires scoping to exactly one business:
+ *   ... npx tsx scripts/backfill-whatsapp-templates.ts --business-name "Somar Eyebrow Art" --waba-id 1778550770006415
  *
  * Respects whatever SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY are in the
  * environment — verify these point at the intended project before running,
@@ -71,6 +75,12 @@ async function main() {
     console.log(`[backfill] Scoped to business ${businessIdFilter}`);
   }
 
+  const wabaIdOverride = parseArg("--waba-id");
+  if (wabaIdOverride && !businessIdFilter) {
+    console.error("[backfill] --waba-id requires --business-id or --business-name (can't apply one WABA id to multiple businesses)");
+    process.exit(1);
+  }
+
   const repo = createWhatsAppCredentialsRepo(createServiceClient());
   const { data: allCredentials, error } = await repo.listAllActive();
   if (error) {
@@ -96,10 +106,10 @@ async function main() {
       skipped += 1;
       continue;
     }
-    const { wabaId, results } = await provisionTemplates({
-      phoneNumberId: cred.phone_number_id,
-      accessToken: cred.access_token,
-    });
+    const { wabaId, results } = await provisionTemplates(
+      { phoneNumberId: cred.phone_number_id, accessToken: cred.access_token },
+      wabaIdOverride ?? undefined
+    );
     if (!wabaId) {
       console.error(`[backfill] business ${cred.business_id}: could not resolve WABA id — skipping`);
       skipped += 1;
