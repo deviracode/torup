@@ -334,5 +334,24 @@
     "upgradePlan": "Upgrade plan",
     "upgradeComingSoon": "Plan upgrades are coming soon. Contact us on WhatsApp in the meantime.",
     "perMonth": "per month"
+  },
+  "appointmentLink": {
+    "title": "Your appointment",
+    "enterPhone": "Enter your phone number to view your appointment details",
+    "phonePlaceholder": "05X-XXXXXXX",
+    "continue": "Continue",
+    "verifyFailed": "We couldn't verify these details. Check the phone number and try again.",
+    "actionFailed": "Something went wrong. Please try again.",
+    "yourAppointment": "Your appointment",
+    "iWillAttend": "I'll be there",
+    "iWontAttend": "I won't attend",
+    "requestChange": "Request a time change",
+    "requestCancel": "Request cancellation",
+    "requestSent": "Your request has been sent to the business.",
+    "attendanceConfirmed": "Thanks! See you at your appointment.",
+    "attendanceRejected": "Thanks for letting us know. The appointment has been marked cancelled.",
+    "noLongerActive": "This appointment is no longer active.",
+    "pickerComingSoon": "Picking a new time will be available soon.",
+    "back": "Back"
   }
 }
