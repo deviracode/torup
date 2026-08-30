@@ -44,10 +44,19 @@ export function createAvailabilityRepo(client: SupabaseClient<Database>) {
       // member who is assigned to this service — a shared staff member busy
       // elsewhere still reduces this service's real capacity, even though
       // the appointment isn't for this service_id.
+      //
+      // When no staff are assigned to this service at all (the common case
+      // for a small/solo business that never set up the staff feature),
+      // there's no way to know who's covering any given booking — so every
+      // appointment for the business, regardless of service, must be
+      // treated as a conflict. Without this, a solo owner double-books
+      // herself the moment two DIFFERENT services (e.g. "eyebrows" and
+      // "eyebrows + wax") happen to overlap, since neither service_id nor
+      // staff_id (usually null) would tie them together.
       query =
         staffIds.length > 0
           ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
-          : query.eq("service_id", serviceId);
+          : query;
 
       return query;
     },

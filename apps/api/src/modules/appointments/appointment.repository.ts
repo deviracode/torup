@@ -103,10 +103,13 @@ export function createAppointmentRepo(
         // block the slot from being offered/booked by another customer.
         .not("status", "in", '("cancelled","no_show","pending_approval")');
 
+      // See availability.repository.ts's findAppointmentsForDay for why an
+      // unstaffed service must conflict against the whole business, not
+      // just its own service_id.
       query =
         staffIds.length > 0
           ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
-          : query.eq("service_id", serviceId);
+          : query;
 
       if (excludeId) query = query.neq("id", excludeId);
 
