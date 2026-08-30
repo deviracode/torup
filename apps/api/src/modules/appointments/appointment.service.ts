@@ -139,6 +139,10 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
           deps.notify
             .sendManager(data.id)
             .catch((err) => console.error("[Notification] manager failed:", err));
+        } else if (finalStatus === "confirmed") {
+          deps.notify
+            .sendAppointment(data.id, "booking_confirmation")
+            .catch((err) => console.error("[Notification] booking_confirmation failed:", err));
         }
         deps.gcal
           .pushAppointment(data.id)
