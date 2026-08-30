@@ -93,7 +93,14 @@ export function createAppointmentRepo(
       excludeId?: string,
       staffIds: string[] = []
     ) {
-      let query = primary
+      // Uses `svc` (service role when provided), not `primary` — anon has no
+      // SELECT policy on appointments at all (see the RLS migrations), so
+      // with the public booking flow's anon client this silently returned
+      // zero rows and let the capacity check pass unconditionally, no matter
+      // how full the slot actually was. This query only feeds a boolean/
+      // count decision and never returns row data to the caller, so
+      // bypassing RLS here doesn't leak anything.
+      let query = svc
         .from("appointments")
         .select("id")
         .eq("business_id", businessId)
@@ -121,11 +128,13 @@ export function createAppointmentRepo(
     },
 
     async findStaffServices(serviceId: string) {
-      return primary.from("staff_services").select("staff_id").eq("service_id", serviceId);
+      // staff_services has no anon SELECT policy either — same reasoning as
+      // findOverlapping above.
+      return svc.from("staff_services").select("staff_id").eq("service_id", serviceId);
     },
 
     async findStaffOffToday(businessId: string, dateStr: string) {
-      return primary
+      return svc
         .from("breaks")
         .select("staff_id")
         .eq("business_id", businessId)
