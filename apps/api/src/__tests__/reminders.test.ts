@@ -91,6 +91,16 @@ function makeSupabaseStubForPost(createdVia: string) {
         });
         return chain;
       }
+      if (table === "staff_services" || table === "breaks") {
+        const chain: Record<string, unknown> = {};
+        const noop = () => chain;
+        chain.select = noop;
+        chain.eq = noop;
+        chain.not = noop;
+        chain.then = (resolve: (v: { data: unknown[]; error: null }) => void) =>
+          Promise.resolve().then(() => resolve({ data: [], error: null }));
+        return chain;
+      }
       return { select: () => ({ eq: () => ({ single: async () => ({ data: null, error: { message: "not found" } }) }) }) };
     },
   };

@@ -26,16 +26,30 @@ export function createAvailabilityRepo(client: SupabaseClient<Database>) {
       businessId: string,
       serviceId: string,
       dateStr: string,
-      tzStr: string
+      tzStr: string,
+      staffIds: string[] = []
     ) {
-      return client
+      let query = client
         .from("appointments")
         .select("start_time, end_time, staff_id")
         .eq("business_id", businessId)
-        .eq("service_id", serviceId)
         .gte("start_time", `${dateStr}T00:00:00${tzStr}`)
         .lte("start_time", `${dateStr}T23:59:59${tzStr}`)
-        .not("status", "in", '("cancelled","no_show")');
+        // pending_approval hasn't been approved by the manager yet, so it
+        // must not occupy the slot — only appointments the business has
+        // actually committed to (or completed) count as taken.
+        .not("status", "in", '("cancelled","no_show","pending_approval")');
+
+      // Also count appointments for OTHER services booked with a staff
+      // member who is assigned to this service — a shared staff member busy
+      // elsewhere still reduces this service's real capacity, even though
+      // the appointment isn't for this service_id.
+      query =
+        staffIds.length > 0
+          ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
+          : query.eq("service_id", serviceId);
+
+      return query;
     },
     async findBookingRules(businessId: string) {
       return client.from("booking_rules").select("*").eq("business_id", businessId).single();

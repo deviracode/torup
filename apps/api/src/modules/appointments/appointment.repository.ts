@@ -90,20 +90,41 @@ export function createAppointmentRepo(
       serviceId: string,
       startTime: string,
       endWithBuffer: string,
-      excludeId?: string
+      excludeId?: string,
+      staffIds: string[] = []
     ) {
       let query = primary
         .from("appointments")
         .select("id")
         .eq("business_id", businessId)
-        .eq("service_id", serviceId)
         .lt("start_time", endWithBuffer)
         .gt("end_time", startTime)
-        .not("status", "in", '("cancelled","no_show")');
+        // pending_approval isn't a committed booking yet, so it must not
+        // block the slot from being offered/booked by another customer.
+        .not("status", "in", '("cancelled","no_show","pending_approval")');
+
+      query =
+        staffIds.length > 0
+          ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
+          : query.eq("service_id", serviceId);
 
       if (excludeId) query = query.neq("id", excludeId);
 
       return query;
+    },
+
+    async findStaffServices(serviceId: string) {
+      return primary.from("staff_services").select("staff_id").eq("service_id", serviceId);
+    },
+
+    async findStaffOffToday(businessId: string, dateStr: string) {
+      return primary
+        .from("breaks")
+        .select("staff_id")
+        .eq("business_id", businessId)
+        .eq("label", "time_off")
+        .eq("specific_date", dateStr)
+        .not("staff_id", "is", null);
     },
 
     async findServiceById(businessId: string, serviceId: string) {

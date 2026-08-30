@@ -42,14 +42,15 @@ export function createAvailabilityService(repo: Repo) {
       const { data: service } = await repo.findService(serviceId, businessId);
       if (!service) throw new AppError(404, "Service not found");
 
-      const [whR, brR, aptR, rulesR, ssR, sbR] = await Promise.all([
+      const [whR, brR, rulesR, ssR, sbR] = await Promise.all([
         repo.findWorkingHours(businessId),
         repo.findBreaks(businessId),
-        repo.findAppointmentsForDay(businessId, serviceId, dateStr, tz),
         repo.findBookingRules(businessId),
         repo.findStaffServices(serviceId),
         repo.findStaffOffToday(businessId, dateStr),
       ]);
+      const staffIds = (ssR.data || []).map((r) => r.staff_id);
+      const aptR = await repo.findAppointmentsForDay(businessId, serviceId, dateStr, tz, staffIds);
 
       const whMap = new Map<number, { start: string; end: string }[]>();
       for (const wh of whR.data || []) {
@@ -84,10 +85,9 @@ export function createAvailabilityService(repo: Repo) {
         endTime: new Date(a.end_time),
         staffId: a.staff_id,
       }));
-      const assigned = (ssR.data || []).map((r) => r.staff_id);
       const offToday = new Set((sbR.data || []).map((r) => r.staff_id));
       const availStaff =
-        assigned.length > 0 ? assigned.filter((id) => !offToday.has(id)).length : null;
+        staffIds.length > 0 ? staffIds.filter((id) => !offToday.has(id)).length : null;
 
       const svcCfg: ServiceConfig = {
         durationMinutes: service.duration_minutes,

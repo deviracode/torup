@@ -32,6 +32,10 @@ export interface AppointmentDeps {
   };
 }
 
+function toILDateStr(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(d);
+}
+
 export function createAppointmentService(repo: AppointmentRepo, deps: AppointmentDeps) {
   async function checkSlotCapacity(
     businessId: string,
@@ -46,18 +50,33 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
         service.buffer_minutes * 60 * 1000
     );
 
+    // Capacity should reflect how many staff can actually perform this
+    // service, not a static max_capacity column — matches the same
+    // staff-based capacity model used by the read-side availability
+    // endpoint, so booking never rejects (or accepts) a slot the customer
+    // was just shown as (un)available.
+    const [ssR, sbR] = await Promise.all([
+      repo.findStaffServices(serviceId),
+      repo.findStaffOffToday(businessId, toILDateStr(startDate)),
+    ]);
+    const offToday = new Set((sbR.data || []).map((r) => r.staff_id));
+    const staffIds = (ssR.data || []).map((r) => r.staff_id);
+    const availStaff = staffIds.length > 0 ? staffIds.filter((id) => !offToday.has(id)) : [];
+    const maxCapacity = staffIds.length > 0 ? availStaff.length : service.max_capacity;
+
     const { data: overlapping } = (await repo.findOverlapping(
       businessId,
       serviceId,
       startDate.toISOString(),
       endWithBuffer.toISOString(),
-      excludeAppointmentId
+      excludeAppointmentId,
+      staffIds
     )) as {
       data: { id: string }[] | null;
       error: import("@supabase/supabase-js").PostgrestError | null;
     };
 
-    if (overlapping && overlapping.length >= service.max_capacity) {
+    if (overlapping && overlapping.length >= maxCapacity) {
       throw new AppError(409, "Time slot is fully booked");
     }
   }
