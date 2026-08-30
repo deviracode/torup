@@ -387,17 +387,6 @@ function addDaysIsrael(daysToAdd: number): { dateStr: string; day: number } {
   return { dateStr: info.dateStr, day: info.day };
 }
 
-function getIsraelOffset(date: string): string {
-  // Determine Israel UTC offset for a given date (handles DST)
-  const d = new Date(date + "T12:00:00Z");
-  const utcH = d.getUTCHours();
-  const ilParts = new Intl.DateTimeFormat("en-US", { timeZone: IL_TZ, hour: "numeric", hour12: false }).formatToParts(d);
-  const ilH = Number(ilParts.find(p => p.type === "hour")?.value || 0);
-  let offset = ilH - utcH;
-  if (offset < 0) offset += 24;
-  if (offset > 12) offset -= 24;
-  return `+${String(offset).padStart(2, "0")}:00`;
-}
 
 async function findNextAvailableDates(businessId: string, serviceId: string, maxDays = 14, language: "he" | "ar" | "en" = "he"): Promise<{ date: string; label: string }[]> {
   const results: { date: string; label: string }[] = [];
@@ -425,92 +414,36 @@ async function findNextAvailableDates(businessId: string, serviceId: string, max
 }
 
 async function getAvailableTimeSlots(businessId: string, serviceId: string, date: string): Promise<{ time: string; label: string }[]> {
-  const supabase = getSupabase();
-  const d = new Date(date + "T12:00:00Z");
-  const { day: dayOfWeek } = getIsraelDate(d);
-
-  const [hoursRes, serviceRes, aptsRes, breaksRes] = await Promise.all([
-    supabase.from("working_hours").select("start_time, end_time, is_closed")
-      .eq("business_id", businessId).eq("day_of_week", dayOfWeek).is("staff_id", null),
-    supabase.from("services").select("duration_minutes, buffer_minutes, max_capacity")
-      .eq("id", serviceId).single(),
-    supabase.from("appointments").select("start_time, end_time")
-      .eq("business_id", businessId).eq("service_id", serviceId)
-      .gte("start_time", `${date}T00:00:00`).lt("start_time", `${date}T23:59:59`)
-      .in("status", ["pending", "confirmed", "in_progress"]),
-    supabase.from("breaks").select("type, day_of_week, specific_date, start_time, end_time")
-      .eq("business_id", businessId).is("staff_id", null),
-  ]);
-
-  // Only same-service appointments count toward this service's capacity —
-  // Google Calendar events are external/unrelated commitments and shouldn't
-  // consume a slot in a multi-capacity service's booking pool.
-  const allConflicts = aptsRes.data || [];
-
-  const wh = hoursRes.data?.[0];
-  const service = serviceRes.data;
-  if (!wh || wh.is_closed || !service) return [];
-
-  // Check applicable breaks for this date
-  const applicableBreaks = (breaksRes.data || []).filter((b: any) => {
-    if (b.type === "recurring" && b.day_of_week === dayOfWeek) return true;
-    if (b.type === "one_time" && b.specific_date === date) return true;
-    return false;
-  });
-
-  // Check full-day block
-  const isFullDayBlocked = applicableBreaks.some(
-    (b: any) => b.start_time <= "00:01" && b.end_time >= "23:58"
-  );
-  if (isFullDayBlocked) return [];
-
-  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-
-  const [startH, startM] = wh.start_time.split(":").map(Number);
-  const [endH, endM] = wh.end_time.split(":").map(Number);
-  const startMin = startH * 60 + startM;
-  const endMin = endH * 60 + endM;
-  const duration = service.duration_minutes;
-  const buffer = service.buffer_minutes || 0;
-  const step = duration + buffer;
-  const slots: { time: string; label: string }[] = [];
-
-  // Filter past times if date is today (Israel time)
-  const now = getIsraelDate();
-  const isToday = date === now.dateStr;
-  const nowMinutes = now.hours * 60 + now.minutes;
-
-  const tzOffset = getIsraelOffset(date);
-
-  for (let m = startMin; m + duration <= endMin; m += step) {
-    if (isToday && m <= nowMinutes) continue;
-
-    // Check if slot overlaps any break
-    const slotEnd = m + duration;
-    const blockedByBreak = applicableBreaks.some((b: any) => {
-      const bStart = toMin(b.start_time);
-      const bEnd = toMin(b.end_time);
-      return m < bEnd && slotEnd > bStart;
-    });
-    if (blockedByBreak) continue;
-
-    const hh = String(Math.floor(m / 60)).padStart(2, "0");
-    const mm = String(m % 60).padStart(2, "0");
-    const endHH = String(Math.floor(slotEnd / 60)).padStart(2, "0");
-    const endMM = String(slotEnd % 60).padStart(2, "0");
-    const slotStart = `${date}T${hh}:${mm}:00${tzOffset}`;
-    const slotEndStr = `${date}T${endHH}:${endMM}:00${tzOffset}`;
-
-    const slotStartUTC = new Date(slotStart).toISOString();
-    const slotEndUTC = new Date(slotEndStr).toISOString();
-
-    const conflicts = allConflicts.filter((a: any) => a.start_time < slotEndUTC && a.end_time > slotStartUTC);
-    if (conflicts.length < (service.max_capacity || 1)) {
-      slots.push({ time: slotStartUTC, label: `${hh}:${mm}` });
+  // Delegates to the same availability endpoint the web booking page uses,
+  // instead of reimplementing slot math here — this used to be a separate
+  // calculation that had drifted from apps/api's (missing pending_approval
+  // appointments as conflicts, among other divergences), so WhatsApp and the
+  // web booking page could disagree about what's available and double-book.
+  const apiUrl = process.env.API_URL || "http://localhost:3001";
+  try {
+    const res = await fetch(
+      `${apiUrl}/api/businesses/${businessId}/availability?service_id=${serviceId}&date=${date}`
+    );
+    if (!res.ok) {
+      console.error(`[getAvailableTimeSlots] availability request failed: ${res.status} ${res.statusText}`);
+      return [];
     }
+    const data = (await res.json()) as { slots?: { start: string; available_capacity: number }[] };
+    return (data.slots || [])
+      .filter((s) => s.available_capacity > 0)
+      .map((s) => ({
+        time: s.start,
+        label: new Intl.DateTimeFormat("en-GB", {
+          timeZone: IL_TZ,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(new Date(s.start)),
+      }));
+  } catch (err) {
+    console.error("[getAvailableTimeSlots] request error:", err);
+    return [];
   }
-
-  return slots;
 }
 
 async function createBooking(

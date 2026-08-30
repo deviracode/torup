@@ -168,7 +168,7 @@ describe("getAvailableSlots", () => {
       []
     );
 
-    // 09:00 to 16:30, every 15 minutes => many slots
+    // 09:00 to 16:30, stepping by duration+buffer (35 min) => many slots
     expect(slots.length).toBeGreaterThan(0);
     expect(slots[0].start).toEqual(new Date("2026-04-05T09:00:00"));
     expect(slots[0].end).toEqual(new Date("2026-04-05T09:30:00"));
@@ -176,14 +176,18 @@ describe("getAvailableSlots", () => {
   });
 
   it("reduces capacity when appointments exist", () => {
+    // haircut is 30min + 5min buffer, so slots pack every 35 minutes from
+    // the 09:00 start of the working day: 09:00, 09:35, 10:10, ... Placing
+    // the appointments to exactly match a generated slot (09:35) keeps this
+    // test's intent (capacity reduction) independent of the stepping math.
     const appointments: ExistingAppointment[] = [
       {
-        startTime: new Date("2026-04-05T10:00:00"),
-        endTime: new Date("2026-04-05T10:35:00"), // 30 min + 5 min buffer
+        startTime: new Date("2026-04-05T09:35:00"),
+        endTime: new Date("2026-04-05T10:10:00"), // 30 min + 5 min buffer
       },
       {
-        startTime: new Date("2026-04-05T10:00:00"),
-        endTime: new Date("2026-04-05T10:35:00"),
+        startTime: new Date("2026-04-05T09:35:00"),
+        endTime: new Date("2026-04-05T10:10:00"),
       },
     ];
 
@@ -195,27 +199,29 @@ describe("getAvailableSlots", () => {
       appointments
     );
 
-    const tenAmSlot = slots.find(
-      (s) => s.start.getTime() === new Date("2026-04-05T10:00:00").getTime()
+    const slot = slots.find(
+      (s) => s.start.getTime() === new Date("2026-04-05T09:35:00").getTime()
     );
 
-    expect(tenAmSlot).toBeDefined();
-    expect(tenAmSlot!.availableCapacity).toBe(1);
+    expect(slot).toBeDefined();
+    expect(slot!.availableCapacity).toBe(1);
   });
 
   it("excludes fully booked slots", () => {
+    // Same 09:35 alignment as above; haircut's maxCapacity is 3, so 3
+    // overlapping appointments should fully exclude this slot.
     const appointments: ExistingAppointment[] = [
       {
-        startTime: new Date("2026-04-05T10:00:00"),
-        endTime: new Date("2026-04-05T10:35:00"),
+        startTime: new Date("2026-04-05T09:35:00"),
+        endTime: new Date("2026-04-05T10:10:00"),
       },
       {
-        startTime: new Date("2026-04-05T10:00:00"),
-        endTime: new Date("2026-04-05T10:35:00"),
+        startTime: new Date("2026-04-05T09:35:00"),
+        endTime: new Date("2026-04-05T10:10:00"),
       },
       {
-        startTime: new Date("2026-04-05T10:00:00"),
-        endTime: new Date("2026-04-05T10:35:00"),
+        startTime: new Date("2026-04-05T09:35:00"),
+        endTime: new Date("2026-04-05T10:10:00"),
       },
     ];
 
@@ -227,11 +233,11 @@ describe("getAvailableSlots", () => {
       appointments
     );
 
-    const tenAmSlot = slots.find(
-      (s) => s.start.getTime() === new Date("2026-04-05T10:00:00").getTime()
+    const slot = slots.find(
+      (s) => s.start.getTime() === new Date("2026-04-05T09:35:00").getTime()
     );
 
-    expect(tenAmSlot).toBeUndefined();
+    expect(slot).toBeUndefined();
   });
 
   it("returns no slots for closed day", () => {
@@ -292,6 +298,65 @@ describe("getAvailableSlots", () => {
     for (const slot of slots) {
       expect(slot.start.getHours()).toBeGreaterThanOrEqual(10);
     }
+  });
+
+  it("packs slots back-to-back by service duration, not a fixed interval", () => {
+    // Regression test: a 45-min service (no buffer) starting at 13:00 must
+    // offer 13:45 as the very next slot, not 13:15/13:30 (which would
+    // overlap it) — the interval must follow the service's own duration,
+    // not an unrelated fixed cadence.
+    const massage: ServiceConfig = {
+      durationMinutes: 45,
+      bufferMinutes: 0,
+      maxCapacity: 1,
+    };
+
+    const slots = getAvailableSlots(
+      "2026-04-05",
+      massage,
+      [{ dayOfWeek: 0, ranges: [{ start: "13:00", end: "17:00" }], isClosed: false }],
+      [],
+      []
+    );
+
+    expect(slots[0].start).toEqual(new Date("2026-04-05T13:00:00"));
+    expect(slots[1].start).toEqual(new Date("2026-04-05T13:45:00"));
+
+    // No two slots should ever overlap for a single-capacity service.
+    for (let i = 1; i < slots.length; i++) {
+      expect(slots[i].start.getTime()).toBeGreaterThanOrEqual(slots[i - 1].end.getTime());
+    }
+  });
+
+  it("offers a slot exactly when a prior appointment ends, even off-grid", () => {
+    // Regression test: production case (Somar, 2026-08-31). A single break
+    // at 12:00-12:30 splits the working day into two ranges; the second
+    // range's fixed 45-min grid (12:30, 13:15, ...) doesn't land on 13:00,
+    // the moment a prior back-to-back appointment actually frees up —
+    // wasting real capacity between 13:00 and the next grid slot at 13:15.
+    const eyebrows: ServiceConfig = {
+      durationMinutes: 45,
+      bufferMinutes: 0,
+      maxCapacity: 1,
+    };
+    const workingHours: WorkingDay[] = [
+      { dayOfWeek: 0, ranges: [{ start: "09:00", end: "17:00" }], isClosed: false },
+    ];
+    const breaks: BreakPeriod[] = [
+      { type: "recurring", dayOfWeek: 0, start: "12:00", end: "12:30" },
+    ];
+    const appointments: ExistingAppointment[] = [
+      {
+        startTime: new Date("2026-04-05T12:30:00"),
+        endTime: new Date("2026-04-05T13:00:00"),
+      },
+    ];
+
+    const slots = getAvailableSlots("2026-04-05", eyebrows, workingHours, breaks, appointments);
+
+    expect(slots.some((s) => s.start.getTime() === new Date("2026-04-05T13:00:00").getTime())).toBe(
+      true
+    );
   });
 });
 

@@ -26,16 +26,48 @@ export function createAvailabilityRepo(client: SupabaseClient<Database>) {
       businessId: string,
       serviceId: string,
       dateStr: string,
-      tzStr: string
+      tzStr: string,
+      staffIds: string[] = []
     ) {
-      return client
+      let query = client
         .from("appointments")
         .select("start_time, end_time, staff_id")
         .eq("business_id", businessId)
-        .eq("service_id", serviceId)
         .gte("start_time", `${dateStr}T00:00:00${tzStr}`)
         .lte("start_time", `${dateStr}T23:59:59${tzStr}`)
-        .not("status", "in", '("cancelled","no_show")');
+        // pending_approval hasn't been approved by the manager yet, so it
+        // must not occupy the slot — only appointments the business has
+        // actually committed to (or completed) count as taken.
+        .not("status", "in", '("cancelled","no_show","pending_approval")');
+
+      // Also count appointments for OTHER services booked with a staff
+      // member who is assigned to this service — a shared staff member busy
+      // elsewhere still reduces this service's real capacity, even though
+      // the appointment isn't for this service_id.
+      //
+      // When no staff are assigned to this service at all (the common case
+      // for a small/solo business that never set up the staff feature),
+      // there's no way to know who's covering any given booking — so every
+      // appointment for the business, regardless of service, must be
+      // treated as a conflict. Without this, a solo owner double-books
+      // herself the moment two DIFFERENT services (e.g. "eyebrows" and
+      // "eyebrows + wax") happen to overlap, since neither service_id nor
+      // staff_id (usually null) would tie them together.
+      // Bookings almost never carry a staff_id in practice — there's no
+      // staff picker in the booking flow, so customers never choose a
+      // specific staff member. An unassigned (staff_id IS NULL) booking for
+      // a DIFFERENT service could still be occupying one of this service's
+      // assigned staff — we just can't tell which one, so it must be
+      // treated as a conflict too, the same as when there's no staff
+      // assignment at all.
+      query =
+        staffIds.length > 0
+          ? query.or(
+              `service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")}),staff_id.is.null`
+            )
+          : query;
+
+      return query;
     },
     async findBookingRules(businessId: string) {
       return client.from("booking_rules").select("*").eq("business_id", businessId).single();
