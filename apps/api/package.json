@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "backfill:whatsapp-templates": "tsx scripts/backfill-whatsapp-templates.ts"
   },
   "dependencies": {
     "@supabase/postgrest-js": "2.101.1",

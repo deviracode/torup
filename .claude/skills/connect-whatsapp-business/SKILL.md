@@ -42,6 +42,34 @@ is still broken — don't stop at the first green checkmark.
       `whatsapp_business_management`), **App Secret from step 1** (not
       from a different app), and a Verify Token of your choosing.
 - [ ] Save.
+- [ ] Saving attempts to **auto-submit the app's required message
+      templates** (`appointment_reminder_he/ar`, `appointment_confirmed_he/ar`,
+      `appointment_rejected_he/ar`) to this business's WABA — needed to
+      message customers outside WhatsApp's 24h conversation window (e.g.
+      manual bookings, reminders sent days out). This is fire-and-forget and
+      never blocks the save; check API logs for
+      `[WhatsApp] Template provisioning for business <id>` to confirm it ran.
+  - **In practice, auto-resolution of the WABA id from just the phone
+    number + System User token frequently fails** — confirmed in production
+    (`me/businesses` came back empty for a real, correctly-scoped System
+    User token; there is no reliable phone-number → WABA reverse lookup on
+    the Graph API for that token shape). If the log line above shows
+    `wabaId: null` / "Could not resolve WABA id", **this is expected, not a
+    bug** — the auto-provisioning attempt failed silently, so you must run
+    the backfill manually with the WABA id you already collected in step 1:
+    ```
+    cd apps/api && pnpm backfill:whatsapp-templates --business-name "<business name>" --waba-id <waba-id>
+    ```
+    Safe to re-run — "already exists" counts as success. Point
+    `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` at the right environment
+    first per `docs/ENVIRONMENTS.md`.
+  - Either way, check WhatsApp Business Manager → Message Templates for
+    that WABA to confirm Meta actually accepted the templates for review
+    (submission ≠ approval — that's async on Meta's side and can take
+    minutes to longer). Expect `appointment_rejected_he/ar` to potentially
+    fail with a Meta "Invalid parameter" (subcode 2388299) — seen on a real
+    submission and not yet root-caused; the other 4 templates are not
+    affected by whatever's wrong with those two.
 
 ### 3. App-level webhook config
 

@@ -84,6 +84,14 @@ export function createWhatsAppCredentialsRepo(client: SupabaseClient<Database>) 
       return { ...res, data: decryptRow(res.data as any) };
     },
 
+    async listAllActive() {
+      const res = await client
+        .from("whatsapp_credentials")
+        .select(COLUMNS)
+        .eq("is_active", true);
+      return { ...res, data: (res.data ?? []).map((row) => decryptRow(row as any)) };
+    },
+
     async markVerified(businessId: string) {
       return client
         .from("whatsapp_credentials")
