@@ -8,6 +8,7 @@ export interface TemplateDefinition {
   category: "UTILITY";
   body: string;
   example: string[];
+  buttonUrl?: string; // Meta URL-button component target, {{1}}=locale, {{2}}=token
 }
 
 /**
@@ -25,6 +26,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     category: "UTILITY",
     body: "תזכורת: יש לך תור ב-{{1}} בתאריך {{2}} בשעה {{3}}. מחכים לך! 😊",
     example: ["סטודיו יופי", "30.08.2026", "08:00"],
+    buttonUrl: "https://torup.pandacode.co.il/{{1}}/a/{{2}}",
   },
   {
     name: "appointment_reminder_ar",
@@ -32,6 +34,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     category: "UTILITY",
     body: "تذكير: عندك موعد في {{1}} بتاريخ {{2}} الساعة {{3}}. بانتظارك! 😊",
     example: ["استوديو الجمال", "30.08.2026", "08:00"],
+    buttonUrl: "https://torup.pandacode.co.il/{{1}}/a/{{2}}",
   },
   {
     name: "appointment_confirmed_he",
@@ -39,6 +42,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     category: "UTILITY",
     body: "✅ {{1}}, התור שלך אושר!\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nנתראה! 😊",
     example: ["דנה", "תספורת", "30.08.2026", "08:00"],
+    buttonUrl: "https://torup.pandacode.co.il/{{1}}/a/{{2}}",
   },
   {
     name: "appointment_confirmed_ar",
@@ -46,6 +50,7 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     category: "UTILITY",
     body: "✅ {{1}}، تم تأكيد موعدك!\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nنراك قريباً! 😊",
     example: ["دانا", "قص شعر", "30.08.2026", "08:00"],
+    buttonUrl: "https://torup.pandacode.co.il/{{1}}/a/{{2}}",
   },
   {
     name: "appointment_rejected_he",
@@ -157,6 +162,21 @@ async function submitTemplate(
           text: def.body,
           example: { body_text: [def.example] },
         },
+        ...(def.buttonUrl
+          ? [
+              {
+                type: "BUTTONS",
+                buttons: [
+                  {
+                    type: "URL",
+                    text: "צפייה בתור",
+                    url: def.buttonUrl,
+                    example: ["he", "a1b2c3d4e5f6"],
+                  },
+                ],
+              },
+            ]
+          : []),
       ],
     }),
   });

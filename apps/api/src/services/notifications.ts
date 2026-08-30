@@ -19,6 +19,7 @@ interface AppointmentWithDetails {
   start_time: string;
   status: string;
   created_via: string;
+  customer_link_token: string;
   customers: { id: string; name: string; phone: string; language_preference: string };
   services: { name_he: string; name_ar: string | null; name_en: string | null };
   businesses: { name: string };
@@ -234,7 +235,7 @@ export async function sendAppointmentNotification(
   const { data: appointment } = await supabase
     .from("appointments")
     .select(
-      "id, business_id, customer_id, start_time, status, created_via, " +
+      "id, business_id, customer_id, start_time, status, created_via, customer_link_token, " +
       "customers(id, name, phone, language_preference), " +
       "services(name_he, name_ar, name_en), " +
       "businesses(name)"
@@ -252,7 +253,9 @@ export async function sendAppointmentNotification(
 
   if (!customer || !service || !business) return;
 
-  const lang = customer.language_preference || "he";
+  const lang = ["he", "ar", "en"].includes(customer.language_preference)
+    ? customer.language_preference
+    : "he";
   const serviceName =
     lang === "ar" && service.name_ar
       ? service.name_ar
@@ -315,7 +318,8 @@ export async function sendAppointmentNotification(
           date: vars.date,
           time: vars.time,
         },
-        lang
+        lang,
+        { locale: lang, token: apt.customer_link_token }
       );
     } else {
       whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
@@ -364,7 +368,7 @@ export async function sendApprovalNotification(appointmentId: string) {
     const { data: appointment } = await supabase
       .from("appointments")
       .select(
-        "id, business_id, customer_id, start_time, " +
+        "id, business_id, customer_id, start_time, customer_link_token, " +
         "customers(id, name, phone, language_preference), " +
         "services(name_he, name_ar, name_en), " +
         "businesses(name)"
@@ -377,7 +381,9 @@ export async function sendApprovalNotification(appointmentId: string) {
       const customer = apt.customers;
       const service = apt.services;
       if (customer?.phone && service) {
-        const lang = customer.language_preference || "he";
+        const lang = ["he", "ar", "en"].includes(customer.language_preference)
+          ? customer.language_preference
+          : "he";
         const serviceName = lang === "ar" && service.name_ar ? service.name_ar :
           lang === "en" && service.name_en ? service.name_en : service.name_he;
         const startDate = new Date(apt.start_time);
@@ -393,7 +399,8 @@ export async function sendApprovalNotification(appointmentId: string) {
               credential,
               customer.phone,
               { customerName: customer.name, serviceName, date, time },
-              lang
+              lang,
+              { locale: lang, token: apt.customer_link_token }
             )
           : null;
         await logNotification({

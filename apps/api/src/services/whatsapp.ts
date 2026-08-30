@@ -246,18 +246,21 @@ export async function sendInteractiveReminder(
  * Send an approved customer reminder template, bypassing Meta's 24h conversation window.
  * Uses appointment_reminder_ar for Arabic, appointment_reminder_he for all other languages.
  * Parameter order must match the approved templates: customer_name, service_name, date, time.
+ * The `link` param feeds the template's URL button component (locale/token) so the message
+ * links to the customer's self-service appointment page.
  */
 export async function sendCustomerReminderTemplate(
   credential: WhatsAppCredential,
   to: string,
   params: { businessName: string; serviceName: string; date: string; time: string },
-  language: string
+  language: string,
+  link: { locale: string; token: string }
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_reminder_ar" : "appointment_reminder_he";
   const languageCode = language === "ar" ? "ar" : "he";
 
   if (!hasCredential(credential)) {
-    console.log(`[WhatsApp] (dev mode) Customer reminder template "${templateName}" to: ${to}`, params);
+    console.log(`[WhatsApp] (dev mode) Customer reminder template "${templateName}" to: ${to}`, params, link);
     return `dev_msg_${Date.now()}`;
   }
 
@@ -285,6 +288,12 @@ export async function sendCustomerReminderTemplate(
                 { type: "text", text: params.time },
               ],
             },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: `${link.locale}/${link.token}` }],
+            },
           ],
         },
       }),
@@ -311,18 +320,21 @@ export async function sendCustomerReminderTemplate(
  *
  * Templates must be registered and approved in WhatsApp Business Manager before this works.
  * Enable via env var: WHATSAPP_APPROVAL_TEMPLATE_ENABLED=true
+ * The `link` param feeds the template's URL button component (locale/token) so the message
+ * links to the customer's self-service appointment page.
  */
 export async function sendCustomerApprovalTemplate(
   credential: WhatsAppCredential,
   to: string,
   params: { customerName: string; serviceName: string; date: string; time: string },
-  language: string
+  language: string,
+  link: { locale: string; token: string }
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
   const languageCode = language === "ar" ? "ar" : "he";
 
   if (!hasCredential(credential)) {
-    console.log(`[WhatsApp] (dev mode) Customer approval template "${templateName}" to: ${to}`, params);
+    console.log(`[WhatsApp] (dev mode) Customer approval template "${templateName}" to: ${to}`, params, link);
     return `dev_msg_${Date.now()}`;
   }
 
@@ -350,6 +362,12 @@ export async function sendCustomerApprovalTemplate(
                 { type: "text", text: params.date },
                 { type: "text", text: params.time },
               ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: `${link.locale}/${link.token}` }],
             },
           ],
         },
