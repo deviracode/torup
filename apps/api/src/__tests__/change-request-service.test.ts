@@ -120,15 +120,23 @@ describe("change-request service", () => {
   });
 
   it("create() does not throw at the exact window boundary (minutesUntil === windowMinutes)", async () => {
-    const deps = makeDeps({
-      getBookingRules: vi.fn().mockResolvedValue({ cancellation_window_minutes: 120, reschedule_window_minutes: 120 }),
-      getAppointment: vi.fn().mockResolvedValue({
-        id: "apt-1", business_id: "biz-1", service_id: "svc-1", status: "confirmed",
-        start_time: new Date(Date.now() + 120 * 60 * 1000).toISOString(),
-      }),
-    });
-    const svc = createChangeRequestService(deps as any);
-    await expect(svc.create("apt-1", { type: "cancel" })).resolves.toMatchObject({ id: "req-1" });
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-01-01T00:00:00.000Z");
+      vi.setSystemTime(now);
+      const windowMinutes = 120;
+      const deps = makeDeps({
+        getBookingRules: vi.fn().mockResolvedValue({ cancellation_window_minutes: windowMinutes, reschedule_window_minutes: windowMinutes }),
+        getAppointment: vi.fn().mockResolvedValue({
+          id: "apt-1", business_id: "biz-1", service_id: "svc-1", status: "confirmed",
+          start_time: new Date(now.getTime() + windowMinutes * 60 * 1000).toISOString(),
+        }),
+      });
+      const svc = createChangeRequestService(deps as any);
+      await expect(svc.create("apt-1", { type: "cancel" })).resolves.toMatchObject({ id: "req-1" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("create() resolves successfully even when the notification dependency rejects", async () => {
