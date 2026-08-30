@@ -1,7 +1,6 @@
 import { createServiceClient } from "../lib/supabase";
 import type { Enums } from "@torup/db";
 import {
-  sendInteractiveReminder,
   sendManagerApprovalRequest,
   sendManagerNewBookingTemplate,
   sendWhatsAppMessage,
@@ -294,9 +293,11 @@ export async function sendAppointmentNotification(
   const message = renderTemplate(templateId, lang, vars);
 
   const isReminder = templateId.startsWith("reminder_");
-  const isManual = apt.created_via === "manual";
-  const useTemplate = isReminder && isManual;
-  const useButtons = isReminder && !isManual && (options.interactiveReminder !== false);
+  // Every reminder now goes out via the Meta template (URL-button link to
+  // the appointment self-service page) regardless of created_via — this
+  // works whether or not the customer has an open 24h WhatsApp session,
+  // unlike the old interactive quick-reply buttons this replaces.
+  const useTemplate = isReminder;
   let whatsappMessageId: string | null = null;
   let sendError: string | null = null;
 
@@ -316,8 +317,6 @@ export async function sendAppointmentNotification(
         },
         lang
       );
-    } else if (useButtons) {
-      whatsappMessageId = await sendInteractiveReminder(credential, customer.phone, message, lang);
     } else {
       whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
     }

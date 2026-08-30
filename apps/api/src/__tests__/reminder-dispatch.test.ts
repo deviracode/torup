@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import request from "supertest";
 
+const mockSendInteractiveReminder = vi.fn(async () => null);
+const mockSendWhatsAppMessage = vi.fn(async () => null);
+const mockSendCustomerReminderTemplate = vi.fn(async () => null);
+
 vi.mock("../services/whatsapp", () => ({
-  sendInteractiveReminder: vi.fn(async () => null),
-  sendWhatsAppMessage: vi.fn(async () => null),
+  sendInteractiveReminder: mockSendInteractiveReminder,
+  sendWhatsAppMessage: mockSendWhatsAppMessage,
+  sendCustomerReminderTemplate: mockSendCustomerReminderTemplate,
 }));
 
 const insertedRows: Array<Record<string, unknown>> = [];
@@ -15,6 +20,7 @@ const appointmentRow = {
   customer_id: "cust-1",
   start_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   status: "confirmed",
+  created_via: "web",
   customers: { id: "cust-1", name: "Test", phone: "+972500000000", language_preference: "he" },
   services: { name_he: "תספורת", name_ar: null, name_en: null },
   businesses: { name: "Studio" },
@@ -51,6 +57,9 @@ vi.mock("../lib/supabase", () => ({
 describe("sendAppointmentNotification — failure path", () => {
   beforeEach(() => {
     insertedRows.length = 0;
+    mockSendInteractiveReminder.mockClear();
+    mockSendWhatsAppMessage.mockClear();
+    mockSendCustomerReminderTemplate.mockClear();
   });
 
   it("logs status='failed' with error when WhatsApp returns null", async () => {
@@ -62,6 +71,16 @@ describe("sendAppointmentNotification — failure path", () => {
     expect(insertedRows[0].status).toBe("failed");
     expect(insertedRows[0].error).toBe("WhatsApp send returned null (see [WhatsApp] log above for API error)");
     expect(insertedRows[0].whatsapp_message_id).toBeNull();
+  });
+
+  it("routes all reminders through the Meta template, not interactive buttons, regardless of created_via", async () => {
+    const { sendAppointmentNotification } = await import("../services/notifications");
+    // appointmentRow has created_via: "web" (non-manual) — under the old logic this
+    // would have routed through sendInteractiveReminder instead of the template.
+    await sendAppointmentNotification("apt-1", "reminder_60m");
+
+    expect(mockSendCustomerReminderTemplate).toHaveBeenCalled();
+    expect(mockSendInteractiveReminder).not.toHaveBeenCalled();
   });
 });
 
