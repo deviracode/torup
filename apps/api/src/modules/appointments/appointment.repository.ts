@@ -104,11 +104,15 @@ export function createAppointmentRepo(
         .not("status", "in", '("cancelled","no_show","pending_approval")');
 
       // See availability.repository.ts's findAppointmentsForDay for why an
-      // unstaffed service must conflict against the whole business, not
-      // just its own service_id.
+      // unstaffed service must conflict against the whole business, and why
+      // an unassigned (staff_id IS NULL) booking for another service must
+      // also count — the booking flow has no staff picker, so staff_id is
+      // effectively always null in practice.
       query =
         staffIds.length > 0
-          ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
+          ? query.or(
+              `service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")}),staff_id.is.null`
+            )
           : query;
 
       if (excludeId) query = query.neq("id", excludeId);

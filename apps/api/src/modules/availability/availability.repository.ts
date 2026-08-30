@@ -53,9 +53,18 @@ export function createAvailabilityRepo(client: SupabaseClient<Database>) {
       // herself the moment two DIFFERENT services (e.g. "eyebrows" and
       // "eyebrows + wax") happen to overlap, since neither service_id nor
       // staff_id (usually null) would tie them together.
+      // Bookings almost never carry a staff_id in practice — there's no
+      // staff picker in the booking flow, so customers never choose a
+      // specific staff member. An unassigned (staff_id IS NULL) booking for
+      // a DIFFERENT service could still be occupying one of this service's
+      // assigned staff — we just can't tell which one, so it must be
+      // treated as a conflict too, the same as when there's no staff
+      // assignment at all.
       query =
         staffIds.length > 0
-          ? query.or(`service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")})`)
+          ? query.or(
+              `service_id.eq.${serviceId},staff_id.in.(${staffIds.join(",")}),staff_id.is.null`
+            )
           : query;
 
       return query;
