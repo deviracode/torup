@@ -105,6 +105,40 @@ describe("change-request service", () => {
     expect(deps.cancelAppointment).not.toHaveBeenCalled();
   });
 
+  it("create() throws 409 (not 500) when the DB unique constraint rejects a concurrent duplicate", async () => {
+    const deps = makeDeps({
+      changeRequestRepo: {
+        ...makeDeps().changeRequestRepo,
+        create: vi.fn().mockResolvedValue({
+          data: null,
+          error: { code: "23505", message: "duplicate key value violates unique constraint" },
+        }),
+      },
+    });
+    const svc = createChangeRequestService(deps as any);
+    await expect(svc.create("apt-1", { type: "cancel" })).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("create() does not throw at the exact window boundary (minutesUntil === windowMinutes)", async () => {
+    const deps = makeDeps({
+      getBookingRules: vi.fn().mockResolvedValue({ cancellation_window_minutes: 120, reschedule_window_minutes: 120 }),
+      getAppointment: vi.fn().mockResolvedValue({
+        id: "apt-1", business_id: "biz-1", service_id: "svc-1", status: "confirmed",
+        start_time: new Date(Date.now() + 120 * 60 * 1000).toISOString(),
+      }),
+    });
+    const svc = createChangeRequestService(deps as any);
+    await expect(svc.create("apt-1", { type: "cancel" })).resolves.toMatchObject({ id: "req-1" });
+  });
+
+  it("create() resolves successfully even when the notification dependency rejects", async () => {
+    const deps = makeDeps({
+      notifyOwnerOfNewRequest: vi.fn().mockRejectedValue(new Error("whatsapp down")),
+    });
+    const svc = createChangeRequestService(deps as any);
+    await expect(svc.create("apt-1", { type: "cancel" })).resolves.toMatchObject({ id: "req-1" });
+  });
+
   it("reject() marks the request rejected and notifies the customer, without touching the appointment", async () => {
     const deps = makeDeps({
       changeRequestRepo: {

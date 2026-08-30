@@ -53,9 +53,15 @@ export function createChangeRequestService(deps: ChangeRequestDeps) {
       proposed_start_time: input.proposedStartTime ?? null,
       reason: input.reason ?? null,
     });
-    if (error || !data) throw new AppError(500, "Failed to create change request");
+    if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        throw new AppError(409, "You already have a pending request for this appointment");
+      }
+      throw new AppError(500, "Failed to create change request");
+    }
+    if (!data) throw new AppError(500, "Failed to create change request");
 
-    await deps.notifyOwnerOfNewRequest(data.id);
+    deps.notifyOwnerOfNewRequest(data.id).catch((err) => console.error("[Notification] change request owner notify failed:", err));
     return data;
   }
 
@@ -83,14 +89,14 @@ export function createChangeRequestService(deps: ChangeRequestDeps) {
     }
 
     await deps.changeRequestRepo.updateStatus(requestId, "approved", resolvedBy);
-    await deps.notifyCustomerOfResolution(requestId, "approved");
+    deps.notifyCustomerOfResolution(requestId, "approved").catch((err) => console.error("[Notification] change request resolution notify failed:", err));
     return { status: "approved" as const };
   }
 
   async function reject(businessId: string, requestId: string, resolvedBy: string) {
     await loadPendingRequest(businessId, requestId);
     await deps.changeRequestRepo.updateStatus(requestId, "rejected", resolvedBy);
-    await deps.notifyCustomerOfResolution(requestId, "rejected");
+    deps.notifyCustomerOfResolution(requestId, "rejected").catch((err) => console.error("[Notification] change request resolution notify failed:", err));
     return { status: "rejected" as const };
   }
 
