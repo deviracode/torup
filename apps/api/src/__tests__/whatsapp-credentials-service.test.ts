@@ -49,4 +49,33 @@ describe("whatsapp-credentials service", () => {
     const svc = createWhatsAppCredentialsService(repoWith(null), { sendMessage: vi.fn() });
     await expect(svc.testSend("b1", "05")).rejects.toThrow();
   });
+
+  it("save() fires template provisioning with the newly-saved credential, without blocking the response", async () => {
+    const row = { phone_number_id: "pn1", access_token: "tok", display_phone: "+972", verified_at: null, is_active: true };
+    const repo = repoWith(row);
+    let resolveProvisioning!: (v: { wabaId: string; results: never[] }) => void;
+    const provisionTemplates = vi.fn(
+      () => new Promise<{ wabaId: string; results: never[] }>((resolve) => { resolveProvisioning = resolve; })
+    );
+    const svc = createWhatsAppCredentialsService(repo, { provisionTemplates });
+
+    const result = await svc.save("b1", { phoneNumberId: "pn1", accessToken: "tok" });
+
+    expect(result).toEqual({ connected: true, displayPhone: "+972", verifiedAt: null });
+    expect(provisionTemplates).toHaveBeenCalledWith({ phoneNumberId: "pn1", accessToken: "tok" });
+    resolveProvisioning({ wabaId: "waba-1", results: [] });
+  });
+
+  it("save() does not throw when provisioning fails", async () => {
+    const row = { phone_number_id: "pn1", access_token: "tok", display_phone: null, verified_at: null, is_active: true };
+    const repo = repoWith(row);
+    const provisionTemplates = vi.fn().mockRejectedValue(new Error("network down"));
+    const svc = createWhatsAppCredentialsService(repo, { provisionTemplates });
+
+    await expect(svc.save("b1", { phoneNumberId: "pn1", accessToken: "tok" })).resolves.toEqual({
+      connected: true,
+      displayPhone: null,
+      verifiedAt: null,
+    });
+  });
 });
