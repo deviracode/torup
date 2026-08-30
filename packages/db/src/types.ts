@@ -73,6 +73,7 @@ export type Database = {
           created_via: Database["public"]["Enums"]["booking_source"]
           customer_confirmed: boolean | null
           customer_id: string
+          customer_link_token: string
           end_time: string
           google_event_id: string | null
           id: string
@@ -90,6 +91,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null
           customer_id: string
+          customer_link_token?: string
           end_time: string
           google_event_id?: string | null
           id?: string
@@ -107,6 +109,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null
           customer_id?: string
+          customer_link_token?: string
           end_time?: string
           google_event_id?: string | null
           id?: string
