@@ -7,7 +7,7 @@ import { createChangeRequestService } from "../modules/appointments/change-reque
 import { createChangeRequestDeps } from "../modules/appointments/change-request.deps";
 import { sendAttendanceOwnerNotification } from "../services/notifications";
 
-const router = Router();
+const router: Router = Router();
 
 function linkService() {
   const repo = createAppointmentLinkRepo(createServiceClient());
