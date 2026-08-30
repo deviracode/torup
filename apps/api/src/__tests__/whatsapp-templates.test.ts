@@ -101,6 +101,26 @@ describe("whatsapp-templates", () => {
       expect(results.every((r) => r.status === "already_exists")).toBe(true);
     });
 
+    it("also treats subcode 2388024 as already_exists (confirmed against production, not just 2388023)", async () => {
+      const walkMock = graphWalkMock({});
+      const fetchMock = vi.fn((url: string, init?: any) => {
+        if (init?.method === "POST") {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: async () => ({
+              error: { message: "Invalid parameter", type: "OAuthException", code: 100, error_subcode: 2388024 },
+            }),
+          });
+        }
+        return walkMock(url);
+      });
+      global.fetch = fetchMock as any;
+
+      const { results } = await provisionTemplates({ phoneNumberId: "pn1", accessToken: "tok" });
+      expect(results.every((r) => r.status === "already_exists")).toBe(true);
+    });
+
     it("reports failed for an unrelated API error without throwing", async () => {
       const walkMock = graphWalkMock({});
       const fetchMock = vi.fn((url: string, init?: any) => {

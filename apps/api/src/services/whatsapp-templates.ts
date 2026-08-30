@@ -51,14 +51,14 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     name: "appointment_rejected_he",
     language: "he",
     category: "UTILITY",
-    body: "{{1}}, לצערנו לא נוכל לקבל אותך בתור:\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nניתן לקבוע תור אחר בפנייה חוזרת אלינו.",
+    body: "❌ {{1}}, לצערנו לא נוכל לקבל אותך בתור:\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nניתן לקבוע תור אחר בפנייה חוזרת אלינו.",
     example: ["דנה", "תספורת", "30.08.2026", "08:00"],
   },
   {
     name: "appointment_rejected_ar",
     language: "ar",
     category: "UTILITY",
-    body: "{{1}}، للأسف لن نتمكن من استقبالك في الموعد:\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nيمكنك تحديد موعد آخر بالتواصل معنا مجدداً.",
+    body: "❌ {{1}}، للأسف لن نتمكن من استقبالك في الموعد:\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nيمكنك تحديد موعد آخر بالتواصل معنا مجدداً.",
     example: ["دانا", "قص شعر", "30.08.2026", "08:00"],
   },
 ];
@@ -167,8 +167,11 @@ async function submitTemplate(
     return { name: def.name, status: "created" };
   }
 
-  // Meta's "template already exists" error: code 100, subcode 2388023.
-  if (data.error?.code === 100 && data.error?.error_subcode === 2388023) {
+  // Meta's "template already exists" error: code 100, subcode 2388023 or
+  // 2388024 — confirmed both occur against production for what's otherwise
+  // an identical resubmission, so match on either rather than assuming a
+  // single fixed subcode.
+  if (data.error?.code === 100 && (data.error?.error_subcode === 2388023 || data.error?.error_subcode === 2388024)) {
     return { name: def.name, status: "already_exists" };
   }
 
