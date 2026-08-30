@@ -319,6 +319,7 @@ export async function sendCustomerApprovalTemplate(
   language: string
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_confirmed_ar" : "appointment_confirmed_he";
+  const languageCode = language === "ar" ? "ar" : "he";
 
   if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Customer approval template "${templateName}" to: ${to}`, params);
@@ -339,7 +340,7 @@ export async function sendCustomerApprovalTemplate(
         type: "template",
         template: {
           name: templateName,
-          language: { code: "en" },
+          language: { code: languageCode },
           components: [
             {
               type: "body",
@@ -389,6 +390,7 @@ export async function sendCustomerRejectionTemplate(
   language: string
 ): Promise<string | null> {
   const templateName = language === "ar" ? "appointment_rejected_ar" : "appointment_rejected_he";
+  const languageCode = language === "ar" ? "ar" : "he";
 
   if (!hasCredential(credential)) {
     console.log(`[WhatsApp] (dev mode) Customer rejection template "${templateName}" to: ${to}`, params);
@@ -409,7 +411,7 @@ export async function sendCustomerRejectionTemplate(
         type: "template",
         template: {
           name: templateName,
-          language: { code: "en" },
+          language: { code: languageCode },
           components: [
             {
               type: "body",
