@@ -11,9 +11,10 @@ vi.mock("../middleware/auth", () => ({
   requireBusinessAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-const { mockSendAppointmentNotification, mockSendManagerNotification } = vi.hoisted(() => ({
+const { mockSendAppointmentNotification, mockSendManagerNotification, mockSendApprovalNotification } = vi.hoisted(() => ({
   mockSendAppointmentNotification: vi.fn().mockResolvedValue(undefined),
   mockSendManagerNotification: vi.fn().mockResolvedValue(undefined),
+  mockSendApprovalNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../services/notifications", async (importOriginal) => {
@@ -22,6 +23,7 @@ vi.mock("../services/notifications", async (importOriginal) => {
     ...actual,
     sendAppointmentNotification: mockSendAppointmentNotification,
     sendManagerNotification: mockSendManagerNotification,
+    sendApprovalNotification: mockSendApprovalNotification,
   };
 });
 
@@ -258,6 +260,29 @@ describe("Reminder System", () => {
       expect(res.status).toBe(201);
       // Allow event loop to flush the fire-and-forget .catch chains
       await new Promise((r) => setTimeout(r, 50));
+      expect(mockSendAppointmentNotification).not.toHaveBeenCalledWith(
+        CREATED_APT_ID,
+        "booking_confirmation"
+      );
+      expect(mockSendApprovalNotification).not.toHaveBeenCalled();
+      expect(mockSendManagerNotification).not.toHaveBeenCalled();
+    });
+
+    it("DOES call sendApprovalNotification (template-capable, not freeform booking_confirmation) when created_via is manual and status is confirmed", async () => {
+      const app = await buildPostApp("manual");
+      const res = await request(app)
+        .post(`/api/businesses/${BUSINESS_ID_BC}/appointments`)
+        .send({
+          service_id: "svc-1",
+          customer_id: "cust-1",
+          start_time: "2099-01-01T10:00:00Z",
+          created_via: "manual",
+          status: "confirmed",
+        });
+
+      expect(res.status).toBe(201);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mockSendApprovalNotification).toHaveBeenCalledWith(CREATED_APT_ID);
       expect(mockSendAppointmentNotification).not.toHaveBeenCalledWith(
         CREATED_APT_ID,
         "booking_confirmation"
