@@ -27,21 +27,26 @@ export interface AppointmentLinkServiceDeps {
 }
 
 export function createAppointmentLinkService(repo: Repo, deps: AppointmentLinkServiceDeps) {
+  // Anti-enumeration: "bad token" and "wrong phone" are merged into a single,
+  // indistinguishable 404 response. A caller without the correct phone number
+  // must not be able to tell "token invalid" from "token valid, wrong phone"
+  // apart via status code or message. The 410 "inactive appointment" case
+  // below is intentionally NOT merged: reaching it already requires the phone
+  // number to have matched, i.e. the caller has already proven they're the
+  // legitimate customer, so it leaks nothing new to tell them the appointment
+  // is no longer active.
   async function loadVerified(token: string, phone: string) {
     const { data } = await repo.getByToken(token);
-    if (!data) throw new AppError(404, "Appointment link not found");
+    const GENERIC_NOT_FOUND = "Appointment link not found or phone number does not match";
+    if (!data) throw new AppError(404, GENERIC_NOT_FOUND);
     const row = data as unknown as AppointmentLinkRow;
-    return verifyRow(row, phone);
-  }
-
-  function verifyRow(data: AppointmentLinkRow, phone: string) {
-    if (normalizePhone(data.customers.phone) !== normalizePhone(phone)) {
-      throw new AppError(403, "Phone number does not match this appointment");
+    if (normalizePhone(row.customers.phone) !== normalizePhone(phone)) {
+      throw new AppError(404, GENERIC_NOT_FOUND);
     }
-    if (INACTIVE_STATUSES.has(data.status)) {
+    if (INACTIVE_STATUSES.has(row.status)) {
       throw new AppError(410, "This appointment is no longer active");
     }
-    return data;
+    return row;
   }
 
   async function verifyAndGet(token: string, phone: string): Promise<AppointmentLinkSummary> {

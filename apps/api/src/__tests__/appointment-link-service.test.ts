@@ -32,16 +32,29 @@ describe("appointment-link service", () => {
     expect((result as any).customerPhone).toBeUndefined(); // never leak the raw phone back
   });
 
-  it("verifyAndGet throws 403 when phone does not match", async () => {
+  // Anti-enumeration: "wrong phone" and "bad token" must be genuinely
+  // indistinguishable to a caller probing the API directly (same status
+  // code AND same message), so neither the HTTP status nor the response
+  // body can be used to confirm a token exists. The 410 "inactive
+  // appointment" case is NOT merged with these: reaching it requires the
+  // phone to have already matched, so the caller has already proven they're
+  // the legitimate customer and no enumeration risk remains.
+  it("verifyAndGet throws generic 404 when phone does not match (indistinguishable from bad token)", async () => {
     const repo = makeRepo(ROW);
     const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
-    await expect(svc.verifyAndGet("tok123", "0509999999")).rejects.toThrow(AppError);
+    await expect(svc.verifyAndGet("tok123", "0509999999")).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Appointment link not found or phone number does not match",
+    });
   });
 
-  it("verifyAndGet throws 404 when token does not exist", async () => {
+  it("verifyAndGet throws generic 404 when token does not exist (indistinguishable from wrong phone)", async () => {
     const repo = makeRepo(null);
     const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
-    await expect(svc.verifyAndGet("bad-token", "0501234567")).rejects.toThrow(AppError);
+    await expect(svc.verifyAndGet("bad-token", "0501234567")).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Appointment link not found or phone number does not match",
+    });
   });
 
   it("verifyAndGet throws 410 (gone) when appointment is cancelled/completed/no_show", async () => {
