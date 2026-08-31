@@ -36,13 +36,17 @@ const credentialRow = {
   is_active: true,
 };
 
+// Mutable so an individual test can substitute a different appointment row
+// (e.g. created_via: "manual") without needing to remock the whole module.
+let appointmentData: Record<string, unknown> = appointmentRow;
+
 vi.mock("../lib/supabase", () => ({
   createServiceClient: () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
           single: async () => ({
-            data: table === "whatsapp_credentials" ? credentialRow : appointmentRow,
+            data: table === "whatsapp_credentials" ? credentialRow : appointmentData,
           }),
         }),
       }),
@@ -81,6 +85,26 @@ describe("sendAppointmentNotification — failure path", () => {
 
     expect(mockSendCustomerReminderTemplate).toHaveBeenCalled();
     expect(mockSendInteractiveReminder).not.toHaveBeenCalled();
+  });
+
+  it("falls back to freeform text when the reminder template send itself fails", async () => {
+    appointmentData = { ...appointmentRow, created_via: "manual" };
+    mockSendCustomerReminderTemplate.mockResolvedValueOnce(null);
+    mockSendWhatsAppMessage.mockResolvedValueOnce("fallback-msg-id");
+
+    try {
+      const { sendAppointmentNotification } = await import("../services/notifications");
+      const result = await sendAppointmentNotification("apt-1", "reminder_60m");
+
+      expect(mockSendCustomerReminderTemplate).toHaveBeenCalled();
+      expect(mockSendWhatsAppMessage).toHaveBeenCalled();
+      expect(result?.sent).toBe(true);
+      expect(insertedRows).toHaveLength(1);
+      expect(insertedRows[0].status).toBe("sent");
+      expect(insertedRows[0].whatsapp_message_id).toBe("fallback-msg-id");
+    } finally {
+      appointmentData = appointmentRow;
+    }
   });
 });
 
