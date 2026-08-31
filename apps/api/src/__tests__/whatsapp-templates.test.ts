@@ -30,6 +30,30 @@ function graphWalkMock(opts: {
 }
 
 describe("whatsapp-templates", () => {
+  describe("TEMPLATE_DEFINITIONS button component", () => {
+    it("appointment_reminder_he and appointment_confirmed_he include a URL button component", () => {
+      const reminder = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_reminder_he")!;
+      const confirmed = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_confirmed_he")!;
+      expect(reminder.buttonUrl).toBe("https://torup.pandacode.co.il/{{1}}/a/{{2}}");
+      expect(confirmed.buttonUrl).toBe("https://torup.pandacode.co.il/{{1}}/a/{{2}}");
+    });
+
+    it("appointment_reminder_ar and appointment_confirmed_ar include a URL button component", () => {
+      const reminder = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_reminder_ar")!;
+      const confirmed = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_confirmed_ar")!;
+      expect(reminder.buttonUrl).toBe("https://torup.pandacode.co.il/{{1}}/a/{{2}}");
+      expect(confirmed.buttonUrl).toBe("https://torup.pandacode.co.il/{{1}}/a/{{2}}");
+    });
+
+    it("appointment_rejected_he/ar have no button (out of scope per design)", () => {
+      const rejectedHe = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_rejected_he")!;
+      const rejectedAr = TEMPLATE_DEFINITIONS.find((t) => t.name === "appointment_rejected_ar")!;
+      expect(rejectedHe.buttonUrl).toBeUndefined();
+      expect(rejectedAr.buttonUrl).toBeUndefined();
+    });
+  });
+
+
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;

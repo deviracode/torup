@@ -39,6 +39,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_change_requests: {
+        Row: {
+          appointment_id: string
+          business_id: string
+          created_at: string
+          id: string
+          proposed_start_time: string | null
+          reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          appointment_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          proposed_start_time?: string | null
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          appointment_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          proposed_start_time?: string | null
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_change_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_change_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_reminders_sent: {
         Row: {
           appointment_id: string
@@ -73,6 +127,7 @@ export type Database = {
           created_via: Database["public"]["Enums"]["booking_source"]
           customer_confirmed: boolean | null
           customer_id: string
+          customer_link_token: string
           end_time: string
           google_event_id: string | null
           id: string
@@ -90,6 +145,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null
           customer_id: string
+          customer_link_token?: string
           end_time: string
           google_event_id?: string | null
           id?: string
@@ -107,6 +163,7 @@ export type Database = {
           created_via?: Database["public"]["Enums"]["booking_source"]
           customer_confirmed?: boolean | null
           customer_id?: string
+          customer_link_token?: string
           end_time?: string
           google_event_id?: string | null
           id?: string

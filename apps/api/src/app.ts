@@ -23,6 +23,8 @@ import googleCalendarRouter from "./routes/google-calendar";
 import categoriesRouter from "./routes/categories";
 import whatsappCredentialsRouter from "./routes/whatsapp-credentials";
 import authRouter from "./routes/auth";
+import publicAppointmentLinkRouter from "./routes/public-appointment-link";
+import changeRequestsRouter from "./routes/change-requests";
 import { startReminderScheduler } from "./services/notifications";
 import { startGCalSyncScheduler } from "./services/google-calendar";
 
@@ -101,6 +103,10 @@ export function createApp(options: AppOptions = {}): Express {
   app.use("/api/businesses/:businessId/notifications", notificationsRouter);
   app.use("/api/businesses/:businessId/google-calendar", googleCalendarRouter);
   app.use("/api/businesses/:businessId/whatsapp", whatsappCredentialsRouter);
+  app.use("/api/businesses/:businessId/change-requests", changeRequestsRouter);
+
+  // Public routes
+  app.use("/api/public/appointments", publicAppointmentLinkRouter);
 
   // Admin routes
   app.use("/api/admin", adminRouter);

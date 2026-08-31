@@ -226,6 +226,10 @@
     "noPendingRequests": "لا توجد طلبات معلقة",
     "approve": "موافقة",
     "reject": "رفض",
+    "pendingRequestsTitle": "الطلبات المعلقة",
+    "changeRequestCancel": "طلب إلغاء",
+    "changeRequestEdit": "طلب تغيير الموعد",
+    "noPendingChangeRequests": "لا توجد طلبات تغيير معلقة",
     "staffDisplayName": "اسم العرض",
     "assignedServices": "الخدمات المُعيَّنة",
     "timeOff": "أيام الغياب",
@@ -334,5 +338,25 @@
     "upgradePlan": "ترقية الخطة",
     "upgradeComingSoon": "ترقيات الخطة قادمة قريبًا. تواصل معنا عبر واتساب في هذه الأثناء.",
     "perMonth": "شهريًا"
+  },
+  "appointmentLink": {
+    "title": "موعدك",
+    "enterPhone": "أدخل رقم هاتفك لعرض تفاصيل الموعد",
+    "phonePlaceholder": "05X-XXXXXXX",
+    "continue": "متابعة",
+    "verifyFailed": "لم نتمكن من التحقق من التفاصيل. تحقق من رقم الهاتف وحاول مرة أخرى.",
+    "actionFailed": "حدث خطأ ما. حاول مرة أخرى.",
+    "yourAppointment": "موعدك",
+    "iWillAttend": "سأحضر",
+    "iWontAttend": "لن أحضر",
+    "requestChange": "طلب تغيير الموعد",
+    "requestCancel": "طلب إلغاء",
+    "requestSent": "تم إرسال طلبك إلى صاحب العمل.",
+    "attendanceConfirmed": "شكراً! نراك في الموعد.",
+    "attendanceRejected": "شكراً على التحديث. تم تحديد الموعد كملغى.",
+    "noLongerActive": "هذا الموعد لم يعد نشطاً.",
+    "pickerComingSoon": "اختيار موعد جديد سيكون متاحاً قريباً.",
+    "noSlots": "لا توجد مواعيد متاحة في هذا التاريخ.",
+    "back": "رجوع"
   }
 }

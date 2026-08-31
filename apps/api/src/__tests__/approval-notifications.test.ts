@@ -91,6 +91,32 @@ describe("sendApprovalNotification", () => {
     expect(typeof mod.sendApprovalNotification).toBe("function");
   });
 
+  it("normalizes an invalid language_preference to 'he' before it's used as the link locale", async () => {
+    process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED = "true";
+
+    // Simulate bad/free-text data in customers.language_preference (e.g. "fr",
+    // a typo, or a future locale not yet supported end-to-end).
+    const originalLang = appointmentRow.customers.language_preference;
+    (appointmentRow.customers as { language_preference: string }).language_preference = "fr";
+
+    try {
+      const whatsapp = await import("../services/whatsapp");
+      const { sendApprovalNotification } = await import("../services/notifications");
+      const result = await sendApprovalNotification("apt-1");
+
+      expect(result?.sent).toBe(true);
+      expect(whatsapp.sendCustomerApprovalTemplate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        "he",
+        expect.objectContaining({ locale: "he" })
+      );
+    } finally {
+      (appointmentRow.customers as { language_preference: string }).language_preference = originalLang;
+    }
+  });
+
   it("skips the send and logs failed when the business has no WhatsApp credential", async () => {
     credentialData = null;
     const whatsapp = await import("../services/whatsapp");

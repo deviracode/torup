@@ -226,6 +226,10 @@
     "noPendingRequests": "אין בקשות ממתינות",
     "approve": "אשר",
     "reject": "דחה",
+    "pendingRequestsTitle": "בקשות ממתינות",
+    "changeRequestCancel": "בקשת ביטול",
+    "changeRequestEdit": "בקשת שינוי מועד",
+    "noPendingChangeRequests": "אין בקשות שינוי ממתינות",
     "staffDisplayName": "שם תצוגה",
     "assignedServices": "שירותים מוקצים",
     "timeOff": "ימי היעדרות",
@@ -345,5 +349,25 @@
     "upgradePlan": "שדרוג תוכנית",
     "upgradeComingSoon": "שדרוג תוכניות יהיה זמין בקרוב. פנו אלינו בוואטסאפ בינתיים.",
     "perMonth": "לחודש"
+  },
+  "appointmentLink": {
+    "title": "התור שלך",
+    "enterPhone": "הזינו את מספר הטלפון שלכם כדי לצפות בפרטי התור",
+    "phonePlaceholder": "05X-XXXXXXX",
+    "continue": "המשך",
+    "verifyFailed": "לא הצלחנו לאמת את הפרטים. בדקו את מספר הטלפון ונסו שוב.",
+    "actionFailed": "משהו השתבש. נסו שוב.",
+    "yourAppointment": "התור שלך",
+    "iWillAttend": "אני מגיע/ה",
+    "iWontAttend": "לא אגיע",
+    "requestChange": "בקשה לשינוי מועד",
+    "requestCancel": "בקשה לביטול",
+    "requestSent": "הבקשה שלך נשלחה לבעל העסק.",
+    "attendanceConfirmed": "תודה! נתראה בתור.",
+    "attendanceRejected": "תודה על העדכון. התור סומן כמבוטל.",
+    "noLongerActive": "התור הזה כבר אינו פעיל.",
+    "pickerComingSoon": "בחירת מועד חדש תהיה זמינה בקרוב.",
+    "noSlots": "אין תורים פנויים בתאריך זה.",
+    "back": "חזרה"
   }
 }

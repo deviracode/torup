@@ -21,3 +21,4 @@ coverage/
 # Supabase CLI local state (machine-specific: linked ref, versions, pooler url)
 **/supabase/.temp/
 **/supabase/.branches/
+.superpowers/

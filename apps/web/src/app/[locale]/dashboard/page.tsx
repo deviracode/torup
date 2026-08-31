@@ -14,6 +14,7 @@ import { staggerContainer, springItem } from "@/components/motion";
 import { CalendarDays, Clock, CheckCircle2, AlertCircle, Plus, X, ChevronRight, User, Scissors } from "lucide-react";
 import { toLocalDateString } from "@/lib/format";
 import { PendingApprovalsPanel } from "@/components/dashboard/pending-approvals-panel";
+import { PendingRequestsPanel, type ChangeRequest } from "@/components/dashboard/pending-requests-panel";
 
 interface DayStats {
   total: number;
@@ -262,6 +263,10 @@ export default function DashboardPage() {
   const [splitLoading, setSplitLoading] = useState(false);
   const [calendarDate, setCalendarDate] = useState<string | undefined>(undefined);
 
+  const [requestsMode, setRequestsMode] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<ChangeRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+
   useEffect(() => {
     if (!businessId) return;
     const today = toLocalDateString(new Date());
@@ -360,6 +365,31 @@ export default function DashboardPage() {
     setRefreshKey((k) => k + 1);
   };
 
+  const openRequestsMode = async () => {
+    if (requestsMode) return;
+    if (!businessId) return;
+    setRequestsMode(true);
+    setRequestsLoading(true);
+    setPendingRequests([]);
+    const r = await api<ChangeRequest[]>(`/api/businesses/${businessId}/change-requests`);
+    setPendingRequests(Array.isArray(r) ? r : []);
+    setRequestsLoading(false);
+  };
+
+  const handleApproveRequest = async (id: string) => {
+    if (!businessId) return;
+    await api(`/api/businesses/${businessId}/change-requests/${id}/approve`, { method: "POST" });
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleRejectRequest = async (id: string) => {
+    if (!businessId) return;
+    await api(`/api/businesses/${businessId}/change-requests/${id}/reject`, { method: "POST" });
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+    setRefreshKey((k) => k + 1);
+  };
+
   const activeDrawerCfg = STAT_CONFIG.find((c) => c.key === drawerFilter);
 
   return (
@@ -367,6 +397,15 @@ export default function DashboardPage() {
       {/* Inject "New Appointment" button into the top bar */}
       {businessId && (
         <TopBarSlot>
+          <motion.button
+            onClick={openRequestsMode}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.96 }}
+            className="flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-xs font-bold text-white border border-white/10"
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {t("pendingRequestsTitle")}
+          </motion.button>
           <motion.button
             onClick={() => setShowNewAppt(true)}
             whileHover={{ scale: 1.03 }}
@@ -487,6 +526,24 @@ export default function DashboardPage() {
               onApprove={handleApprove}
               onReject={handleReject}
               onSelectDate={(date) => setCalendarDate(date)}
+            />
+          </div>
+        ) : requestsMode ? (
+          <div className="flex gap-4 items-start">
+            <div className="flex-1 min-w-0">
+              {view === "day" ? (
+                <DailyCalendar key={`day-requests-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+              ) : (
+                <WeeklyCalendar key={`week-requests-${refreshKey}`} businessId={businessId} controlledDate={calendarDate} />
+              )}
+            </div>
+            <PendingRequestsPanel
+              requests={pendingRequests}
+              loading={requestsLoading}
+              isRtl={isRtl}
+              onClose={() => setRequestsMode(false)}
+              onApprove={handleApproveRequest}
+              onReject={handleRejectRequest}
             />
           </div>
         ) : view === "day" ? (

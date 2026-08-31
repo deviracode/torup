@@ -1,7 +1,6 @@
 import { createServiceClient } from "../lib/supabase";
 import type { Enums } from "@torup/db";
 import {
-  sendInteractiveReminder,
   sendManagerApprovalRequest,
   sendManagerNewBookingTemplate,
   sendWhatsAppMessage,
@@ -20,6 +19,7 @@ interface AppointmentWithDetails {
   start_time: string;
   status: string;
   created_via: string;
+  customer_link_token: string;
   customers: { id: string; name: string; phone: string; language_preference: string };
   services: { name_he: string; name_ar: string | null; name_en: string | null };
   businesses: { name: string };
@@ -235,7 +235,7 @@ export async function sendAppointmentNotification(
   const { data: appointment } = await supabase
     .from("appointments")
     .select(
-      "id, business_id, customer_id, start_time, status, created_via, " +
+      "id, business_id, customer_id, start_time, status, created_via, customer_link_token, " +
       "customers(id, name, phone, language_preference), " +
       "services(name_he, name_ar, name_en), " +
       "businesses(name)"
@@ -253,7 +253,9 @@ export async function sendAppointmentNotification(
 
   if (!customer || !service || !business) return;
 
-  const lang = customer.language_preference || "he";
+  const lang = ["he", "ar", "en"].includes(customer.language_preference)
+    ? customer.language_preference
+    : "he";
   const serviceName =
     lang === "ar" && service.name_ar
       ? service.name_ar
@@ -294,9 +296,11 @@ export async function sendAppointmentNotification(
   const message = renderTemplate(templateId, lang, vars);
 
   const isReminder = templateId.startsWith("reminder_");
-  const isManual = apt.created_via === "manual";
-  const useTemplate = isReminder && isManual;
-  const useButtons = isReminder && !isManual && (options.interactiveReminder !== false);
+  // Every reminder now goes out via the Meta template (URL-button link to
+  // the appointment self-service page) regardless of created_via — this
+  // works whether or not the customer has an open 24h WhatsApp session,
+  // unlike the old interactive quick-reply buttons this replaces.
+  const useTemplate = isReminder;
   let whatsappMessageId: string | null = null;
   let sendError: string | null = null;
 
@@ -314,10 +318,9 @@ export async function sendAppointmentNotification(
           date: vars.date,
           time: vars.time,
         },
-        lang
+        lang,
+        { locale: lang, token: apt.customer_link_token }
       );
-    } else if (useButtons) {
-      whatsappMessageId = await sendInteractiveReminder(credential, customer.phone, message, lang);
     } else {
       whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
     }
@@ -365,7 +368,7 @@ export async function sendApprovalNotification(appointmentId: string) {
     const { data: appointment } = await supabase
       .from("appointments")
       .select(
-        "id, business_id, customer_id, start_time, " +
+        "id, business_id, customer_id, start_time, customer_link_token, " +
         "customers(id, name, phone, language_preference), " +
         "services(name_he, name_ar, name_en), " +
         "businesses(name)"
@@ -378,7 +381,9 @@ export async function sendApprovalNotification(appointmentId: string) {
       const customer = apt.customers;
       const service = apt.services;
       if (customer?.phone && service) {
-        const lang = customer.language_preference || "he";
+        const lang = ["he", "ar", "en"].includes(customer.language_preference)
+          ? customer.language_preference
+          : "he";
         const serviceName = lang === "ar" && service.name_ar ? service.name_ar :
           lang === "en" && service.name_en ? service.name_en : service.name_he;
         const startDate = new Date(apt.start_time);
@@ -394,7 +399,8 @@ export async function sendApprovalNotification(appointmentId: string) {
               credential,
               customer.phone,
               { customerName: customer.name, serviceName, date, time },
-              lang
+              lang,
+              { locale: lang, token: apt.customer_link_token }
             )
           : null;
         await logNotification({
@@ -586,6 +592,222 @@ export async function sendManagerNotification(appointmentId: string) {
     type: "manager_new_booking",
     channel: "whatsapp",
     template_id: "manager_new_booking",
+    status: whatsappMessageId ? "sent" : "failed",
+    whatsapp_message_id: whatsappMessageId,
+    error: whatsappMessageId ? undefined : (sendError ?? "WhatsApp send failed"),
+  });
+}
+
+/**
+ * Notify the business owner that a customer submitted a cancel/reschedule request.
+ */
+export async function sendChangeRequestOwnerNotification(requestId: string) {
+  const supabase = createServiceClient();
+
+  const { data: request } = await supabase
+    .from("appointment_change_requests")
+    .select("id, type, appointment_id, business_id")
+    .eq("id", requestId)
+    .single();
+  if (!request) return;
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("id, start_time, customers(name), services(name_he)")
+    .eq("id", request.appointment_id)
+    .single();
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name, phone")
+    .eq("id", request.business_id)
+    .single();
+
+  if (!appointment || !business?.phone) return;
+  if (!appointment.customers || !appointment.services) return;
+
+  const customer = appointment.customers as unknown as { name: string };
+  const service = appointment.services as unknown as { name_he: string };
+  const startDate = new Date(appointment.start_time);
+  const dateStr = startDate.toLocaleDateString("he-IL", {
+    weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+  });
+  const timeStr = startDate.toLocaleTimeString("he-IL", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+  });
+
+  const label = request.type === "cancel" ? "בקשת ביטול" : "בקשת שינוי מועד";
+  const message =
+    `📩 ${label} חדשה!\n` +
+    `👤 ${customer.name}\n` +
+    `✂️ ${service.name_he}\n` +
+    `📅 ${dateStr} ⏰ ${timeStr}`;
+
+  let whatsappMessageId: string | null = null;
+  let sendError: string | null = null;
+  try {
+    const credential = await resolveBusinessCredential(request.business_id);
+    if (!credential) {
+      sendError = `WhatsApp not configured for business ${request.business_id}`;
+    } else {
+      whatsappMessageId = await sendWhatsAppMessage(credential, business.phone, message);
+    }
+  } catch (err) {
+    sendError = err instanceof Error ? err.message : String(err);
+    console.error("Failed to send change request owner notification:", err);
+  }
+
+  await logNotification({
+    business_id: request.business_id,
+    customer_id: "",
+    appointment_id: request.appointment_id,
+    type: "change_request_owner_notify",
+    channel: "whatsapp",
+    template_id: "change_request_owner_notify",
+    status: whatsappMessageId ? "sent" : "failed",
+    whatsapp_message_id: whatsappMessageId,
+    error: whatsappMessageId ? undefined : (sendError ?? "WhatsApp send failed"),
+  });
+}
+
+/**
+ * Notify the business owner that a customer confirmed/declined attendance
+ * via the public appointment-link page.
+ */
+export async function sendAttendanceOwnerNotification(
+  appointmentId: string,
+  decision: "confirm" | "reject"
+) {
+  const supabase = createServiceClient();
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("id, business_id, start_time, customers(name), services(name_he)")
+    .eq("id", appointmentId)
+    .single();
+  if (!appointment) return;
+
+  const { data: business } = await supabase
+    .from("businesses")
+    .select("name, phone")
+    .eq("id", appointment.business_id)
+    .single();
+  if (!business?.phone) return;
+  if (!appointment.customers || !appointment.services) return;
+
+  const customer = appointment.customers as unknown as { name: string };
+  const service = appointment.services as unknown as { name_he: string };
+  const startDate = new Date(appointment.start_time);
+  const dateStr = startDate.toLocaleDateString("he-IL", {
+    weekday: "short", month: "short", day: "numeric", timeZone: "Asia/Jerusalem",
+  });
+  const timeStr = startDate.toLocaleTimeString("he-IL", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem",
+  });
+
+  const verb = decision === "confirm" ? "אישר/ה הגעה" : "ביטל/ה הגעה";
+  const message =
+    `${decision === "confirm" ? "✅" : "❌"} ${customer.name} ${verb} לתור:\n` +
+    `✂️ ${service.name_he}\n` +
+    `📅 ${dateStr} ⏰ ${timeStr}`;
+
+  let whatsappMessageId: string | null = null;
+  let sendError: string | null = null;
+  try {
+    const credential = await resolveBusinessCredential(appointment.business_id);
+    if (!credential) {
+      sendError = `WhatsApp not configured for business ${appointment.business_id}`;
+    } else {
+      whatsappMessageId = await sendWhatsAppMessage(credential, business.phone, message);
+    }
+  } catch (err) {
+    sendError = err instanceof Error ? err.message : String(err);
+    console.error("Failed to send attendance owner notification:", err);
+  }
+
+  await logNotification({
+    business_id: appointment.business_id,
+    customer_id: "",
+    appointment_id: appointmentId,
+    type: `attendance_${decision}`,
+    channel: "whatsapp",
+    template_id: `attendance_${decision}`,
+    status: whatsappMessageId ? "sent" : "failed",
+    whatsapp_message_id: whatsappMessageId,
+    error: whatsappMessageId ? undefined : (sendError ?? "WhatsApp send failed"),
+  });
+}
+
+/**
+ * Notify the customer that their change request (cancel/reschedule) was
+ * approved or rejected by the business owner.
+ */
+export async function sendChangeRequestResolutionNotification(
+  requestId: string,
+  resolution: "approved" | "rejected"
+) {
+  const supabase = createServiceClient();
+
+  const { data: request } = await supabase
+    .from("appointment_change_requests")
+    .select("id, type, appointment_id, business_id, proposed_start_time")
+    .eq("id", requestId)
+    .single();
+  if (!request) return;
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("id, customers(id, name, phone, language_preference)")
+    .eq("id", request.appointment_id)
+    .single();
+  if (!appointment) return;
+  if (!appointment.customers) return;
+
+  const customer = appointment.customers as unknown as {
+    id: string; name: string; phone: string; language_preference: string;
+  };
+  const lang = ["he", "ar", "en"].includes(customer.language_preference)
+    ? customer.language_preference
+    : "he";
+
+  const approvedText: Record<string, string> = {
+    he: request.type === "cancel"
+      ? "בקשת הביטול שלך אושרה."
+      : "בקשת שינוי המועד שלך אושרה, התור עודכן.",
+    ar: request.type === "cancel"
+      ? "تمت الموافقة على طلب الإلغاء."
+      : "تمت الموافقة على طلب تغيير الموعد.",
+    en: request.type === "cancel"
+      ? "Your cancellation request was approved."
+      : "Your reschedule request was approved.",
+  };
+  const rejectedText: Record<string, string> = {
+    he: "בקשתך לא אושרה. ניתן ליצור קשר עם העסק ישירות.",
+    ar: "لم تتم الموافقة على طلبك. يرجى التواصل مع العمل مباشرة.",
+    en: "Your request wasn't approved. Please contact the business directly.",
+  };
+  const message = (resolution === "approved" ? approvedText : rejectedText)[lang];
+
+  let whatsappMessageId: string | null = null;
+  let sendError: string | null = null;
+  try {
+    const credential = await resolveBusinessCredential(request.business_id);
+    if (!credential) {
+      sendError = `WhatsApp not configured for business ${request.business_id}`;
+    } else {
+      whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
+    }
+  } catch (err) {
+    sendError = err instanceof Error ? err.message : String(err);
+    console.error("Failed to send change request resolution notification:", err);
+  }
+
+  await logNotification({
+    business_id: request.business_id,
+    customer_id: customer.id,
+    appointment_id: request.appointment_id,
+    type: `change_request_${resolution}`,
+    channel: "whatsapp",
+    template_id: `change_request_${resolution}`,
     status: whatsappMessageId ? "sent" : "failed",
     whatsapp_message_id: whatsappMessageId,
     error: whatsappMessageId ? undefined : (sendError ?? "WhatsApp send failed"),
