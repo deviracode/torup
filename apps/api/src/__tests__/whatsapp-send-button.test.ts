@@ -26,7 +26,10 @@ describe("whatsapp send functions include URL button component", () => {
       type: "button",
       sub_type: "url",
       index: "0",
-      parameters: [{ type: "text", text: "he/abc123" }],
+      parameters: [
+        { type: "text", text: "he" },
+        { type: "text", text: "abc123" },
+      ],
     });
   });
 
@@ -49,7 +52,10 @@ describe("whatsapp send functions include URL button component", () => {
       type: "button",
       sub_type: "url",
       index: "0",
-      parameters: [{ type: "text", text: "ar/xyz789" }],
+      parameters: [
+        { type: "text", text: "ar" },
+        { type: "text", text: "xyz789" },
+      ],
     });
   });
 });

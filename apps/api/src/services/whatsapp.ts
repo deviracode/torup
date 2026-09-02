@@ -292,7 +292,10 @@ export async function sendCustomerReminderTemplate(
               type: "button",
               sub_type: "url",
               index: "0",
-              parameters: [{ type: "text", text: `${link.locale}/${link.token}` }],
+              parameters: [
+                { type: "text", text: link.locale },
+                { type: "text", text: link.token },
+              ],
             },
           ],
         },
@@ -367,7 +370,10 @@ export async function sendCustomerApprovalTemplate(
               type: "button",
               sub_type: "url",
               index: "0",
-              parameters: [{ type: "text", text: `${link.locale}/${link.token}` }],
+              parameters: [
+                { type: "text", text: link.locale },
+                { type: "text", text: link.token },
+              ],
             },
           ],
         },
