@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { Calendar as CalendarIcon, Clock, Store, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, Button, Input, Field, Badge, FadeIn } from "@torup/ui";
 import { apiFetch } from "@/lib/api";
-import { DateTimePicker } from "./date-time-picker";
 
 interface AppointmentSummary {
   id: string;
@@ -203,13 +202,6 @@ export function AppointmentLinkView({ token }: { token: string }) {
             <CheckCircle2 className="me-2 h-4 w-4" />
             {t("iWillAttend")}
           </Button>
-          <ChangeRequestButtons
-            token={token}
-            phone={phone}
-            appointment={appointment}
-            onError={setError}
-            parentLoading={loading}
-          />
           <Button
             onClick={() => setAttendance("reject")}
             disabled={loading}
@@ -229,91 +221,5 @@ export function AppointmentLinkView({ token }: { token: string }) {
         </CardContent>
       </Card>
     </FadeIn>
-  );
-}
-
-function ChangeRequestButtons({
-  token,
-  phone,
-  appointment,
-  onError,
-  parentLoading,
-}: {
-  token: string;
-  phone: string;
-  appointment: AppointmentSummary;
-  onError: (msg: string) => void;
-  parentLoading: boolean;
-}) {
-  const t = useTranslations("appointmentLink");
-  const [sent, setSent] = useState<"edit" | "cancel" | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const requestCancel = async () => {
-    setSubmitting(true);
-    try {
-      await apiFetch(`/api/public/appointments/${token}/change-request`, {
-        method: "POST",
-        body: JSON.stringify({ phone, type: "cancel" }),
-      });
-      setSent("cancel");
-    } catch {
-      onError(t("actionFailed"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (sent) {
-    return <p className="text-sm text-muted-foreground text-center py-2">{t("requestSent")}</p>;
-  }
-
-  if (showPicker) {
-    return (
-      <DateTimePicker
-        businessId={appointment.businessId}
-        serviceId={appointment.serviceId}
-        onSelect={async (slotStart) => {
-          setSubmitting(true);
-          try {
-            await apiFetch(`/api/public/appointments/${token}/change-request`, {
-              method: "POST",
-              body: JSON.stringify({ phone, type: "edit", proposedStartTime: slotStart }),
-            });
-            setSent("edit");
-          } catch {
-            onError(t("actionFailed"));
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-        onCancel={() => setShowPicker(false)}
-      />
-    );
-  }
-
-  return (
-    <>
-      <Button
-        onClick={() => setShowPicker(true)}
-        disabled={submitting || parentLoading}
-        variant="outline"
-        className="w-full"
-        size="lg"
-      >
-        {t("requestChange")}
-      </Button>
-      <Button
-        onClick={requestCancel}
-        disabled={submitting || parentLoading}
-        loading={submitting}
-        variant="outline"
-        className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-        size="lg"
-      >
-        {t("requestCancel")}
-      </Button>
-    </>
   );
 }
