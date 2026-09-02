@@ -12,6 +12,14 @@ import {
 import { createWhatsAppCredentialsRepo } from "../modules/whatsapp/whatsapp-credentials.repository";
 import { createWhatsAppCredentialsService } from "../modules/whatsapp/whatsapp-credentials.service";
 
+// Same origin as the {{1}}/a/{{2}} button URL registered on the WhatsApp
+// templates (see whatsapp-templates.ts) — kept here too since none of the
+// currently-APPROVED templates on Meta actually carry that button (see
+// commit fixing customer_link_token silence), so the link has to travel as
+// plain text in the freeform body until the templates are re-submitted with
+// a button and re-approved.
+const CUSTOMER_LINK_BASE_URL = "https://torup.pandacode.co.il";
+
 interface AppointmentWithDetails {
   id: string;
   business_id: string;
@@ -77,13 +85,14 @@ interface TemplateVars {
   date_numeric?: string;
   time: string;
   rebook_url?: string;
+  link_url?: string;
 }
 
 const templates: Record<string, Record<string, string>> = {
   booking_confirmation: {
-    he: "שלום {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
-    ar: "أهلين {customer_name}، تأكد دورك عند {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}",
-    en: "Hi {customer_name}, your appointment at {business_name} is confirmed!\n📋 {service_name}\n📅 {date}\n⏰ {time}",
+    he: "שלום {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nלצפייה בתור / ביטול / שינוי: {link_url}",
+    ar: "أهلين {customer_name}، تأكد دورك عند {business_name}! 🎉\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nلعرض الموعد / الإلغاء / التعديل: {link_url}",
+    en: "Hi {customer_name}, your appointment at {business_name} is confirmed!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\nView / cancel / edit your appointment: {link_url}",
   },
   booking_pending_approval: {
     he: "📩 בקשת התור שלך ב-{business_name} התקבלה!\n📋 {service_name}\n📅 {date}\n⏰ {time}\n\n⏳ ממתין לאישור בעל העסק. נשלח לך הודעה ברגע שזה יאושר.",
@@ -101,9 +110,9 @@ const templates: Record<string, Record<string, string>> = {
     en: "Your appointment at {business_name} has been rescheduled to {date} at {time}.",
   },
   approval: {
-    he: "✅ {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nנתראה! 😊",
-    ar: "✅ {customer_name}، تم تأكيد موعدك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nنراك قريباً! 😊",
-    en: "✅ {customer_name}, your appointment at {business_name} has been approved!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nSee you soon! 😊",
+    he: "✅ {customer_name}, התור שלך ב-{business_name} אושר!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nנתראה! 😊\n\nלצפייה בתור / ביטול / שינוי: {link_url}",
+    ar: "✅ {customer_name}، تم تأكيد موعدك في {business_name}!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nنراك قريباً! 😊\n\nلعرض الموعد / الإلغاء / التعديل: {link_url}",
+    en: "✅ {customer_name}, your appointment at {business_name} has been approved!\n📋 {service_name}\n📅 {date}\n⏰ {time}\nSee you soon! 😊\n\nView / cancel / edit your appointment: {link_url}",
   },
   rejection_slot_taken: {
     he: "מצטערים {customer_name} 🙏\nהתור שביקשתם ב-{business_name} ב-{date} בשעה {time} ניתן ללקוח אחר.\nניתן לקבוע תור אחר כאן: {rebook_url}",
@@ -131,7 +140,8 @@ function fillTemplate(template: string, vars: TemplateVars): string {
     .replace(/{date_weekday}/g, vars.date_weekday || "")
     .replace(/{date_numeric}/g, vars.date_numeric || "")
     .replace(/{time}/g, vars.time)
-    .replace(/{rebook_url}/g, vars.rebook_url || "");
+    .replace(/{rebook_url}/g, vars.rebook_url || "")
+    .replace(/{link_url}/g, vars.link_url || "");
 }
 
 function buildReminderBody(
@@ -183,7 +193,11 @@ function buildReminderBody(
         : `Reminder: appointment in ${m} min ⏰ ${vars.time}`;
   }
 
-  return lead + detail;
+  const linkLine = vars.link_url
+    ? `\n\n${lang === "he" ? "לצפייה בתור / ביטול / שינוי" : lang === "ar" ? "لعرض الموعد / الإلغاء / التعديل" : "View / cancel / edit your appointment"}: ${vars.link_url}`
+    : "";
+
+  return lead + detail + linkLine;
 }
 
 export function renderTemplate(
@@ -290,6 +304,7 @@ export async function sendAppointmentNotification(
       hour12: false,
       timeZone: "Asia/Jerusalem",
     }),
+    link_url: `${CUSTOMER_LINK_BASE_URL}/${lang}/a/${apt.customer_link_token}`,
     ...extraVars,
   };
 
@@ -570,8 +585,10 @@ export async function sendManagerNotification(appointmentId: string) {
   const statusLabel = apt.status === "pending_approval" ? "ממתין לאישור" : "אושר";
 
   // Quick-reply WhatsApp templates are exempt from Meta's 24h customer-service window
-  // (free-form "interactive" messages below are not — see error 131047). Flip this once
-  // the "manager_new_booking" template is approved in WhatsApp Manager.
+  // (free-form "interactive" messages below are not — see error 131047). Gated behind
+  // this flag so it only gets attempted once "manager_new_booking" is actually
+  // registered — attempting an unregistered template just fails fast (132001) and
+  // falls through to freeform below anyway, so leaving it on is never worse.
   const useTemplate = process.env.WHATSAPP_MANAGER_TEMPLATE_APPROVED === "true";
 
   let whatsappMessageId: string | null = null;
@@ -580,21 +597,27 @@ export async function sendManagerNotification(appointmentId: string) {
     const credential = await resolveBusinessCredential(apt.business_id);
     if (!credential) {
       sendError = `WhatsApp not configured for business ${apt.business_id}`;
-    } else if (useTemplate) {
-      whatsappMessageId = await sendManagerNewBookingTemplate(
-        credential,
-        ownerPhone,
-        { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
-        apt.id
-      );
     } else {
-      const message =
-        `🔔 תור חדש ממתין לאישורך!\n` +
-        `👤 ${apt.customers.name}\n` +
-        `✂️ ${apt.services.name_he}\n` +
-        `📅 ${dateStr} ⏰ ${timeStr}\n` +
-        `📱 ${apt.customers.phone}`;
-      whatsappMessageId = await sendManagerApprovalRequest(credential, ownerPhone, message, apt.id);
+      if (useTemplate) {
+        whatsappMessageId = await sendManagerNewBookingTemplate(
+          credential,
+          ownerPhone,
+          { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
+          apt.id
+        );
+      }
+      if (!whatsappMessageId) {
+        if (useTemplate) {
+          console.error(`[Notification] manager_new_booking template failed → ${ownerPhone}, falling back to freeform`);
+        }
+        const message =
+          `🔔 תור חדש ממתין לאישורך!\n` +
+          `👤 ${apt.customers.name}\n` +
+          `✂️ ${apt.services.name_he}\n` +
+          `📅 ${dateStr} ⏰ ${timeStr}\n` +
+          `📱 ${apt.customers.phone}`;
+        whatsappMessageId = await sendManagerApprovalRequest(credential, ownerPhone, message, apt.id);
+      }
     }
   } catch (err) {
     console.error("Failed to send manager notification:", err);

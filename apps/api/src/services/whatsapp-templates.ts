@@ -4,11 +4,12 @@ const WHATSAPP_API_URL = "https://graph.facebook.com/v21.0";
 
 export interface TemplateDefinition {
   name: string;
-  language: "he" | "ar";
+  language: "he" | "ar" | "en";
   category: "UTILITY";
   body: string;
   example: string[];
   buttonUrl?: string; // Meta URL-button component target, {{1}}=locale, {{2}}=token
+  quickReplyButtons?: string[]; // Quick-reply button labels, sent in this order
 }
 
 /**
@@ -65,6 +66,20 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     category: "UTILITY",
     body: "❌ {{1}}، للأسف لن نتمكن من استقبالك في الموعد:\n📋 {{2}}\n📅 {{3}}\n⏰ {{4}}\nيمكنك تحديد موعد آخر بالتواصل معنا مجدداً.",
     example: ["دانا", "قص شعر", "30.08.2026", "08:00"],
+  },
+  {
+    // Registered under "en" rather than "he" even though the body text is
+    // Hebrew — see the matching comment on sendManagerNewBookingTemplate in
+    // whatsapp.ts for why the send-time language code must match this.
+    name: "manager_new_booking",
+    language: "en",
+    category: "UTILITY",
+    // Meta rejects emoji/newlines/variables in quick-reply button text, and
+    // rejects a body that starts or ends with a variable — see the failed
+    // submission attempts this comment is describing, in this file's history.
+    body: "🔔 תור חדש ממתין לאישורך!\n👤 {{1}}\n✂️ {{2}}\n📅 {{3}} ⏰ {{4}}\nיש לאשר או לדחות.",
+    example: ["דנה", "תספורת", "30.08.2026", "08:00"],
+    quickReplyButtons: ["אשר", "דחה"],
   },
 ];
 
@@ -174,6 +189,14 @@ async function submitTemplate(
                     example: ["he", "a1b2c3d4e5f6"],
                   },
                 ],
+              },
+            ]
+          : []),
+        ...(def.quickReplyButtons
+          ? [
+              {
+                type: "BUTTONS",
+                buttons: def.quickReplyButtons.map((text) => ({ type: "QUICK_REPLY", text })),
               },
             ]
           : []),
