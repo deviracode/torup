@@ -74,9 +74,12 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     name: "manager_new_booking",
     language: "en",
     category: "UTILITY",
-    body: "🔔 תור חדש ממתין לאישורך!\n👤 {{1}}\n✂️ {{2}}\n📅 {{3}} ⏰ {{4}}",
+    // Meta rejects emoji/newlines/variables in quick-reply button text, and
+    // rejects a body that starts or ends with a variable — see the failed
+    // submission attempts this comment is describing, in this file's history.
+    body: "🔔 תור חדש ממתין לאישורך!\n👤 {{1}}\n✂️ {{2}}\n📅 {{3}} ⏰ {{4}}\nיש לאשר או לדחות.",
     example: ["דנה", "תספורת", "30.08.2026", "08:00"],
-    quickReplyButtons: ["✅ אשר", "❌ דחה"],
+    quickReplyButtons: ["אשר", "דחה"],
   },
 ];
 
