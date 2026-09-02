@@ -585,8 +585,10 @@ export async function sendManagerNotification(appointmentId: string) {
   const statusLabel = apt.status === "pending_approval" ? "ממתין לאישור" : "אושר";
 
   // Quick-reply WhatsApp templates are exempt from Meta's 24h customer-service window
-  // (free-form "interactive" messages below are not — see error 131047). Flip this once
-  // the "manager_new_booking" template is approved in WhatsApp Manager.
+  // (free-form "interactive" messages below are not — see error 131047). Gated behind
+  // this flag so it only gets attempted once "manager_new_booking" is actually
+  // registered — attempting an unregistered template just fails fast (132001) and
+  // falls through to freeform below anyway, so leaving it on is never worse.
   const useTemplate = process.env.WHATSAPP_MANAGER_TEMPLATE_APPROVED === "true";
 
   let whatsappMessageId: string | null = null;
@@ -595,21 +597,27 @@ export async function sendManagerNotification(appointmentId: string) {
     const credential = await resolveBusinessCredential(apt.business_id);
     if (!credential) {
       sendError = `WhatsApp not configured for business ${apt.business_id}`;
-    } else if (useTemplate) {
-      whatsappMessageId = await sendManagerNewBookingTemplate(
-        credential,
-        ownerPhone,
-        { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
-        apt.id
-      );
     } else {
-      const message =
-        `🔔 תור חדש ממתין לאישורך!\n` +
-        `👤 ${apt.customers.name}\n` +
-        `✂️ ${apt.services.name_he}\n` +
-        `📅 ${dateStr} ⏰ ${timeStr}\n` +
-        `📱 ${apt.customers.phone}`;
-      whatsappMessageId = await sendManagerApprovalRequest(credential, ownerPhone, message, apt.id);
+      if (useTemplate) {
+        whatsappMessageId = await sendManagerNewBookingTemplate(
+          credential,
+          ownerPhone,
+          { customerName: apt.customers.name, serviceName: apt.services.name_he, date: dateStr, time: timeStr },
+          apt.id
+        );
+      }
+      if (!whatsappMessageId) {
+        if (useTemplate) {
+          console.error(`[Notification] manager_new_booking template failed → ${ownerPhone}, falling back to freeform`);
+        }
+        const message =
+          `🔔 תור חדש ממתין לאישורך!\n` +
+          `👤 ${apt.customers.name}\n` +
+          `✂️ ${apt.services.name_he}\n` +
+          `📅 ${dateStr} ⏰ ${timeStr}\n` +
+          `📱 ${apt.customers.phone}`;
+        whatsappMessageId = await sendManagerApprovalRequest(credential, ownerPhone, message, apt.id);
+      }
     }
   } catch (err) {
     console.error("Failed to send manager notification:", err);
