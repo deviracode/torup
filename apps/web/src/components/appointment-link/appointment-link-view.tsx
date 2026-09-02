@@ -67,8 +67,9 @@ export function AppointmentLinkView({ token }: { token: string }) {
         body: JSON.stringify({ phone, decision }),
       });
       setActionDone(decision);
-    } catch {
-      setError(t("actionFailed"));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setError(msg === "Too close to the appointment time to cancel" ? t("cancellationWindowClosed") : t("actionFailed"));
     } finally {
       setLoading(false);
     }

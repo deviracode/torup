@@ -10,8 +10,20 @@ import { sendAttendanceOwnerNotification } from "../services/notifications";
 const router: Router = Router();
 
 function linkService() {
-  const repo = createAppointmentLinkRepo(createServiceClient());
-  return createAppointmentLinkService(repo, { notifyOwnerOfAttendance: sendAttendanceOwnerNotification });
+  const supabase = createServiceClient();
+  const repo = createAppointmentLinkRepo(supabase);
+  return createAppointmentLinkService(repo, {
+    notifyOwnerOfAttendance: sendAttendanceOwnerNotification,
+    async getCancellationWindowMinutes(businessId) {
+      const { data, error } = await supabase
+        .from("booking_rules")
+        .select("cancellation_window_minutes")
+        .eq("business_id", businessId)
+        .single();
+      if (error) console.error(`Failed to fetch booking rules for business ${businessId}: ${error.message}`);
+      return data?.cancellation_window_minutes ?? 120;
+    },
+  });
 }
 
 function requirePhone(req: Request): string {

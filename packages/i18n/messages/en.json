@@ -358,6 +358,7 @@
     "pickerComingSoon": "Picking a new time will be available soon.",
     "noSlots": "No available times on this date.",
     "back": "Back",
-    "phoneLabel": "Phone number"
+    "phoneLabel": "Phone number",
+    "cancellationWindowClosed": "This appointment can no longer be cancelled — it's past the allowed cancellation window."
   }
 }
