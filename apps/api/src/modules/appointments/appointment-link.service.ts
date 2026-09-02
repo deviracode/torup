@@ -12,6 +12,10 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
+function minutesUntil(isoTime: string): number {
+  return (new Date(isoTime).getTime() - Date.now()) / 60_000;
+}
+
 export interface AppointmentLinkSummary {
   id: string;
   businessId: string;
@@ -24,6 +28,7 @@ export interface AppointmentLinkSummary {
 
 export interface AppointmentLinkServiceDeps {
   notifyOwnerOfAttendance: (appointmentId: string, decision: "confirm" | "reject") => Promise<void>;
+  getCancellationWindowMinutes: (businessId: string) => Promise<number>;
 }
 
 export function createAppointmentLinkService(repo: Repo, deps: AppointmentLinkServiceDeps) {
@@ -65,6 +70,12 @@ export function createAppointmentLinkService(repo: Repo, deps: AppointmentLinkSe
 
   async function setAttendance(token: string, phone: string, decision: "confirm" | "reject") {
     const apt = await loadVerified(token, phone);
+    if (decision === "reject") {
+      const windowMinutes = await deps.getCancellationWindowMinutes(apt.business_id);
+      if (minutesUntil(apt.start_time) < windowMinutes) {
+        throw new AppError(400, "Too close to the appointment time to cancel");
+      }
+    }
     const status = decision === "confirm" ? "confirmed" : "cancelled";
     await repo.updateAttendance(apt.id, status, decision === "confirm");
     deps.notifyOwnerOfAttendance(apt.id, decision).catch((err) => console.error("[Notification] attendance owner notify failed:", err));

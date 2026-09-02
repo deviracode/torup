@@ -25,7 +25,7 @@ const ROW = {
 describe("appointment-link service", () => {
   it("verifyAndGet succeeds when phone matches (normalized local format)", async () => {
     const repo = makeRepo(ROW);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn(), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     const result = await svc.verifyAndGet("tok123", "0501234567");
     expect(result.id).toBe("apt-1");
     expect(result.serviceId).toBe("svc-1");
@@ -41,7 +41,7 @@ describe("appointment-link service", () => {
   // the legitimate customer and no enumeration risk remains.
   it("verifyAndGet throws generic 404 when phone does not match (indistinguishable from bad token)", async () => {
     const repo = makeRepo(ROW);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn(), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await expect(svc.verifyAndGet("tok123", "0509999999")).rejects.toMatchObject({
       statusCode: 404,
       message: "Appointment link not found or phone number does not match",
@@ -50,7 +50,7 @@ describe("appointment-link service", () => {
 
   it("verifyAndGet throws generic 404 when token does not exist (indistinguishable from wrong phone)", async () => {
     const repo = makeRepo(null);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn(), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await expect(svc.verifyAndGet("bad-token", "0501234567")).rejects.toMatchObject({
       statusCode: 404,
       message: "Appointment link not found or phone number does not match",
@@ -59,13 +59,13 @@ describe("appointment-link service", () => {
 
   it("verifyAndGet throws 410 (gone) when appointment is cancelled/completed/no_show", async () => {
     const repo = makeRepo({ ...ROW, status: "cancelled" });
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn(), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await expect(svc.verifyAndGet("tok123", "0501234567")).rejects.toMatchObject({ statusCode: 410 });
   });
 
   it("verifyAndGet matches international-format and formatted phone input against a stored number", async () => {
     const repo = makeRepo(ROW); // ROW.customers.phone is "972501234567"
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn() });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn(), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await expect(svc.verifyAndGet("tok123", "+972-50-123-4567")).resolves.toMatchObject({ id: "apt-1" });
     await expect(svc.verifyAndGet("tok123", "972501234567")).resolves.toMatchObject({ id: "apt-1" });
   });
@@ -73,7 +73,7 @@ describe("appointment-link service", () => {
   it("setAttendance confirm updates status=confirmed, customer_confirmed=true, notifies owner", async () => {
     const repo = makeRepo(ROW);
     const notifyOwner = vi.fn().mockResolvedValue(undefined);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: notifyOwner });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: notifyOwner, getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await svc.setAttendance("tok123", "0501234567", "confirm");
     expect(repo.updateAttendance).toHaveBeenCalledWith("apt-1", "confirmed", true);
     expect(notifyOwner).toHaveBeenCalledWith("apt-1", "confirm");
@@ -81,8 +81,33 @@ describe("appointment-link service", () => {
 
   it("setAttendance reject updates status=cancelled, customer_confirmed=false", async () => {
     const repo = makeRepo(ROW);
-    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn().mockResolvedValue(undefined) });
+    const svc = createAppointmentLinkService(repo as any, { notifyOwnerOfAttendance: vi.fn().mockResolvedValue(undefined), getCancellationWindowMinutes: vi.fn().mockResolvedValue(120) });
     await svc.setAttendance("tok123", "0501234567", "reject");
     expect(repo.updateAttendance).toHaveBeenCalledWith("apt-1", "cancelled", false);
+  });
+
+  it("setAttendance reject throws 400 and does not cancel when inside the business's cancellation window", async () => {
+    const soonRow = { ...ROW, start_time: new Date(Date.now() + 32 * 60_000).toISOString() };
+    const repo = makeRepo(soonRow);
+    const svc = createAppointmentLinkService(repo as any, {
+      notifyOwnerOfAttendance: vi.fn(),
+      getCancellationWindowMinutes: vi.fn().mockResolvedValue(120),
+    });
+    await expect(svc.setAttendance("tok123", "0501234567", "reject")).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Too close to the appointment time to cancel",
+    });
+    expect(repo.updateAttendance).not.toHaveBeenCalled();
+  });
+
+  it("setAttendance confirm is not gated by the cancellation window, even right before the appointment", async () => {
+    const soonRow = { ...ROW, start_time: new Date(Date.now() + 5 * 60_000).toISOString() };
+    const repo = makeRepo(soonRow);
+    const svc = createAppointmentLinkService(repo as any, {
+      notifyOwnerOfAttendance: vi.fn().mockResolvedValue(undefined),
+      getCancellationWindowMinutes: vi.fn().mockResolvedValue(120),
+    });
+    await svc.setAttendance("tok123", "0501234567", "confirm");
+    expect(repo.updateAttendance).toHaveBeenCalledWith("apt-1", "confirmed", true);
   });
 });
