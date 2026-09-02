@@ -321,6 +321,14 @@ export async function sendAppointmentNotification(
         lang,
         { locale: lang, token: apt.customer_link_token }
       );
+      if (!whatsappMessageId) {
+        // Template send failed (unapproved/paused template, transient Meta
+        // error, etc) — fall back to freeform. Still fails for a customer
+        // outside the 24h window, but no worse than not trying, and covers
+        // the case where the failure wasn't actually window-related.
+        console.error(`[Notification] ${templateId} template failed → ${customer.phone}, falling back to freeform`);
+        whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
+      }
     } else {
       whatsappMessageId = await sendWhatsAppMessage(credential, customer.phone, message);
     }
@@ -418,10 +426,14 @@ export async function sendApprovalNotification(appointmentId: string) {
             ? "Template send failed — check logs for Meta API error"
             : `WhatsApp not configured for business ${apt.business_id}`,
         });
-        if (!msgId) {
-          console.error(`[Notification] FAILED approval template → ${customer.phone} | appointment ${appointmentId}`);
+        if (msgId) {
+          return { sent: true, failed: false };
         }
-        return { sent: !!msgId, failed: !msgId };
+        // Template send failed (paused/rejected template, transient Meta
+        // error, etc). Falling back to freeform still has a shot if the
+        // customer has an open 24h session — no worse than not trying, and
+        // strictly better when the failure wasn't actually window-related.
+        console.error(`[Notification] approval template failed → ${customer.phone} | appointment ${appointmentId}, falling back to freeform`);
       }
     }
   }
@@ -496,10 +508,13 @@ export async function sendRejectionNotification(
             ? "Template send failed — check logs for Meta API error"
             : `WhatsApp not configured for business ${apt.business_id}`,
         });
-        if (!msgId) {
-          console.error(`[Notification] FAILED rejection template → ${customer.phone} | appointment ${appointmentId}`);
+        if (msgId) {
+          return { sent: true, failed: false };
         }
-        return { sent: !!msgId, failed: !msgId };
+        // Template send failed — fall back to freeform below, same rationale
+        // as sendApprovalNotification (still works if the customer has an
+        // open 24h session; strictly better than not trying).
+        console.error(`[Notification] rejection template failed → ${customer.phone} | appointment ${appointmentId}, falling back to freeform`);
       }
     }
   }

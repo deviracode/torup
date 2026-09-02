@@ -132,6 +132,24 @@ describe("sendApprovalNotification", () => {
     expect(insertedRows[0].status).toBe("failed");
     expect(insertedRows[0].whatsapp_message_id).toBeNull();
   });
+
+  it("falls back to freeform text when the template send itself fails (credential present, Meta rejects/errors)", async () => {
+    process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED = "true";
+    const whatsapp = await import("../services/whatsapp");
+    (whatsapp.sendCustomerApprovalTemplate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    (whatsapp.sendWhatsAppMessage as ReturnType<typeof vi.fn>).mockClear();
+
+    const { sendApprovalNotification } = await import("../services/notifications");
+    const result = await sendApprovalNotification("apt-1");
+
+    expect(result?.sent).toBe(true);
+    expect(whatsapp.sendWhatsAppMessage).toHaveBeenCalled();
+    // Two log rows: the failed template attempt, then the successful freeform fallback.
+    expect(insertedRows).toHaveLength(2);
+    expect(insertedRows[0].status).toBe("failed");
+    expect(insertedRows[1].status).toBe("sent");
+    expect(insertedRows[1].whatsapp_message_id).toBe("msg-id-123");
+  });
 });
 
 describe("sendRejectionNotification", () => {
@@ -187,6 +205,23 @@ describe("sendRejectionNotification", () => {
     expect(insertedRows).toHaveLength(1);
     expect(insertedRows[0].template_id).toBe("rejection_manual");
     expect(insertedRows[0].whatsapp_message_id).toBe("msg-id-123");
+  });
+
+  it("falls back to freeform text when the rejection template send itself fails", async () => {
+    process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED = "true";
+    const whatsapp = await import("../services/whatsapp");
+    (whatsapp.sendCustomerRejectionTemplate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    (whatsapp.sendWhatsAppMessage as ReturnType<typeof vi.fn>).mockClear();
+
+    const { sendRejectionNotification } = await import("../services/notifications");
+    const result = await sendRejectionNotification("apt-1", "manual");
+
+    expect(result?.sent).toBe(true);
+    expect(whatsapp.sendWhatsAppMessage).toHaveBeenCalled();
+    expect(insertedRows).toHaveLength(2);
+    expect(insertedRows[0].status).toBe("failed");
+    expect(insertedRows[1].status).toBe("sent");
+    expect(insertedRows[1].whatsapp_message_id).toBe("msg-id-123");
   });
 
   it("does not send when the appointment has no usable customer phone, even with the template enabled", async () => {

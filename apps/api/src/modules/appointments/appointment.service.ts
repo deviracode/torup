@@ -159,9 +159,16 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
             .sendManager(data.id)
             .catch((err) => console.error("[Notification] manager failed:", err));
         } else if (finalStatus === "confirmed") {
+          // Manual bookings confirmed directly (e.g. staff-entered phone
+          // bookings) never had a WhatsApp session opened by the customer,
+          // so a freeform "booking_confirmation" text silently fails Meta's
+          // 24h re-engagement-window check. sendApproval uses the same
+          // Meta-approved appointment_confirmed_he/ar template as the
+          // staff-approval flow (gated behind WHATSAPP_APPROVAL_TEMPLATE_ENABLED,
+          // falling back to freeform only if that's unset).
           deps.notify
-            .sendAppointment(data.id, "booking_confirmation")
-            .catch((err) => console.error("[Notification] booking_confirmation failed:", err));
+            .sendApproval(data.id)
+            .catch((err) => console.error("[Notification] booking_confirmation (approval template) failed:", err));
         }
         deps.gcal
           .pushAppointment(data.id)
