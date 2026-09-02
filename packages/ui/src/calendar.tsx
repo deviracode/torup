@@ -11,18 +11,25 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row gap-4",
+        // `nav` renders as a sibling of `month` (both children of `months`),
+        // not nested inside `month_caption` — so it needs `months` itself as
+        // its positioning context, pinned as a full-width overlay row lined
+        // up with the caption below it. Without this, `nav`'s `absolute`
+        // children fall back to whatever the nearest positioned ancestor up
+        // the tree happens to be (e.g. a `transform`-bearing motion.div from
+        // framer-motion), landing nowhere near the calendar at all.
+        months: "relative flex flex-col sm:flex-row gap-4",
         month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
+        month_caption: "flex justify-center pt-1 items-center",
         caption_label: "text-sm font-medium",
-        nav: "flex items-center gap-1",
+        nav: "absolute inset-x-0 top-1 z-10 flex items-center justify-between px-1",
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute start-1"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute end-1"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex w-full",

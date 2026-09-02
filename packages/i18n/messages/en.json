@@ -357,6 +357,7 @@
     "noLongerActive": "This appointment is no longer active.",
     "pickerComingSoon": "Picking a new time will be available soon.",
     "noSlots": "No available times on this date.",
-    "back": "Back"
+    "back": "Back",
+    "phoneLabel": "Phone number"
   }
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { Clock, AlertCircle } from "lucide-react";
+import { Calendar, Button, Spinner } from "@torup/ui";
 import { apiFetch } from "@/lib/api";
 
 interface TimeSlot {
@@ -11,8 +13,16 @@ interface TimeSlot {
   total_capacity: number;
 }
 
+const dateFmtLocale: Record<string, string> = { he: "he-IL", ar: "ar", en: "en-US" };
+
 function toLocalDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 }
 
 export function DateTimePicker({
@@ -27,8 +37,10 @@ export function DateTimePicker({
   onCancel: () => void;
 }) {
   const t = useTranslations("appointmentLink");
+  const locale = useLocale();
+  const fmtLocale = dateFmtLocale[locale] ?? "he-IL";
   const [step, setStep] = useState<"date" | "time">("date");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,19 +52,18 @@ export function DateTimePicker({
       .catch(() => {});
   }, [businessId]);
 
-  const dates = Array.from({ length: maxFutureDays }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return toLocalDateString(d);
-  });
+  const today = startOfDay(new Date());
+  const lastSelectable = new Date(today);
+  lastSelectable.setDate(lastSelectable.getDate() + maxFutureDays);
 
-  const handleDateSelect = async (date: string) => {
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (!date) return;
     setSelectedDate(date);
     setLoading(true);
     setError("");
     try {
       const result = await apiFetch<{ slots: TimeSlot[] }>(
-        `/api/businesses/${businessId}/availability?service_id=${serviceId}&date=${date}`
+        `/api/businesses/${businessId}/availability?service_id=${serviceId}&date=${toLocalDateString(date)}`
       );
       setSlots(result.slots);
       setStep("time");
@@ -65,54 +76,74 @@ export function DateTimePicker({
 
   if (step === "date") {
     return (
-      <div>
-        <div className="grid grid-cols-4 gap-2">
-          {dates.map((date) => {
-            const d = new Date(date + "T12:00:00");
-            return (
-              <button
-                key={date}
-                onClick={() => handleDateSelect(date)}
-                disabled={loading}
-                className="rounded-xl border border-gray-200 bg-white p-2 text-center text-sm hover:border-indigo-400 disabled:opacity-50"
-              >
-                <div className="text-xs text-gray-400">{d.toLocaleDateString("he-IL", { weekday: "short" })}</div>
-                <div className="font-bold text-gray-900">{d.getDate()}</div>
-              </button>
-            );
-          })}
-        </div>
-        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
-        <button onClick={onCancel} className="mt-3 w-full text-sm text-gray-500">
+      <div className="rounded-lg border border-border bg-muted/30 p-2">
+        <Calendar
+          mode="single"
+          dir={fmtLocale === "en-US" ? "ltr" : "rtl"}
+          selected={selectedDate}
+          onSelect={handleDateSelect}
+          disabled={{ before: today, after: lastSelectable }}
+          className="mx-auto"
+          formatters={{
+            formatCaption: (d) => d.toLocaleDateString(fmtLocale, { month: "long", year: "numeric" }),
+            formatWeekdayName: (d) => d.toLocaleDateString(fmtLocale, { weekday: "short" }),
+          }}
+        />
+        {error && (
+          <p role="alert" className="flex items-center gap-1.5 px-3 pb-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </p>
+        )}
+        <Button onClick={onCancel} variant="ghost" className="w-full text-muted-foreground">
           {t("back")}
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div>
-      {slots.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-4">{t("noSlots")}</p>
+    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+      {selectedDate && (
+        <div className="text-center text-sm font-medium text-foreground">
+          {selectedDate.toLocaleDateString(fmtLocale, { weekday: "long", day: "numeric", month: "long" })}
+        </div>
+      )}
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <Spinner />
+        </div>
+      ) : slots.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">{t("noSlots")}</p>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {slots.map((slot) => {
-            const time = new Date(slot.start).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
+            const full = slot.available_capacity <= 0;
+            const time = new Date(slot.start).toLocaleTimeString(fmtLocale, {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            });
             return (
               <button
                 key={slot.start}
-                onClick={() => onSelect(slot.start)}
-                className="rounded-xl border border-gray-200 bg-white p-2 text-sm hover:border-indigo-400"
+                type="button"
+                onClick={() => !full && onSelect(slot.start)}
+                disabled={full}
+                aria-disabled={full}
+                title={full ? t("noSlots") : undefined}
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2 py-2 text-sm text-foreground transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-foreground"
               >
+                <Clock className="h-3.5 w-3.5 opacity-60" />
                 {time}
               </button>
             );
           })}
         </div>
       )}
-      <button onClick={() => setStep("date")} className="mt-3 w-full text-sm text-gray-500">
+      <Button onClick={() => setStep("date")} variant="ghost" className="w-full text-muted-foreground">
         {t("back")}
-      </button>
+      </Button>
     </div>
   );
 }
