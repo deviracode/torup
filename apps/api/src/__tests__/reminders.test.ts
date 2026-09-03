@@ -91,6 +91,11 @@ function makeSupabaseStubForPost(createdVia: string) {
             }),
           }),
         });
+        // book_appointment_atomic's post-RPC re-select (see appointment.repository.ts's bookAtomic)
+        chain.single = async () => ({
+          data: { id: CREATED_APT_ID, created_via: createdVia },
+          error: null,
+        });
         return chain;
       }
       if (table === "staff_services" || table === "breaks") {
@@ -104,6 +109,12 @@ function makeSupabaseStubForPost(createdVia: string) {
         return chain;
       }
       return { select: () => ({ eq: () => ({ single: async () => ({ data: null, error: { message: "not found" } }) }) }) };
+    },
+    rpc(name: string, _params: unknown) {
+      if (name === "book_appointment_atomic") {
+        return Promise.resolve({ data: { id: CREATED_APT_ID }, error: null });
+      }
+      return Promise.resolve({ data: null, error: { message: `unmocked rpc ${name}` } });
     },
   };
 }

@@ -151,21 +151,29 @@ export async function syncGoogleCalendar(businessId: string): Promise<{ imported
 export async function pushAppointmentToGoogle(appointmentId: string) {
   const supabase = createServiceClient();
 
-  const { data: apt } = await supabase
+  const { data: apt, error: aptErr } = await supabase
     .from("appointments")
     .select("id, business_id, start_time, end_time, status, services(name_he), customers(name)")
     .eq("id", appointmentId)
     .single();
 
-  if (!apt) return;
+  if (!apt) {
+    console.error(`[gcal] pushAppointmentToGoogle: appointment ${appointmentId} lookup failed`, aptErr?.message);
+    return;
+  }
 
-  const { data: config } = await supabase
+  const { data: config, error: configErr } = await supabase
     .from("google_calendar_tokens")
     .select("*")
     .eq("business_id", apt.business_id)
     .eq("push_enabled", true)
     .single();
 
+  // Not every business has Google Calendar push enabled — that's normal and
+  // not worth logging. A real query error underneath it is not.
+  if (configErr && configErr.code !== "PGRST116") {
+    console.error(`[gcal] pushAppointmentToGoogle: token lookup failed for business ${apt.business_id}`, configErr.message);
+  }
   if (!config || !config.google_calendar_id) return;
 
   try {
