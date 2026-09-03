@@ -291,6 +291,12 @@ const SLOT_TAKEN_MSG: Record<"he" | "ar" | "en", (time: string, date: string) =>
   en: (t, d) => `⚠️ ${t}:00 on ${d} is taken. Choose another date:`,
 };
 
+const SLOT_FULL_MSG: Record<"he" | "ar" | "en", string> = {
+  he: "מצטערים, התור הזה כבר מלא. אפשר לבחור זמן אחר?",
+  ar: "نأسف، هذا الموعد ممتلئ. هل يمكنك اختيار وقت آخر؟",
+  en: "Sorry, that slot just filled up. Could you pick another time?",
+};
+
 const SERVICE_LIST_I18N: Record<"he" | "ar" | "en", { prompt: string; button: string; section: string; discuss: string; min: string }> = {
   he: { prompt: "בחרו שירות:", button: "הצג שירותים", section: "שירותים", discuss: "לשיחה עם בעל העסק", min: "דק׳" },
   ar: { prompt: "ما الخدمة التي تودّ حجزها؟ 😊", button: "عرض الخدمات", section: "الخدمات", discuss: "يُحدَّد مع صاحب العمل", min: "دقيقة" },
@@ -452,7 +458,7 @@ async function createBooking(
   startTime: string,
   customerId: string,
   allowMultipleBookings: boolean
-): Promise<"ok" | "already_booked" | string> {
+): Promise<"ok" | "already_booked" | "slot_full" | string> {
   const supabase = getSupabase();
 
   const { data: service } = await supabase.from("services")
@@ -480,17 +486,36 @@ async function createBooking(
     new Date(startTime).getTime() + service.duration_minutes * 60000
   ).toISOString();
 
-  const { data: inserted, error } = await supabase.from("appointments").insert({
-    business_id: businessId,
-    service_id: serviceId,
-    customer_id: customerId,
-    start_time: startTime,
-    end_time: endTime,
-    status: "pending_approval",
-    created_via: "whatsapp",
-  }).select("id").single();
+  // Capacity check + insert happen atomically inside book_appointment_atomic
+  // (db migration 00039/00040) — the same function the web booking path uses.
+  // Previously this inserted directly with no capacity check at all beyond
+  // the single-active-booking guard above (which only protects against the
+  // SAME customer double-booking themselves): two different customers could
+  // both book the exact same fully-booked slot via WhatsApp.
+  // Deterministic (not random) key: a WhatsApp message can arrive more than
+  // once — a delivery retry from Meta, or the customer re-sending the exact
+  // same "book this slot" tap — and each replay of the same underlying
+  // intent should collapse into the one appointment already created, not a
+  // second row.
+  const idempotencyKey = `whatsapp:${customerId}:${serviceId}:${startTime}`;
 
-  if (error) return `שגיאה: ${error.message}`;
+  const { data: inserted, error } = await supabase.rpc("book_appointment_atomic", {
+    p_business_id: businessId,
+    p_service_id: serviceId,
+    p_customer_id: customerId,
+    p_staff_id: null,
+    p_start_time: startTime,
+    p_end_time: endTime,
+    p_notes: null,
+    p_created_via: "whatsapp",
+    p_status: "pending_approval",
+    p_idempotency_key: idempotencyKey,
+  });
+
+  if (error) {
+    if (error.code === "P0001") return "slot_full";
+    return `שגיאה: ${error.message}`;
+  }
 
   // Fire-and-forget manager notification
   if (inserted?.id) {
@@ -1304,6 +1329,8 @@ async function handleIncomingMessage(
         }
       } else if (result === "already_booked") {
         await sendTextMessage(credential, from, ALREADY_BOOKED_MSG[session.language]);
+      } else if (result === "slot_full") {
+        await sendTextMessage(credential, from, SLOT_FULL_MSG[session.language]);
       } else {
         await sendTextMessage(credential, from, result);
       }

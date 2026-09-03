@@ -66,7 +66,15 @@ router.get(
 // POST /businesses/:businessId/appointments — public
 router.post("/", async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await publicService().book(getBusinessId(req), req.body);
+    // Standard Idempotency-Key header takes precedence over a body field of
+    // the same name, but either works — a network retry or double-tap that
+    // resends the same key gets back the original booking instead of a
+    // second one.
+    const idempotencyKey = req.header("Idempotency-Key") || req.body?.idempotency_key || null;
+    const data = await publicService().book(getBusinessId(req), {
+      ...req.body,
+      idempotency_key: idempotencyKey,
+    });
     res.status(201).json(data);
   } catch (err) {
     next(err);

@@ -131,6 +131,7 @@ export type Database = {
           end_time: string
           google_event_id: string | null
           id: string
+          idempotency_key: string | null
           notes: string | null
           service_id: string
           staff_id: string | null
@@ -149,6 +150,7 @@ export type Database = {
           end_time: string
           google_event_id?: string | null
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           service_id: string
           staff_id?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           end_time?: string
           google_event_id?: string | null
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           service_id?: string
           staff_id?: string | null
@@ -1030,6 +1033,39 @@ export type Database = {
       acquire_booking_lock: {
         Args: { biz_id: string; cust_id: string }
         Returns: undefined
+      }
+      book_appointment_atomic: {
+        Args: {
+          p_business_id: string
+          p_created_via: Database["public"]["Enums"]["booking_source"]
+          p_customer_id: string
+          p_end_time: string
+          p_idempotency_key?: string | null
+          p_notes: string | null
+          p_service_id: string
+          p_staff_id: string | null
+          p_start_time: string
+          p_status: Database["public"]["Enums"]["appointment_status"]
+        }
+        Returns: {
+          business_id: string
+          cancellation_reason: string | null
+          created_at: string
+          created_via: Database["public"]["Enums"]["booking_source"]
+          customer_confirmed: boolean | null
+          customer_id: string
+          customer_link_token: string
+          end_time: string
+          google_event_id: string | null
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          service_id: string
+          staff_id: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
       }
       find_or_create_customer: {
         Args: {

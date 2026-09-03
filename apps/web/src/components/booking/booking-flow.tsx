@@ -139,6 +139,12 @@ export function BookingFlow({
   const [bookingResult, setBookingResult] = useState<Record<string, unknown> | null>(null);
   const [maxFutureDays, setMaxFutureDays] = useState(14);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // One key per booking attempt (a specific slot the customer is trying to
+  // book), reused across retries of that SAME attempt — a double-tap or a
+  // retry after a slow/failed network request returns the original booking
+  // instead of creating a duplicate. Regenerated whenever a new slot is
+  // picked, since that's a genuinely new booking intent.
+  const [idempotencyKey, setIdempotencyKey] = useState("");
   const hasCategories = categories.length > 0 && (services as any[]).some((s) => s.category_id != null);
   const uncategorizedServices = (services as any[]).filter((s) => !s.category_id);
 
@@ -178,7 +184,11 @@ export function BookingFlow({
     }
   };
 
-  const handleSlotSelect = (slot: TimeSlot) => { setSelectedSlot(slot); setStep("details"); };
+  const handleSlotSelect = (slot: TimeSlot) => {
+    setSelectedSlot(slot);
+    setIdempotencyKey(crypto.randomUUID());
+    setStep("details");
+  };
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +203,7 @@ export function BookingFlow({
         `/api/businesses/${business.id}/appointments`,
         {
           method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
           body: JSON.stringify({
             service_id: selectedService!.id,
             customer_id: customer.id,

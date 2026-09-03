@@ -70,6 +70,45 @@ export function createAppointmentRepo(
         .single();
     },
 
+    // Capacity check + insert as one atomic DB operation (book_appointment_atomic,
+    // 00039) instead of create()'s separate check-then-insert — closes the race
+    // where two concurrent bookings for the last open slot could both pass a
+    // capacity read before either write landed. Throws AppError(409) via the
+    // caller inspecting the RPC error's SLOT_FULL code; on success, re-selects
+    // with the same join `create()` uses so callers see an identical shape.
+    async bookAtomic(params: {
+      business_id: string;
+      service_id: string;
+      customer_id: string;
+      staff_id: string | null;
+      start_time: string;
+      end_time: string;
+      notes: string | null;
+      created_via: Enums<"booking_source">;
+      status: Enums<"appointment_status">;
+      idempotency_key?: string | null;
+    }) {
+      const { data: inserted, error } = await svc.rpc("book_appointment_atomic", {
+        p_business_id: params.business_id,
+        p_service_id: params.service_id,
+        p_customer_id: params.customer_id,
+        p_staff_id: params.staff_id,
+        p_start_time: params.start_time,
+        p_end_time: params.end_time,
+        p_notes: params.notes,
+        p_created_via: params.created_via,
+        p_status: params.status,
+        p_idempotency_key: params.idempotency_key ?? null,
+      });
+      if (error || !inserted) return { data: null, error };
+
+      return svc
+        .from("appointments")
+        .select(APPOINTMENT_JOIN_SELECT)
+        .eq("id", (inserted as { id: string }).id)
+        .single();
+    },
+
     async update(
       appointmentId: string,
       businessId: string,

@@ -104,9 +104,10 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
         notes?: string | null;
         created_via?: string;
         status?: string;
+        idempotency_key?: string | null;
       }
     ) {
-      const { service_id, customer_id, staff_id, start_time, notes, created_via, status } = input;
+      const { service_id, customer_id, staff_id, start_time, notes, created_via, status, idempotency_key } = input;
 
       const { data: serviceRow, error: serviceErr } = (await repo.findServiceById(
         businessId,
@@ -126,8 +127,6 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
       const startDate = new Date(start_time);
       const endDate = new Date(startDate.getTime() + service.duration_minutes * 60 * 1000);
 
-      await checkSlotCapacity(businessId, service_id, startDate, service);
-
       const isManual = created_via === "manual";
       // Public bookings (web, or any non-manual source) always land as
       // pending_approval, same as WhatsApp bookings — a manager must approve
@@ -135,7 +134,11 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
       // created appointments (dashboard) skip this gate.
       const finalStatus = isManual ? status || "pending" : "pending_approval";
 
-      const { data, error } = await repo.create({
+      // Capacity check + insert happen atomically inside book_appointment_atomic
+      // (db migration 00039) — not a separate read-then-write from here — so two
+      // concurrent bookings for the last open slot can't both pass a capacity
+      // check before either write lands.
+      const { data, error } = await repo.bookAtomic({
         business_id: businessId,
         service_id,
         customer_id,
@@ -145,7 +148,12 @@ export function createAppointmentService(repo: AppointmentRepo, deps: Appointmen
         notes: notes || null,
         created_via: (created_via || "web") as Enums<"booking_source">,
         status: finalStatus as Enums<"appointment_status">,
+        idempotency_key: idempotency_key || null,
       });
+
+      if (error && (error as { code?: string }).code === "P0001") {
+        throw new AppError(409, "Time slot is fully booked");
+      }
 
       if (error) throw new AppError(400, error.message);
 

@@ -246,7 +246,7 @@ export async function sendAppointmentNotification(
   const supabase = createServiceClient();
 
   // Get appointment with customer and service details
-  const { data: appointment } = await supabase
+  const { data: appointment, error: aptErr } = await supabase
     .from("appointments")
     .select(
       "id, business_id, customer_id, start_time, status, created_via, customer_link_token, " +
@@ -257,7 +257,10 @@ export async function sendAppointmentNotification(
     .eq("id", appointmentId)
     .single();
 
-  if (!appointment) return;
+  if (!appointment) {
+    console.error(`[Notification] sendAppointmentNotification: appointment ${appointmentId} lookup failed`, aptErr?.message);
+    return;
+  }
 
   const apt = appointment as unknown as AppointmentWithDetails;
 
@@ -265,7 +268,12 @@ export async function sendAppointmentNotification(
   const service = apt.services;
   const business = apt.businesses;
 
-  if (!customer || !service || !business) return;
+  if (!customer || !service || !business) {
+    console.error(
+      `[Notification] sendAppointmentNotification: appointment ${appointmentId} missing joined data — customer=${!!customer} service=${!!service} business=${!!business}`
+    );
+    return;
+  }
 
   const lang = ["he", "ar", "en"].includes(customer.language_preference)
     ? customer.language_preference
@@ -388,7 +396,7 @@ export async function sendApprovalNotification(appointmentId: string) {
   const useTemplate = process.env.WHATSAPP_APPROVAL_TEMPLATE_ENABLED === "true";
   if (useTemplate) {
     const supabase = createServiceClient();
-    const { data: appointment } = await supabase
+    const { data: appointment, error: aptErr } = await supabase
       .from("appointments")
       .select(
         "id, business_id, customer_id, start_time, customer_link_token, " +
@@ -399,10 +407,19 @@ export async function sendApprovalNotification(appointmentId: string) {
       .eq("id", appointmentId)
       .single();
 
+    if (!appointment) {
+      console.error(`[Notification] sendApprovalNotification: appointment ${appointmentId} lookup failed, falling back to freeform`, aptErr?.message);
+    }
+
     if (appointment) {
       const apt = appointment as unknown as AppointmentWithDetails;
       const customer = apt.customers;
       const service = apt.services;
+      if (!customer?.phone || !service) {
+        console.error(
+          `[Notification] sendApprovalNotification: appointment ${appointmentId} missing customer.phone or service, falling back to freeform`
+        );
+      }
       if (customer?.phone && service) {
         const lang = ["he", "ar", "en"].includes(customer.language_preference)
           ? customer.language_preference
@@ -468,7 +485,7 @@ export async function sendRejectionNotification(
   const useTemplate = process.env.WHATSAPP_REJECTION_TEMPLATE_ENABLED === "true";
   if (useTemplate) {
     const supabase = createServiceClient();
-    const { data: appointment } = await supabase
+    const { data: appointment, error: aptErr } = await supabase
       .from("appointments")
       .select(
         "id, business_id, customer_id, start_time, " +
@@ -479,6 +496,10 @@ export async function sendRejectionNotification(
       .eq("id", appointmentId)
       .single();
 
+    if (!appointment) {
+      console.error(`[Notification] sendRejectionNotification: appointment ${appointmentId} lookup failed, falling back to freeform`, aptErr?.message);
+    }
+
     if (appointment) {
       const apt = appointment as unknown as {
         id: string; business_id: string; customer_id: string; start_time: string;
@@ -488,6 +509,11 @@ export async function sendRejectionNotification(
       };
       const customer = apt.customers;
       const service = apt.services;
+      if (!customer?.phone || !service) {
+        console.error(
+          `[Notification] sendRejectionNotification: appointment ${appointmentId} missing customer.phone or service, falling back to freeform`
+        );
+      }
       if (customer?.phone && service) {
         const lang = customer.language_preference || "he";
         const serviceName = lang === "ar" && service.name_ar ? service.name_ar :
@@ -556,7 +582,7 @@ export async function sendRejectionNotification(
 export async function sendManagerNotification(appointmentId: string) {
   const supabase = createServiceClient();
 
-  const { data: appointment } = await supabase
+  const { data: appointment, error: aptErr } = await supabase
     .from("appointments")
     .select(
       "id, business_id, start_time, status, " +
@@ -567,12 +593,18 @@ export async function sendManagerNotification(appointmentId: string) {
     .eq("id", appointmentId)
     .single();
 
-  if (!appointment) return;
+  if (!appointment) {
+    console.error(`[Notification] sendManagerNotification: appointment ${appointmentId} lookup failed`, aptErr?.message);
+    return;
+  }
 
   const apt = appointment as unknown as AppointmentForManager;
 
   const ownerPhone = apt.businesses.phone;
-  if (!ownerPhone) return;
+  if (!ownerPhone) {
+    console.error(`[Notification] sendManagerNotification: business ${apt.business_id} has no owner phone configured`);
+    return;
+  }
 
   const startDate = new Date(apt.start_time);
   const dateStr = startDate.toLocaleDateString("he-IL", {
@@ -642,26 +674,39 @@ export async function sendManagerNotification(appointmentId: string) {
 export async function sendChangeRequestOwnerNotification(requestId: string) {
   const supabase = createServiceClient();
 
-  const { data: request } = await supabase
+  const { data: request, error: reqErr } = await supabase
     .from("appointment_change_requests")
     .select("id, type, appointment_id, business_id")
     .eq("id", requestId)
     .single();
-  if (!request) return;
+  if (!request) {
+    console.error(`[Notification] sendChangeRequestOwnerNotification: request ${requestId} lookup failed`, reqErr?.message);
+    return;
+  }
 
-  const { data: appointment } = await supabase
+  const { data: appointment, error: aptErr } = await supabase
     .from("appointments")
     .select("id, start_time, customers(name), services(name_he)")
     .eq("id", request.appointment_id)
     .single();
-  const { data: business } = await supabase
+  const { data: business, error: bizErr } = await supabase
     .from("businesses")
     .select("name, phone")
     .eq("id", request.business_id)
     .single();
 
-  if (!appointment || !business?.phone) return;
-  if (!appointment.customers || !appointment.services) return;
+  if (!appointment || !business?.phone) {
+    console.error(
+      `[Notification] sendChangeRequestOwnerNotification: request ${requestId} — appointment lookup failed=${!appointment} (${aptErr?.message}), business.phone missing=${!business?.phone} (${bizErr?.message})`
+    );
+    return;
+  }
+  if (!appointment.customers || !appointment.services) {
+    console.error(
+      `[Notification] sendChangeRequestOwnerNotification: appointment ${request.appointment_id} missing customer/service join`
+    );
+    return;
+  }
 
   const customer = appointment.customers as unknown as { name: string };
   const service = appointment.services as unknown as { name_he: string };
@@ -717,20 +762,29 @@ export async function sendAttendanceOwnerNotification(
 ) {
   const supabase = createServiceClient();
 
-  const { data: appointment } = await supabase
+  const { data: appointment, error: aptErr } = await supabase
     .from("appointments")
     .select("id, business_id, start_time, customers(name), services(name_he)")
     .eq("id", appointmentId)
     .single();
-  if (!appointment) return;
+  if (!appointment) {
+    console.error(`[Notification] sendAttendanceOwnerNotification: appointment ${appointmentId} lookup failed`, aptErr?.message);
+    return;
+  }
 
-  const { data: business } = await supabase
+  const { data: business, error: bizErr } = await supabase
     .from("businesses")
     .select("name, phone")
     .eq("id", appointment.business_id)
     .single();
-  if (!business?.phone) return;
-  if (!appointment.customers || !appointment.services) return;
+  if (!business?.phone) {
+    console.error(`[Notification] sendAttendanceOwnerNotification: business ${appointment.business_id} has no owner phone`, bizErr?.message);
+    return;
+  }
+  if (!appointment.customers || !appointment.services) {
+    console.error(`[Notification] sendAttendanceOwnerNotification: appointment ${appointmentId} missing customer/service join`);
+    return;
+  }
 
   const customer = appointment.customers as unknown as { name: string };
   const service = appointment.services as unknown as { name_he: string };
@@ -785,20 +839,29 @@ export async function sendChangeRequestResolutionNotification(
 ) {
   const supabase = createServiceClient();
 
-  const { data: request } = await supabase
+  const { data: request, error: reqErr } = await supabase
     .from("appointment_change_requests")
     .select("id, type, appointment_id, business_id, proposed_start_time")
     .eq("id", requestId)
     .single();
-  if (!request) return;
+  if (!request) {
+    console.error(`[Notification] sendChangeRequestResolutionNotification: request ${requestId} lookup failed`, reqErr?.message);
+    return;
+  }
 
-  const { data: appointment } = await supabase
+  const { data: appointment, error: aptErr } = await supabase
     .from("appointments")
     .select("id, customers(id, name, phone, language_preference)")
     .eq("id", request.appointment_id)
     .single();
-  if (!appointment) return;
-  if (!appointment.customers) return;
+  if (!appointment) {
+    console.error(`[Notification] sendChangeRequestResolutionNotification: appointment ${request.appointment_id} lookup failed`, aptErr?.message);
+    return;
+  }
+  if (!appointment.customers) {
+    console.error(`[Notification] sendChangeRequestResolutionNotification: appointment ${request.appointment_id} missing customer join`);
+    return;
+  }
 
   const customer = appointment.customers as unknown as {
     id: string; name: string; phone: string; language_preference: string;
@@ -922,7 +985,7 @@ export async function processWaitlistNotifications(
   const supabase = createServiceClient();
 
   // Find waiting customers for this service/date
-  const { data: waitlistEntries } = await supabase
+  const { data: waitlistEntries, error: waitlistErr } = await supabase
     .from("waitlist")
     .select("id, customer_id")
     .eq("business_id", businessId)
@@ -932,6 +995,10 @@ export async function processWaitlistNotifications(
     .order("created_at")
     .limit(1);
 
+  if (waitlistErr) {
+    console.error(`[Notification] processWaitlistNotifications: waitlist query failed for business ${businessId}`, waitlistErr.message);
+    return;
+  }
   if (!waitlistEntries || waitlistEntries.length === 0) return;
 
   const entry = waitlistEntries[0];
@@ -943,27 +1010,35 @@ export async function processWaitlistNotifications(
     .eq("id", entry.id);
 
   // Get customer info for notification
-  const { data: customer } = await supabase
+  const { data: customer, error: custErr } = await supabase
     .from("customers")
     .select("phone, name, language_preference")
     .eq("id", entry.customer_id)
     .single();
 
-  if (!customer) return;
+  if (!customer) {
+    console.error(`[Notification] processWaitlistNotifications: customer ${entry.customer_id} lookup failed`, custErr?.message);
+    return;
+  }
 
-  const { data: service } = await supabase
+  const { data: service, error: serviceErr } = await supabase
     .from("services")
     .select("name_he")
     .eq("id", serviceId)
     .single();
 
-  const { data: business } = await supabase
+  const { data: business, error: bizErr } = await supabase
     .from("businesses")
     .select("name")
     .eq("id", businessId)
     .single();
 
-  if (!service || !business) return;
+  if (!service || !business) {
+    console.error(
+      `[Notification] processWaitlistNotifications: service ${serviceId} lookup failed=${!service} (${serviceErr?.message}), business ${businessId} lookup failed=${!business} (${bizErr?.message})`
+    );
+    return;
+  }
 
   const lang = customer.language_preference || "he";
   const message = renderTemplate("waitlist_available", lang, {
